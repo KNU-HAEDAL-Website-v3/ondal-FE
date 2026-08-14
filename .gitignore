@@ -1,0 +1,23 @@
+# ===== Node =====
+node_modules/
+dist/
+build/
+.cache/
+coverage/
+
+# ===== IDE / OS =====
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# ===== 로그 =====
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# ===== 비밀값 (절대 커밋 금지) =====
+.env
+.env.*
+!.env.example
