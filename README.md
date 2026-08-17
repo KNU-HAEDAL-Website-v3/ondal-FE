@@ -6,11 +6,21 @@ HOJ(Haedal Online Judge) 프론트엔드 — 학생·운영진 웹 화면.
 
 ## 실행법
 
-TODO — 프로젝트 스캐폴드 커밋 시 작성 예정입니다.
+```bash
+npm install      # 의존성 설치
+npm run dev      # 개발 서버 (http://localhost:5173)
+npm run build    # 타입 체크 + 프로덕션 빌드
+npm run lint     # 린트 (oxlint)
+```
 
 ## 기술 스택
 
-TODO — 조직 프론트 컨벤션 확인 후 확정해 기록 (프레임워크 / 패키지 매니저 / 린터)
+- **프레임워크**: React 19 + TypeScript (Vite 8, SPA)
+- **라우팅**: React Router 8 (선언형 `<BrowserRouter>`)
+- **서버 상태**: TanStack Query 5
+- **스타일**: Tailwind CSS 4 + shadcn/ui (Radix)
+- **패키지 매니저**: npm / **린터**: oxlint
+- **경로 별칭**: `@/*` → `src/*`
 
 ## 규칙
 
