@@ -1,23 +1,29 @@
 # ===== Node =====
 node_modules/
 dist/
+dist-ssr/
 build/
 .cache/
 coverage/
 
 # ===== IDE / OS =====
 .idea/
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 .DS_Store
 Thumbs.db
 
 # ===== 로그 =====
+logs
 *.log
 npm-debug.log*
 pnpm-debug.log*
+yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
 
 # ===== 비밀값 (절대 커밋 금지) =====
 .env
 .env.*
 !.env.example
+*.local
