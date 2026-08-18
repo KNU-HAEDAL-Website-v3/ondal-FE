@@ -56,7 +56,6 @@ jobs:
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           # 프로젝트가 아직 없으면 생성 (최초 1회만 실제로 실행됨)
           preCommands: |
-            wrangler whoami
             wrangler pages project list | grep -q "${{ env.PROJECT_NAME }}" || wrangler pages project create "${{ env.PROJECT_NAME }}" --production-branch main
           # --branch: main이면 프로덕션, 그 외는 미리보기. PR에서는 checkout이 merge 커밋이라 브랜치명을 직접 넘긴다.
           command: >-
