@@ -26,4 +26,6 @@ lerna-debug.log*
 .env
 .env.*
 !.env.example
+# mock 모드 스위치 (비밀값 아님, npm run dev:mock)
+!.env.mock
 *.local
