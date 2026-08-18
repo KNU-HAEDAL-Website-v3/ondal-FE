@@ -19,4 +19,5 @@
 ## API
 
 - 계약은 백엔드 springdoc(OpenAPI) 문서가 기준. 화면에서 필요한 필드가 없으면 프론트에서 조합하지 말고 백엔드에 API 변경을 요청한다.
-- 백엔드 연동 전에는 스텁 로그인 기준으로 개발한다.
+- 백엔드 연동 전에는 스텁 로그인 기준으로 개발한다. 로컬은 실제 BE(`npm run dev`, /api 프록시), 백엔드 없이 볼 때와 Pages 미리보기는 mock(`npm run dev:mock`, MSW). **mock 데이터(`src/mocks/data.ts`)는 BE `LocalDataSeeder`와 같은 계정·분반을 유지**하고, 응답 모양은 `src/api/types.ts`(BE DTO 미러)를 따른다.
+- 공통 처리 위치: 401 → `api/client.ts` + `RequireAuth` / 403 → `ApiErrorView`가 홈으로 / 404 → `ApiErrorView` 안내. 페이지는 에러를 `ApiErrorView`에 넘기기만 한다.
