@@ -38,6 +38,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # PR에서는 기본 checkout이 임시 merge 커밋이라 wrangler가 커밋 메시지를 못 읽음(fatal: bad object) → 브랜치 HEAD를 직접 체크아웃
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - uses: actions/setup-node@v4
         with:
