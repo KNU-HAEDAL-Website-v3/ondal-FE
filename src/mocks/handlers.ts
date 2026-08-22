@@ -1,4 +1,4 @@
-// MSW 핸들러 — BE 계약(design.md §3)을 흉내 낸다. 화면 미리보기용이지 계약의 기준이 아니다.
+// MSW 핸들러 - BE 계약(design.md 3절)을 흉내 낸다. 화면 미리보기용이지 계약의 기준이 아니다.
 import { delay, http, HttpResponse } from 'msw'
 import type { CohortResponse, ErrorResponse, UserResponse, UserSummary } from '@/api/types'
 import { cohorts, enrollments, users, type MockCohort, type MockUser } from './data'
@@ -20,14 +20,14 @@ function toUserResponse(u: MockUser): UserResponse {
   return { id: u.id, loginId: u.loginId, name: u.name, globalRole: u.globalRole }
 }
 
-/** BE RoleTitle.of — ADMIN이면 어디서든 해구르르 → OPERATOR면 교육운영진 → 나머지 */
+/** BE RoleTitle.of - ADMIN이면 어디서든 해구르르 → OPERATOR면 교육운영진 → 나머지 */
 function titleOf(user: MockUser, cohortId: number): string {
   if (user.globalRole === 'ADMIN') return '해구르르'
   const e = enrollments.find((x) => x.cohortId === cohortId && x.loginId === user.loginId)
   return e?.role === 'OPERATOR' ? '교육운영진' : '일반 수강생'
 }
 
-/** BE CohortResponseAssembler — 보는 사람(viewer)에 따라 studentCount·myRole·canManage가 달라진다 */
+/** BE CohortResponseAssembler - 보는 사람(viewer)에 따라 studentCount·myRole·canManage가 달라진다 */
 function toCohortResponse(cohort: MockCohort, viewer: MockUser): CohortResponse {
   const mine = enrollments.find((e) => e.cohortId === cohort.id && e.loginId === viewer.loginId)
   const isAdmin = viewer.globalRole === 'ADMIN'

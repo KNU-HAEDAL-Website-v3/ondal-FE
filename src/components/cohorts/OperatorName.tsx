@@ -2,7 +2,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import type { UserSummary } from '@/api/types'
 
 /**
- * 운영진 이름 — 다른 색으로 표시하고, 클릭하면 작은 팝업에 이름 + 직책(title). (PM 결정 2026-08-17)
+ * 운영진 이름 - 다른 색으로 표시하고, 클릭하면 작은 팝업에 이름 + 직책(title). (PM 결정 2026-08-17)
  * title은 서버가 정한 문자열('해구르르' / '교육운영진')을 그대로 보여준다.
  */
 export function OperatorName({ operator }: { operator: UserSummary }) {

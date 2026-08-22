@@ -7,7 +7,7 @@ import { OperatorName } from './OperatorName'
 
 /**
  * 홈의 분반 카드. 클릭하면 분반 페이지로.
- * 표시하는 값은 전부 서버 응답 그대로 — 내 배지(myTitle), 운영진(operators), 수강생 수(studentCount: STUDENT면 null이라 숨김).
+ * 표시하는 값은 전부 서버 응답 그대로 - 내 배지(myTitle), 운영진(operators), 수강생 수(studentCount: STUDENT면 null이라 숨김).
  */
 export function CohortCard({ cohort }: { cohort: CohortResponse }) {
   const navigate = useNavigate()

@@ -14,7 +14,7 @@ export function RequireAuth() {
   const location = useLocation()
   const { data: me, isPending, error, refetch } = useMe()
 
-  if (isPending) return <LoadingScreen label="로그인 상태 확인 중…" />
+  if (isPending) return <LoadingScreen label="로그인 상태 확인 중..." />
   if (error) return <ApiErrorView error={error} onRetry={() => void refetch()} />
   if (!me) {
     const returnTo = location.pathname + location.search

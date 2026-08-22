@@ -8,7 +8,7 @@ export const cohortKeys = {
   detail: (cohortId: number) => ['cohorts', 'detail', cohortId] as const,
 }
 
-/** 내가 소속된 모든 분반 (ACTIVE 먼저, 그 다음 ARCHIVED — 정렬은 서버가 한다). 빈 배열 = 미소속 */
+/** 내가 소속된 모든 분반 (ACTIVE 먼저, 그 다음 ARCHIVED - 정렬은 서버가 한다). 빈 배열 = 미소속 */
 export function fetchMyCohorts() {
   return apiFetch<CohortResponse[]>('/api/me/cohorts')
 }

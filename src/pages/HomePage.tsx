@@ -8,7 +8,7 @@ import { LoadingScreen } from '@/components/LoadingScreen'
 import { CohortSection } from '@/components/cohorts/CohortSection'
 
 /**
- * 홈 — 인사말 + 내 분반. (flows §1.1 UC-S2, design.md §3 FE 메모)
+ * 홈 - 인사말 + 내 분반. (flows 1.1절 UC-S2, design.md 3절 FE 메모)
  * GET /api/me/cohorts 를 status로 나눠 "현재 소속(ACTIVE)" / "지난 소속(ARCHIVED)" 두 접이식 섹션, 현재 소속이 위.
  * 아예 소속이 없으면(빈 배열) 미소속 안내.
  */
@@ -33,7 +33,7 @@ export default function HomePage() {
       )}
 
       {isPending ? (
-        <LoadingScreen label="분반 목록 불러오는 중…" />
+        <LoadingScreen label="분반 목록 불러오는 중..." />
       ) : error ? (
         <ApiErrorView error={error} onRetry={() => void refetch()} />
       ) : cohorts.length === 0 ? (
@@ -42,7 +42,7 @@ export default function HomePage() {
           title="아직 소속된 분반이 없어요"
           description={
             me?.globalRole === 'ADMIN'
-              ? '관리자는 소속과 무관하게 전체 분반을 관리합니다 — 분반 관리 화면은 다음 단계에서 추가됩니다.'
+              ? '관리자는 소속과 무관하게 전체 분반을 관리합니다 - 분반 관리 화면은 다음 단계에서 추가됩니다.'
               : '분반에 배정되면 여기에 표시됩니다. 운영진에게 문의해 주세요.'
           }
         />

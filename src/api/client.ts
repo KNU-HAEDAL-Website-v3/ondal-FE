@@ -1,7 +1,7 @@
 import type { ErrorResponse } from './types'
 
 /**
- * 서버 에러를 담는 예외. code로 분기한다 (design.md §3):
+ * 서버 에러를 담는 예외. code로 분기한다 (design.md 3절):
  *   UNAUTHENTICATED(401) → 재로그인 유도 · FORBIDDEN(403) → 홈 리다이렉트 · NOT_FOUND(404) → 안내 페이지
  * status 0 + code NETWORK 는 서버에 아예 닿지 못한 경우.
  */
@@ -30,13 +30,13 @@ export function setUnauthenticatedHandler(handler: () => void) {
 }
 
 interface RequestOptions extends Omit<RequestInit, 'body'> {
-  /** JSON 본문 — 직렬화와 Content-Type을 대신 처리 */
+  /** JSON 본문 - 직렬화와 Content-Type을 대신 처리 */
   json?: unknown
 }
 
 /**
- * fetch 래퍼 — 모든 API 호출은 이 함수를 거친다.
- * - credentials: 'include' — 세션 쿠키를 항상 싣는다
+ * fetch 래퍼 - 모든 API 호출은 이 함수를 거친다.
+ * - credentials: 'include' - 세션 쿠키를 항상 싣는다
  * - 2xx가 아니면 ApiError로 던진다 (본문 {code, message} 그대로)
  * - 204/빈 본문은 undefined
  */

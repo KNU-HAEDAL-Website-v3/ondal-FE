@@ -9,7 +9,7 @@ import { LoadingScreen } from '@/components/LoadingScreen'
 import { OperatorName } from '@/components/cohorts/OperatorName'
 
 /**
- * 분반 페이지 — 지금은 머리말(이름·상태·운영진)만. 차시 목록·과제는 다음 슬라이스(Assignment)에서 채운다.
+ * 분반 페이지 - 지금은 머리말(이름·상태·운영진)만. 차시 목록·과제는 다음 슬라이스(Assignment)에서 채운다.
  * 비소속 URL 직접 접근(403) → ApiErrorView가 홈으로 보낸다. 잘못된 id → 404 안내.
  */
 export default function CohortPage() {

@@ -5,8 +5,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { CohortCard } from './CohortCard'
 
 /**
- * "현재 소속" / "지난 소속" 접이식 섹션 (design.md §3 FE 메모).
- * 펼쳤는데 비어 있으면 아무것도 표시하지 않는다 — 별도 문구 없음.
+ * "현재 소속" / "지난 소속" 접이식 섹션 (design.md 3절 FE 메모).
+ * 펼쳤는데 비어 있으면 아무것도 표시하지 않는다 - 별도 문구 없음.
  */
 export function CohortSection({
   title,
