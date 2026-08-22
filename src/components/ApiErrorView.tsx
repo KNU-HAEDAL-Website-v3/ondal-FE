@@ -5,7 +5,7 @@ import { ApiError } from '@/api/client'
 import { Button } from '@/components/ui/button'
 
 /**
- * 조회 실패의 공통 처리 — 페이지는 에러를 여기로 넘기기만 한다 (CLAUDE.md 필수 동작 규칙 3, design.md §3).
+ * 조회 실패의 공통 처리 - 페이지는 에러를 여기로 넘기기만 한다 (CLAUDE.md 필수 동작 규칙 3, design.md 3절).
  * - FORBIDDEN(403): 홈으로 리다이렉트 + 안내 문구 (권한 밖 URL 직접 접근). **홈 리다이렉트는 이 코드에만**
  * - NOT_FOUND(404): 그 자리에서 "찾을 수 없음" 안내 (홈으로 보내지 않음)
  * - 그 외(네트워크·5xx): 서버 메시지 + 재시도

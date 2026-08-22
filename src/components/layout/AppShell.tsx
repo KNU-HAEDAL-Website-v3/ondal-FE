@@ -3,7 +3,7 @@ import { LogOut } from 'lucide-react'
 import { useLogout, useMe } from '@/api/auth'
 import { Button } from '@/components/ui/button'
 
-/** 로그인 후 모든 화면의 공통 틀 — 상단 바(로고 · 사용자 · 로그아웃) + 본문 */
+/** 로그인 후 모든 화면의 공통 틀 - 상단 바(로고 · 사용자 · 로그아웃) + 본문 */
 export function AppShell() {
   const { data: me } = useMe()
   const navigate = useNavigate()

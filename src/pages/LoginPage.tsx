@@ -10,14 +10,14 @@ import { LoadingScreen } from '@/components/LoadingScreen'
 
 const IS_MOCK = import.meta.env.VITE_API_MOCK === 'true'
 
-/** returnTo는 우리 사이트 안의 경로만 허용 — 외부 URL로 튕기는 오픈 리다이렉트 방지 */
+/** returnTo는 우리 사이트 안의 경로만 허용 - 외부 URL로 튕기는 오픈 리다이렉트 방지 */
 function safeReturnTo(value: string | null): string {
   if (value && value.startsWith('/') && !value.startsWith('//')) return value
   return '/'
 }
 
 /**
- * 스텁 로그인 화면 — 아이디만 입력하면 통과한다 (BE StubAuthService).
+ * 스텁 로그인 화면 - 아이디만 입력하면 통과한다 (BE StubAuthService).
  * 홈페이지 연동으로 바뀌면 이 폼이 "해달 홈페이지로 이동" 버튼으로 바뀌고, returnTo 복귀 흐름은 그대로 쓴다.
  */
 export default function LoginPage() {
@@ -28,7 +28,7 @@ export default function LoginPage() {
   const loginMutation = useLogin()
   const [loginId, setLoginId] = useState('')
 
-  if (isMePending) return <LoadingScreen label="로그인 상태 확인 중…" />
+  if (isMePending) return <LoadingScreen label="로그인 상태 확인 중..." />
   if (me) return <Navigate to={returnTo} replace />
 
   const handleSubmit = (e: FormEvent) => {
@@ -78,8 +78,8 @@ export default function LoginPage() {
 
           <p className="mt-4 text-center text-xs text-muted-foreground">
             {IS_MOCK
-              ? '미리보기(mock) 모드 — admin · operator1 · student1~3 또는 아무 아이디로 로그인해 보세요.'
-              : '개발용 스텁 로그인 — 아이디만 입력하면 통과합니다. 계정은 해달 홈페이지에서 만듭니다.'}
+              ? '미리보기(mock) 모드 - admin · operator1 · student1~3 또는 아무 아이디로 로그인해 보세요.'
+              : '개발용 스텁 로그인 - 아이디만 입력하면 통과합니다. 계정은 해달 홈페이지에서 만듭니다.'}
           </p>
         </CardContent>
       </Card>

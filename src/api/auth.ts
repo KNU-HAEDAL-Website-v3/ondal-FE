@@ -4,7 +4,7 @@ import type { UserResponse } from './types'
 
 export const meQueryKey = ['auth', 'me'] as const
 
-/** 로그인 상태 조회. 미로그인(401)은 에러가 아니라 null — 앱 진입 시 정상적으로 일어나는 일이다. */
+/** 로그인 상태 조회. 미로그인(401)은 에러가 아니라 null - 앱 진입 시 정상적으로 일어나는 일이다. */
 export async function fetchMe(): Promise<UserResponse | null> {
   try {
     return await apiFetch<UserResponse>('/api/auth/me')
@@ -14,7 +14,7 @@ export async function fetchMe(): Promise<UserResponse | null> {
   }
 }
 
-/** 스텁 로그인 — loginId만 보내면 통과 (없으면 MEMBER로 생성). 홈페이지 연동 시 이 함수만 바뀐다. */
+/** 스텁 로그인 - loginId만 보내면 통과 (없으면 MEMBER로 생성). 홈페이지 연동 시 이 함수만 바뀐다. */
 export function login(loginId: string) {
   return apiFetch<UserResponse>('/api/auth/login', { method: 'POST', json: { loginId } })
 }

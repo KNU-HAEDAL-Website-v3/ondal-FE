@@ -8,10 +8,10 @@ import NotFoundPage from '@/pages/NotFoundPage'
 
 /**
  * 라우트 한눈에 보기.
- *   /login                — 공개
- *   /                     — 홈 (로그인 필요)
- *   /cohorts/:cohortId    — 분반 페이지 (로그인 + 소속 필요, 비소속은 서버 403 → 홈)
- *   *                     — 404
+ *   /login                - 공개
+ *   /                     - 홈 (로그인 필요)
+ *   /cohorts/:cohortId    - 분반 페이지 (로그인 + 소속 필요, 비소속은 서버 403 → 홈)
+ *   *                     - 404
  * 로그인 필요 화면은 RequireAuth(울타리) → AppShell(상단 바) 아래에 둔다.
  */
 export function AppRoutes() {
