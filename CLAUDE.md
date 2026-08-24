@@ -1,6 +1,6 @@
-# CLAUDE.md - haedal-online-judge-frontend
+# CLAUDE.md - ondal-FE
 
-> 전체 기획·설계 맥락: [docs 레포](https://github.com/KNU-HAEDAL-Website-v3/haedal-online-judge-docs)
+> 전체 기획·설계 맥락: [docs 레포](https://github.com/KNU-HAEDAL-Website-v3/ondal-docs)
 > 이 파일: 프론트 작업 시 필요한 최소 맥락 요약본
 
 ## 화면 (P1)

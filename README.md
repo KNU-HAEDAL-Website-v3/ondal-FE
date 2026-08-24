@@ -1,8 +1,8 @@
-# haedal-online-judge-frontend
+# ondal-FE
 
-HOJ(Haedal Online Judge) 프론트엔드 - 학생·운영진 웹 화면.
+Ondal(온달, 해달 온라인 저지) 프론트엔드 - 학생·운영진 웹 화면.
 
-> 📚 **기획·설계 문서: [haedal-online-judge-docs](https://github.com/KNU-HAEDAL-Website-v3/haedal-online-judge-docs)에 집약. 화면 기준본: 와이어프레임 v2.1.**
+> 📚 **기획·설계 문서: [ondal-docs](https://github.com/KNU-HAEDAL-Website-v3/ondal-docs)에 집약. 화면 기준본: 와이어프레임 v2.1.**
 
 ## 실행법
 
