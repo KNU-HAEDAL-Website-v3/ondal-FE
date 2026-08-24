@@ -1,9 +1,43 @@
-import { Link, Outlet, useNavigate } from 'react-router'
-import { LogOut } from 'lucide-react'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router'
+import {
+  Bell,
+  BookOpen,
+  CircleHelp,
+  Code,
+  FileText,
+  GraduationCap,
+  History,
+  LayoutGrid,
+  LogOut,
+  Megaphone,
+  Search,
+  Settings,
+  UserCheck,
+} from 'lucide-react'
 import { useLogout, useMe } from '@/api/auth'
-import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 
-/** 로그인 후 모든 화면의 공통 틀 - 상단 바(로고 · 사용자 · 로그아웃) + 본문 */
+/** 사이드바 메뉴 (피그마 28:368 계열 SideNavBar). 화면이 채워지면 to만 유지한 채 내용이 늘어난다. */
+const NAV_ITEMS = [
+  { to: '/', label: '홈', icon: LayoutGrid, end: true },
+  { to: '/attendance', label: '출석', icon: UserCheck },
+  { to: '/problems', label: '문제', icon: Code },
+  { to: '/assignments', label: '과제', icon: FileText },
+  { to: '/submissions', label: '제출', icon: History },
+  { to: '/cohorts', label: '내 수업', icon: BookOpen },
+  { to: '/notices', label: '공지사항', icon: Megaphone },
+] as const
+
+const navItemClass = (isActive: boolean) =>
+  cn(
+    'flex items-center gap-4 rounded-[4px] border-l-4 py-2 pl-3 pr-2 text-sm transition-colors',
+    isActive
+      ? 'border-sidebar-primary bg-sidebar-accent font-medium text-sidebar-accent-foreground'
+      : 'border-transparent text-sidebar-foreground hover:bg-secondary',
+  )
+
+/** 로그인 후 모든 화면의 공통 틀 - 좌측 사이드바 + 상단 바 + 본문 */
 export function AppShell() {
   const { data: me } = useMe()
   const navigate = useNavigate()
@@ -15,29 +49,73 @@ export function AppShell() {
 
   return (
     <div className="min-h-svh bg-background">
-      <header className="border-b bg-card">
-        <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4">
-          <Link to="/" className="flex items-baseline gap-2">
-            <span className="text-lg font-bold tracking-tight text-primary">HOJ</span>
-            <span className="hidden text-xs text-muted-foreground sm:inline">Haedal Online Judge</span>
-          </Link>
-          {me && (
-            <div className="flex items-center gap-3">
-              <span className="text-sm">
-                <span className="font-medium">{me.name}</span>
-                <span className="text-muted-foreground">님</span>
-              </span>
-              <Button variant="ghost" size="sm" onClick={handleLogout} disabled={logoutMutation.isPending}>
-                <LogOut data-icon="inline-start" />
-                로그아웃
-              </Button>
-            </div>
-          )}
+      <aside className="fixed inset-y-0 left-0 z-20 flex w-60 flex-col border-r bg-sidebar px-4 py-6">
+        <Link to="/" className="mb-6 flex items-center gap-2 px-2">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-[2px] bg-sidebar-primary">
+            <GraduationCap className="size-5 text-white" />
+          </span>
+          <span className="flex flex-col">
+            <span className="text-xl leading-7 font-black tracking-tight text-primary">HOJ</span>
+            <span className="text-[11px] leading-4 font-semibold tracking-[0.55px] text-sidebar-foreground">
+              LMS Platform
+            </span>
+          </span>
+        </Link>
+
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
+          {NAV_ITEMS.map((item) => (
+            <NavLink key={item.to} to={item.to} end={'end' in item && item.end} className={({ isActive }) => navItemClass(isActive)}>
+              <item.icon className="size-[18px] shrink-0" />
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="flex flex-col gap-1 border-t pt-4">
+          <button type="button" className={cn(navItemClass(false), 'w-full')}>
+            <CircleHelp className="size-[18px] shrink-0" />
+            Support
+          </button>
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={logoutMutation.isPending}
+            className={cn(navItemClass(false), 'w-full disabled:opacity-50')}
+          >
+            <LogOut className="size-[18px] shrink-0" />
+            Sign Out
+          </button>
         </div>
-      </header>
-      <main className="mx-auto max-w-4xl px-4 py-8">
-        <Outlet />
-      </main>
+      </aside>
+
+      <div className="pl-60">
+        <header className="sticky top-0 z-10 flex h-12 items-center justify-between border-b bg-background px-4">
+          <div className="relative w-64">
+            <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Search..." className="h-8 rounded-[6px] bg-muted pl-8 text-[13px]" />
+          </div>
+          <div className="flex items-center gap-2">
+            <button type="button" aria-label="알림" className="flex size-8 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary">
+              <Bell className="size-5" />
+            </button>
+            <button type="button" aria-label="도움말" className="flex size-8 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary">
+              <CircleHelp className="size-5" />
+            </button>
+            <button type="button" aria-label="설정" className="flex size-8 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary">
+              <Settings className="size-5" />
+            </button>
+            <span
+              title={me?.name}
+              className="ml-2 flex size-8 items-center justify-center rounded-xl border bg-[#e3e1ec] text-xs font-semibold text-foreground"
+            >
+              {me?.name?.charAt(0) ?? '?'}
+            </span>
+          </div>
+        </header>
+        <main className="mx-auto w-full max-w-[1280px] p-10">
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }
