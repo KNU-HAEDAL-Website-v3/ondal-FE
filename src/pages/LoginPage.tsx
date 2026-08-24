@@ -42,7 +42,7 @@ export default function LoginPage() {
     <main className="flex min-h-svh items-center justify-center bg-muted/30 px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <p className="text-2xl font-bold tracking-tight text-primary">HOJ</p>
+          <p className="text-2xl font-bold tracking-tight text-primary">Ondal</p>
           <CardTitle className="text-lg">Haedal Online Judge</CardTitle>
           <CardDescription>해달 부원 아이디로 로그인하세요.</CardDescription>
         </CardHeader>

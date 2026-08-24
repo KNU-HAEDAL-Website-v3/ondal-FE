@@ -55,7 +55,7 @@ export function AppShell() {
             <GraduationCap className="size-5 text-white" />
           </span>
           <span className="flex flex-col">
-            <span className="text-xl leading-7 font-black tracking-tight text-primary">HOJ</span>
+            <span className="text-xl leading-7 font-black tracking-tight text-primary">Ondal</span>
             <span className="text-[11px] leading-4 font-semibold tracking-[0.55px] text-sidebar-foreground">
               LMS Platform
             </span>

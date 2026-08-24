@@ -3,7 +3,7 @@ import { delay, http, HttpResponse } from 'msw'
 import type { CohortResponse, ErrorResponse, UserResponse, UserSummary } from '@/api/types'
 import { cohorts, enrollments, users, type MockCohort, type MockUser } from './data'
 
-const SESSION_KEY = 'hoj-mock-session' // 새로고침해도 로그인이 유지되도록 sessionStorage에 loginId 보관
+const SESSION_KEY = 'ondal-mock-session' // 새로고침해도 로그인이 유지되도록 sessionStorage에 loginId 보관
 
 function currentUser(): MockUser | null {
   const loginId = sessionStorage.getItem(SESSION_KEY)
