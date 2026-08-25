@@ -45,3 +45,47 @@ export const enrollments: MockEnrollment[] = [
   { cohortId: 1, loginId: 'student3', role: 'STUDENT' },
   { cohortId: 2, loginId: 'student1', role: 'STUDENT' },
 ]
+
+export interface MockAssignment {
+  id: number
+  cohortId: number
+  sessionNo: number | null
+  title: string
+  description: string | null
+  dueAt: string
+  createdAt: string
+}
+
+const now = Date.now()
+const days = (n: number) => new Date(now + n * 86_400_000).toISOString()
+
+// BE LocalDataSeeder와 동일: 진행 중 분반에 1차시(마감 지남) · 2차시(마감 전) · 차시 없음
+export const assignments: MockAssignment[] = [
+  {
+    id: 1,
+    cohortId: 1,
+    sessionNo: 1,
+    title: '1차시 - 입출력 연습',
+    description: '백준 1000번(A+B)을 풀고 코드를 제출하세요. https://www.acmicpc.net/problem/1000',
+    dueAt: days(-3),
+    createdAt: days(-10),
+  },
+  {
+    id: 2,
+    cohortId: 1,
+    sessionNo: 2,
+    title: '2차시 - 조건문과 반복문',
+    description: '백준 2739번(구구단), 9498번(시험 성적)을 풀어 제출하세요.',
+    dueAt: days(7),
+    createdAt: days(-9),
+  },
+  {
+    id: 3,
+    cohortId: 1,
+    sessionNo: null,
+    title: '설문 - 스터디 시간 조사',
+    description: '차시와 무관한 공지형 과제입니다. 설문 링크를 확인하세요.',
+    dueAt: days(14),
+    createdAt: days(-8),
+  },
+]
