@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { SiteFooter } from '@/components/SiteFooter'
 
 const IS_MOCK = import.meta.env.VITE_API_MOCK === 'true'
 
@@ -39,11 +40,11 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-svh items-center justify-center bg-muted/30 px-4">
+    <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted/30 px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <p className="text-2xl font-bold tracking-tight text-primary">Ondal</p>
-          <CardTitle className="text-lg">Haedal Online Judge</CardTitle>
+          <CardTitle className="text-lg">해달 부트캠프 LMS</CardTitle>
           <CardDescription>해달 부원 아이디로 로그인하세요.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -83,6 +84,7 @@ export default function LoginPage() {
           </p>
         </CardContent>
       </Card>
+      <SiteFooter />
     </main>
   )
 }

@@ -15,6 +15,7 @@ import {
   UserCheck,
 } from 'lucide-react'
 import { useLogout, useMe } from '@/api/auth'
+import { SiteFooter } from '@/components/SiteFooter'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
@@ -115,6 +116,7 @@ export function AppShell() {
         <main className="mx-auto w-full max-w-[1280px] p-10">
           <Outlet />
         </main>
+        <SiteFooter className="mx-auto w-full max-w-[1280px] px-10 pb-6" />
       </div>
     </div>
   )
