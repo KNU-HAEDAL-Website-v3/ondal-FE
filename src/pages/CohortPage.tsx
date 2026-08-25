@@ -59,9 +59,21 @@ export default function CohortPage() {
         </p>
       </header>
 
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-6">
+        <div>
+          <h2 className="font-bold">과제</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            이 분반의 차시별 과제 목록{cohort.canManage && ' - 등록·수정·삭제 가능'}
+          </p>
+        </div>
+        <Button variant="outline" size="sm" asChild>
+          <Link to={`/assignments?cohort=${cohort.id}`}>과제 보기</Link>
+        </Button>
+      </section>
+
       <section className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-        차시·과제 목록은 다음 단계(Assignment 슬라이스)에서 여기에 표시됩니다.
-        {cohort.canManage && <p className="mt-1">운영 기능(과제 등록·수강생 배정·현황판)도 함께 추가됩니다.</p>}
+        제출·현황판은 다음 단계(제출 슬라이스)에서 여기에 추가됩니다.
+        {cohort.canManage && <p className="mt-1">수강생 배정 화면도 함께 추가됩니다.</p>}
       </section>
     </div>
   )

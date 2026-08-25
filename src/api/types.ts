@@ -44,6 +44,27 @@ export interface CohortResponse {
   canManage: boolean
 }
 
+/** GET·POST·PUT /api/cohorts/{cohortId}/assignments - 목록·단건·등록·수정 응답이 전부 이 하나 */
+export interface AssignmentResponse {
+  id: number
+  /** 차시 번호 - 차시에 속하지 않는 과제는 null. 목록은 차시 오름차순(null 마지막) → 등록순 (서버 정렬) */
+  sessionNo: number | null
+  title: string
+  /** 과제 내용 - 문제 링크를 포함한 자유 텍스트 (선택) */
+  description: string | null
+  /** 마감 시각(UTC) - KST 변환 표시는 프론트 몫. 지각 판정은 서버가 이 값으로 계산 */
+  dueAt: string
+  createdAt: string
+}
+
+/** POST·PUT /api/cohorts/{cohortId}/assignments 요청 본문 - 필드·검증 동일 (PUT은 전체 교체) */
+export interface AssignmentPayload {
+  sessionNo: number | null
+  title: string
+  description: string | null
+  dueAt: string
+}
+
 /** 모든 에러 응답의 공통 모양 */
 export interface ErrorResponse {
   code: string

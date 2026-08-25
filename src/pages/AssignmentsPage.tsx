@@ -1,93 +1,147 @@
-import { Link } from 'react-router'
-import { CalendarDays, ListFilter } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router'
+import { CalendarDays, Plus } from 'lucide-react'
+import { useAssignments } from '@/api/assignments'
+import { useCohort, useMyCohorts } from '@/api/cohorts'
+import type { AssignmentResponse } from '@/api/types'
 import { Button } from '@/components/ui/button'
+import { ApiErrorView, EmptyState } from '@/components/ApiErrorView'
+import { LoadingScreen } from '@/components/LoadingScreen'
+import { ddayLabel, formatKst, isOverdue } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
 
-// 모양 잡기용 견본 데이터 - Assignment BE API가 생기면 실제 데이터로 교체한다.
-const SAMPLE_ASSIGNMENTS = [
-  {
-    id: 4,
-    title: '4주차 과제',
-    description: '동적 계획법(Dynamic Programming) 기초 및 응용 문제 풀이',
-    dday: 'D-1',
-    status: '진행 중',
-    tone: 'green',
-    solved: 3,
-    total: 5,
-    deadline: '2026.08.29 23:59',
-    inProgress: true,
-  },
-  {
-    id: 3,
-    title: '3주차 과제',
-    description: '그래프 탐색 (BFS/DFS) 및 최단 경로 알고리즘',
-    dday: '완료',
-    status: '제출 완료',
-    tone: 'blue',
-    solved: 5,
-    total: 5,
-    deadline: '2026.08.22 23:59',
-    inProgress: false,
-  },
-] as const
-
-const STATUS_TONES: Record<string, string> = {
-  green: 'bg-[#dcfce7] text-[#16a34a]',
-  blue: 'bg-[#dbeafe] text-[#1d4ed8]',
-}
-
-/** 과제 목록 (피그마 28:1317) - 주차별 과제 카드 그리드 */
+/**
+ * 과제 목록 (피그마 28:1317) - 차시별 그룹, 서버 정렬(차시 오름차순 → 등록순) 그대로.
+ * 분반은 ?cohort= 로 정하고, 없으면 내 첫 분반(ACTIVE 우선 - 서버 정렬). 여러 분반 소속이면 셀렉터 표시.
+ * 제출 상태 배지·진행률은 서버 판정값이 아직 없어 표시하지 않는다 - 제출 슬라이스에서 추가 (docs assignment/fe.md).
+ */
 export default function AssignmentsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const myCohortsQuery = useMyCohorts()
+
+  const param = Number(searchParams.get('cohort'))
+  const cohortId = Number.isInteger(param) && param > 0 ? param : (myCohortsQuery.data?.[0]?.id ?? NaN)
+
+  const cohortQuery = useCohort(cohortId)
+  const assignmentsQuery = useAssignments(cohortId)
+
+  if (myCohortsQuery.isPending) return <LoadingScreen />
+  if (myCohortsQuery.error) {
+    return <ApiErrorView error={myCohortsQuery.error} onRetry={() => void myCohortsQuery.refetch()} />
+  }
+
+  const myCohorts = myCohortsQuery.data
+  if (!Number.isFinite(cohortId)) {
+    return <EmptyState title="소속된 분반이 없어요" description="분반에 배정되면 과제가 여기에 표시됩니다." />
+  }
+
+  const cohort = cohortQuery.data
+  const groups = groupBySession(assignmentsQuery.data ?? [])
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-2.5">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">과제</h1>
-          <p className="mt-1 text-sm text-muted-foreground">주차별 과제와 문제 목록</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {cohort ? `${cohort.name} - 차시별 과제 목록` : '차시별 과제 목록'}
+          </p>
         </div>
-        <Button variant="outline" size="sm" className="rounded-[2px]">
-          <ListFilter data-icon="inline-start" />
-          필터
-        </Button>
+        <div className="flex items-center gap-2">
+          {myCohorts.length > 1 && (
+            <select
+              value={cohortId}
+              onChange={(e) => setSearchParams({ cohort: e.target.value })}
+              aria-label="분반 선택"
+              className="h-8 rounded-[2px] border bg-card px-2 text-sm"
+            >
+              {myCohorts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.status === 'ARCHIVED' ? ' (보관됨)' : ''}
+                </option>
+              ))}
+            </select>
+          )}
+          {cohort?.canManage && (
+            <Button size="sm" className="rounded-[2px]" asChild>
+              <Link to={`/assignments/new?cohort=${cohortId}`}>
+                <Plus data-icon="inline-start" />
+                과제 등록
+              </Link>
+            </Button>
+          )}
+        </div>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {SAMPLE_ASSIGNMENTS.map((a) => {
-          const percent = Math.round((a.solved / a.total) * 100)
-          return (
-            <Link
-              key={a.id}
-              to={`/assignments/${a.id}`}
-              className={cn(
-                'rounded-lg border bg-card p-4 transition-shadow hover:shadow-md',
-                a.inProgress && 'border-l-4 border-l-primary',
-              )}
-            >
-              <div className="flex items-center justify-between">
-                <span className="rounded-[2px] bg-muted px-2 py-0.5 text-xs font-semibold text-[#464555]">{a.dday}</span>
-                <span className={cn('rounded-[2px] px-2 py-0.5 text-xs font-bold', STATUS_TONES[a.tone])}>{a.status}</span>
-              </div>
-              <h2 className="mt-3 text-lg font-bold">{a.title}</h2>
-              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{a.description}</p>
-              <div className="mt-4 border-t pt-3">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-[#464555]">
-                    진행률 ({a.solved}/{a.total})
-                  </span>
-                  <span className="font-mono font-semibold">{percent}%</span>
-                </div>
-                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#e3e1ec]">
-                  <div className="h-full rounded-full bg-[#4f46e5]" style={{ width: `${percent}%` }} />
-                </div>
-                <p className="mt-2.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CalendarDays className="size-3.5" />
-                  마감: {a.deadline}
-                </p>
-              </div>
-            </Link>
-          )
-        })}
-      </div>
+      {cohort?.status === 'ARCHIVED' && (
+        <p className="rounded-[2px] border bg-muted px-3 py-2 text-sm text-muted-foreground">
+          보관된 분반이에요. 과제 열람만 가능합니다.
+        </p>
+      )}
+
+      {assignmentsQuery.isPending ? (
+        <LoadingScreen />
+      ) : assignmentsQuery.error ? (
+        <ApiErrorView error={assignmentsQuery.error} onRetry={() => void assignmentsQuery.refetch()} />
+      ) : groups.length === 0 ? (
+        <EmptyState
+          title="등록된 과제가 없어요"
+          description={cohort?.canManage ? '첫 과제를 등록해 보세요.' : '과제가 등록되면 여기에 표시됩니다.'}
+        />
+      ) : (
+        groups.map((group) => (
+          <section key={group.label} className="space-y-3">
+            <h2 className="text-lg font-bold">{group.label}</h2>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {group.items.map((a) => (
+                <AssignmentCard key={a.id} assignment={a} cohortId={cohortId} />
+              ))}
+            </div>
+          </section>
+        ))
+      )}
     </div>
+  )
+}
+
+/** 서버 정렬이 차시끼리 붙여 주므로(오름차순, null 마지막) 인접 그룹으로만 묶으면 된다 */
+function groupBySession(assignments: AssignmentResponse[]) {
+  const groups: { label: string; items: AssignmentResponse[] }[] = []
+  for (const a of assignments) {
+    const label = a.sessionNo === null ? '기타' : `${a.sessionNo}차시`
+    const last = groups[groups.length - 1]
+    if (last && last.label === label) last.items.push(a)
+    else groups.push({ label, items: [a] })
+  }
+  return groups
+}
+
+function AssignmentCard({ assignment, cohortId }: { assignment: AssignmentResponse; cohortId: number }) {
+  const overdue = isOverdue(assignment.dueAt)
+  return (
+    <Link
+      to={`/assignments/${assignment.id}?cohort=${cohortId}`}
+      className={cn(
+        'rounded-lg border bg-card p-4 transition-shadow hover:shadow-md',
+        !overdue && 'border-l-4 border-l-primary',
+      )}
+    >
+      <span
+        className={cn(
+          'inline-block rounded-[2px] px-2 py-0.5 text-xs font-semibold',
+          overdue ? 'bg-muted text-muted-foreground' : 'bg-[#dcfce7] text-[#16a34a]',
+        )}
+      >
+        {ddayLabel(assignment.dueAt)}
+      </span>
+      <h3 className="mt-3 text-lg font-bold">{assignment.title}</h3>
+      {assignment.description && (
+        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{assignment.description}</p>
+      )}
+      <p className="mt-4 flex items-center gap-1.5 border-t pt-3 text-xs text-muted-foreground">
+        <CalendarDays className="size-3.5" />
+        마감: {formatKst(assignment.dueAt)}
+      </p>
+    </Link>
   )
 }

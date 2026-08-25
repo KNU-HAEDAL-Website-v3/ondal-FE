@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router'
 import { RequireAuth } from '@/components/RequireAuth'
 import { AppShell } from '@/components/layout/AppShell'
 import AssignmentDetailPage from '@/pages/AssignmentDetailPage'
+import AssignmentFormPage from '@/pages/AssignmentFormPage'
 import AssignmentsPage from '@/pages/AssignmentsPage'
 import AttendancePage from '@/pages/AttendancePage'
 import CohortPage from '@/pages/CohortPage'
@@ -19,8 +20,10 @@ import SubmissionsPage from '@/pages/SubmissionsPage'
  *   /                          - 홈 대시보드 (역할별: 수강자 / 교육운영진)
  *   /attendance                - 출석 (역할별: 출석 현황 / 출결 관리)
  *   /problems                  - 문제 목록
- *   /assignments               - 과제 목록
- *   /assignments/:assignmentId - 과제 상세
+ *   /assignments               - 과제 목록 (?cohort= 분반 선택, 기본 내 첫 분반)
+ *   /assignments/new           - 과제 등록 (운영진, ?cohort= 필수)
+ *   /assignments/:assignmentId - 과제 상세 (?cohort=)
+ *   /assignments/:assignmentId/edit - 과제 수정 (운영진)
  *   /submissions               - 제출 이력
  *   /cohorts                   - 내 수업 (분반 목록)
  *   /cohorts/:cohortId         - 분반 페이지 (비소속은 서버 403 → 홈)
@@ -38,7 +41,9 @@ export function AppRoutes() {
           <Route path="attendance" element={<AttendancePage />} />
           <Route path="problems" element={<ProblemsPage />} />
           <Route path="assignments" element={<AssignmentsPage />} />
+          <Route path="assignments/new" element={<AssignmentFormPage />} />
           <Route path="assignments/:assignmentId" element={<AssignmentDetailPage />} />
+          <Route path="assignments/:assignmentId/edit" element={<AssignmentFormPage />} />
           <Route path="submissions" element={<SubmissionsPage />} />
           <Route path="cohorts" element={<MyCohortsPage />} />
           <Route path="cohorts/:cohortId" element={<CohortPage />} />
