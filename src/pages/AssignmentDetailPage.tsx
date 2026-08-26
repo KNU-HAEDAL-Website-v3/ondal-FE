@@ -2,22 +2,28 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { ChevronRight, Clock, Pencil, Trash2 } from 'lucide-react'
 import { ApiError } from '@/api/client'
 import { useAssignment, useDeleteAssignment } from '@/api/assignments'
+import { useMe } from '@/api/auth'
 import { useCohort, useMyCohorts } from '@/api/cohorts'
 import { Button } from '@/components/ui/button'
 import { ApiErrorView, EmptyState } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { MySubmissionList } from '@/components/submissions/MySubmissionList'
+import { StatusBoard } from '@/components/submissions/StatusBoard'
+import { SubmissionForm } from '@/components/submissions/SubmissionForm'
+import { SubmissionStatusBadge } from '@/components/submissions/SubmissionStatusBadge'
 import { ddayLabel, formatKst, isOverdue } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
 
 /**
- * 과제 상세 (피그마 28:1433) - 설명 + 기간. 분반은 ?cohort= (목록에서 링크로 전달, 없으면 내 첫 분반).
- * 문제 목록·진행률·채점 결과는 P2·P3 요소라 아직 없다 (docs assignment/fe.md 3절).
- * 제출란은 제출 슬라이스에서 이 화면에 추가된다.
+ * 과제 상세 (피그마 28:1433) - 설명·기간 + 제출란·내 제출 기록, 운영진에게는 현황판까지.
+ * 분반은 ?cohort= (목록에서 링크로 전달, 없으면 내 첫 분반).
+ * 문제 목록·진행률·채점 결과는 P2·P3 요소라 아직 없다 (docs submission/fe.md 3절).
  */
 export default function AssignmentDetailPage() {
   const { assignmentId } = useParams()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const { data: me } = useMe()
 
   const aid = Number(assignmentId)
   const validAid = Number.isInteger(aid) && aid > 0
@@ -45,10 +51,19 @@ export default function AssignmentDetailPage() {
   const assignment = query.data
   const cohort = cohortQuery.data
   const canManage = cohort?.canManage ?? false
+  const archived = cohort?.status === 'ARCHIVED'
+  // 현황판 열람은 보관 분반에서도 유지 - canManage(ACTIVE 전용 쓰기 판정)가 아니라 역할로 판단
+  const canSeeBoard = me?.globalRole === 'ADMIN' || cohort?.myRole === 'OPERATOR'
   const overdue = isOverdue(assignment.dueAt)
 
   const handleDelete = () => {
-    if (!window.confirm('이 과제를 삭제할까요? 삭제하면 되돌릴 수 없어요.')) return
+    // 삭제 = 연쇄 - 경고 건수는 서버가 준 submissionCount (운영진에게만 값이 온다)
+    const count = assignment.submissionCount ?? 0
+    const warning =
+      count > 0
+        ? `이 과제를 삭제할까요? 제출물 ${count}건이 함께 삭제됩니다. 되돌릴 수 없어요.`
+        : '이 과제를 삭제할까요? 삭제하면 되돌릴 수 없어요.'
+    if (!window.confirm(warning)) return
     deleteMutation.mutate(assignment.id, {
       onSuccess: () => navigate(`/assignments?cohort=${cohortId}`, { replace: true }),
     })
@@ -65,7 +80,10 @@ export default function AssignmentDetailPage() {
           <span>{assignment.sessionNo === null ? '기타' : `${assignment.sessionNo}차시`}</span>
         </nav>
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-2xl font-bold tracking-tight">{assignment.title}</h1>
+          <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight">
+            {assignment.title}
+            {assignment.myStatus !== null && <SubmissionStatusBadge status={assignment.myStatus} />}
+          </h1>
           <div className="flex items-center gap-2">
             <span
               className={cn(
@@ -123,9 +141,17 @@ export default function AssignmentDetailPage() {
         </section>
       </div>
 
-      <section className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-        제출란은 다음 단계(제출 슬라이스)에서 여기에 추가됩니다.
-      </section>
+      {archived ? (
+        <p className="rounded-[2px] border bg-muted px-3 py-2 text-sm text-muted-foreground">
+          보관된 분반이라 새 제출은 할 수 없어요. 기록 열람은 가능합니다.
+        </p>
+      ) : (
+        <SubmissionForm cohortId={cohortId} assignmentId={assignment.id} dueAt={assignment.dueAt} />
+      )}
+
+      <MySubmissionList cohortId={cohortId} assignmentId={assignment.id} />
+
+      {canSeeBoard && <StatusBoard cohortId={cohortId} assignmentId={assignment.id} />}
     </div>
   )
 }

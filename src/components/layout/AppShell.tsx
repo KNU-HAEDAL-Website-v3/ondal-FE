@@ -6,7 +6,6 @@ import {
   Code,
   FileText,
   GraduationCap,
-  History,
   LayoutGrid,
   LogOut,
   Megaphone,
@@ -19,13 +18,15 @@ import { SiteFooter } from '@/components/SiteFooter'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
-/** 사이드바 메뉴 (피그마 28:368 계열 SideNavBar). 화면이 채워지면 to만 유지한 채 내용이 늘어난다. */
+/**
+ * 사이드바 메뉴 (피그마 28:368 계열 SideNavBar). 화면이 채워지면 to만 유지한 채 내용이 늘어난다.
+ * "제출"(분반 전체 제출 기록)은 P2 이연으로 메뉴에서 뺐다 - 제출은 과제 상세 안에서 한다 (docs submission/design.md 결정 8).
+ */
 const NAV_ITEMS = [
   { to: '/', label: '홈', icon: LayoutGrid, end: true },
   { to: '/attendance', label: '출석', icon: UserCheck },
   { to: '/problems', label: '문제', icon: Code },
   { to: '/assignments', label: '과제', icon: FileText },
-  { to: '/submissions', label: '제출', icon: History },
   { to: '/cohorts', label: '내 수업', icon: BookOpen },
   { to: '/notices', label: '공지사항', icon: Megaphone },
 ] as const

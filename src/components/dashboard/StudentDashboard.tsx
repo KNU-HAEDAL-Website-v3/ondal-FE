@@ -90,8 +90,9 @@ export function StudentDashboard({ cohorts }: { cohorts: CohortResponse[] }) {
           </table>
         </div>
         <div className="mt-2 text-center">
+          {/* 제출 이력은 과제 상세 안에 있다 - /submissions(전체 기록)는 P2 이연 */}
           <Button variant="link" size="sm" asChild>
-            <Link to="/submissions">더보기</Link>
+            <Link to="/assignments">과제에서 제출 기록 보기</Link>
           </Button>
         </div>
       </section>

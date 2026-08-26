@@ -58,6 +58,7 @@ export interface MockAssignment {
 
 const now = Date.now()
 const days = (n: number) => new Date(now + n * 86_400_000).toISOString()
+const hours = (n: number) => new Date(now + n * 3_600_000).toISOString()
 
 // BE LocalDataSeeder와 동일: 진행 중 분반에 1차시(마감 지남) · 2차시(마감 전) · 차시 없음
 export const assignments: MockAssignment[] = [
@@ -88,4 +89,36 @@ export const assignments: MockAssignment[] = [
     dueAt: days(14),
     createdAt: days(-8),
   },
+]
+
+export interface MockSubmission {
+  id: number
+  assignmentId: number
+  loginId: string
+  codeText: string | null
+  language: string | null
+  fileName: string | null
+  fileSize: number | null
+  linkUrl: string | null
+  submittedAt: string
+}
+
+const sampleCode = `#include <stdio.h>
+
+int main(void) {
+    int a, b;
+    scanf("%d %d", &a, &b);
+    printf("%d\\n", a + b);
+    return 0;
+}
+`
+
+// BE LocalDataSeeder와 동일: 1차시(마감 -3일)에 상태 4종 재현 - student1 제출 / student2 제출(추가) / student3 지각.
+// 2차시는 student1만 제출(나머지 미제출). zip 제출은 시딩하지 않는다(파일 실체가 필요해 부적합).
+export const submissions: MockSubmission[] = [
+  { id: 1, assignmentId: 1, loginId: 'student1', codeText: sampleCode, language: 'C', fileName: null, fileSize: null, linkUrl: null, submittedAt: days(-5) },
+  { id: 2, assignmentId: 1, loginId: 'student2', codeText: sampleCode, language: 'C', fileName: null, fileSize: null, linkUrl: null, submittedAt: days(-4) },
+  { id: 3, assignmentId: 1, loginId: 'student2', codeText: `${sampleCode}// 리팩터링 재제출\n`, language: 'C', fileName: null, fileSize: null, linkUrl: 'https://github.com/example/aplusb', submittedAt: days(-1) },
+  { id: 4, assignmentId: 1, loginId: 'student3', codeText: null, language: null, fileName: null, fileSize: null, linkUrl: 'https://github.com/example/late-submit', submittedAt: days(-1) },
+  { id: 5, assignmentId: 2, loginId: 'student1', codeText: sampleCode, language: 'C', fileName: null, fileSize: null, linkUrl: null, submittedAt: hours(-1) },
 ]

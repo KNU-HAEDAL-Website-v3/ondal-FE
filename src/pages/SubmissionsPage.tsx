@@ -2,7 +2,9 @@ import { ChevronLeft, ChevronRight, ListFilter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-// 모양 잡기용 견본 데이터 - Submission BE API가 생기면 실제 데이터로 교체한다.
+// [P2 이연 - 현재 라우트 미노출] 분반 전체 제출 기록 화면. 화면의 본체가 채점 결과(맞았습니다/시간/메모리)라
+// 자동 채점(P2) 이후에 다시 붙인다 (docs submission/design.md 결정 8). P1 제출·이력은 과제 상세 안에 있다.
+// 모양 잡기용 견본 데이터 - 채점 BE가 생기면 실제 데이터로 교체한다.
 const SAMPLE_SUBMISSIONS = [
   { id: 6, submittedAt: '2026-08-24 14:02', problem: 'Valid Parentheses', language: 'Python 3', result: '틀렸습니다', tone: 'red', time: '82 ms', memory: '31,120 KB' },
   { id: 5, submittedAt: '2026-08-23 21:47', problem: 'Valid Parentheses', language: 'Python 3', result: '컴파일 에러', tone: 'yellow', time: '-', memory: '-' },
