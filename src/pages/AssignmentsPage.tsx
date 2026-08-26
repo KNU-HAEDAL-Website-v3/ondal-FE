@@ -6,13 +6,14 @@ import type { AssignmentResponse } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { ApiErrorView, EmptyState } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { SubmissionStatusBadge } from '@/components/submissions/SubmissionStatusBadge'
 import { ddayLabel, formatKst, isOverdue } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
 
 /**
  * 과제 목록 (피그마 28:1317) - 차시별 그룹, 서버 정렬(차시 오름차순 → 등록순) 그대로.
  * 분반은 ?cohort= 로 정하고, 없으면 내 첫 분반(ACTIVE 우선 - 서버 정렬). 여러 분반 소속이면 셀렉터 표시.
- * 제출 상태 배지·진행률은 서버 판정값이 아직 없어 표시하지 않는다 - 제출 슬라이스에서 추가 (docs assignment/fe.md).
+ * 카드의 상태 배지 = 서버 판정값 myStatus 그대로 (프론트 재계산 금지).
  */
 export default function AssignmentsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -126,13 +127,16 @@ function AssignmentCard({ assignment, cohortId }: { assignment: AssignmentRespon
         !overdue && 'border-l-4 border-l-primary',
       )}
     >
-      <span
-        className={cn(
-          'inline-block rounded-[2px] px-2 py-0.5 text-xs font-semibold',
-          overdue ? 'bg-muted text-muted-foreground' : 'bg-[#dcfce7] text-[#16a34a]',
-        )}
-      >
-        {ddayLabel(assignment.dueAt)}
+      <span className="flex flex-wrap items-center gap-1.5">
+        <span
+          className={cn(
+            'inline-block rounded-[2px] px-2 py-0.5 text-xs font-semibold',
+            overdue ? 'bg-muted text-muted-foreground' : 'bg-[#dcfce7] text-[#16a34a]',
+          )}
+        >
+          {ddayLabel(assignment.dueAt)}
+        </span>
+        {assignment.myStatus !== null && <SubmissionStatusBadge status={assignment.myStatus} />}
       </span>
       <h3 className="mt-3 text-lg font-bold">{assignment.title}</h3>
       {assignment.description && (

@@ -12,7 +12,6 @@ import MyCohortsPage from '@/pages/MyCohortsPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 import NoticesPage from '@/pages/NoticesPage'
 import ProblemsPage from '@/pages/ProblemsPage'
-import SubmissionsPage from '@/pages/SubmissionsPage'
 
 /**
  * 라우트 한눈에 보기.
@@ -22,9 +21,8 @@ import SubmissionsPage from '@/pages/SubmissionsPage'
  *   /problems                  - 문제 목록
  *   /assignments               - 과제 목록 (?cohort= 분반 선택, 기본 내 첫 분반)
  *   /assignments/new           - 과제 등록 (운영진, ?cohort= 필수)
- *   /assignments/:assignmentId - 과제 상세 (?cohort=)
+ *   /assignments/:assignmentId - 과제 상세 (?cohort=) - 제출란·내 기록·현황판(운영진) 포함
  *   /assignments/:assignmentId/edit - 과제 수정 (운영진)
- *   /submissions               - 제출 이력
  *   /cohorts                   - 내 수업 (분반 목록)
  *   /cohorts/:cohortId         - 분반 페이지 (비소속은 서버 403 → 홈)
  *   /notices                   - 공지사항 (역할별: 목록 / 관리)
@@ -44,7 +42,7 @@ export function AppRoutes() {
           <Route path="assignments/new" element={<AssignmentFormPage />} />
           <Route path="assignments/:assignmentId" element={<AssignmentDetailPage />} />
           <Route path="assignments/:assignmentId/edit" element={<AssignmentFormPage />} />
-          <Route path="submissions" element={<SubmissionsPage />} />
+          {/* /submissions(분반 전체 제출 기록)는 P2 이연 - 채점 결과 중심 화면 (docs submission/design.md 결정 8) */}
           <Route path="cohorts" element={<MyCohortsPage />} />
           <Route path="cohorts/:cohortId" element={<CohortPage />} />
           <Route path="notices" element={<NoticesPage />} />

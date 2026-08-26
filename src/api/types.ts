@@ -44,6 +44,9 @@ export interface CohortResponse {
   canManage: boolean
 }
 
+/** 제출 상태 4종 - 서버 계산값. 프론트 재계산 금지, 배지 매핑만 한다 (CLAUDE.md 규칙 4) */
+export type SubmissionStatus = 'NOT_SUBMITTED' | 'SUBMITTED' | 'SUBMITTED_EXTRA' | 'LATE'
+
 /** GET·POST·PUT /api/cohorts/{cohortId}/assignments - 목록·단건·등록·수정 응답이 전부 이 하나 */
 export interface AssignmentResponse {
   id: number
@@ -55,6 +58,10 @@ export interface AssignmentResponse {
   /** 마감 시각(UTC) - KST 변환 표시는 프론트 몫. 지각 판정은 서버가 이 값으로 계산 */
   dueAt: string
   createdAt: string
+  /** 요청자 본인의 제출 상태 - 분반 비소속(비소속 관리자)이면 null */
+  myStatus: SubmissionStatus | null
+  /** 제출 이력 총 건수 - 운영진·관리자만 값, 수강생은 null. 삭제 확인 창의 "제출물 N건" 경고에 사용 */
+  submissionCount: number | null
 }
 
 /** POST·PUT /api/cohorts/{cohortId}/assignments 요청 본문 - 필드·검증 동일 (PUT은 전체 교체) */
@@ -63,6 +70,50 @@ export interface AssignmentPayload {
   title: string
   description: string | null
   dueAt: string
+}
+
+/** POST .../submissions 의 request JSON 파트 - 파일은 별도 multipart 파트(file). 조합 규칙(본문 택1·최소 1개)은 서버 검증 */
+export interface SubmissionPayload {
+  codeText: string | null
+  /** 코드 제출일 때만 (선택) */
+  language: string | null
+  linkUrl: string | null
+}
+
+/** POST(#18)·GET 단건(#20) 응답 - 코드 전문 포함 */
+export interface SubmissionResponse {
+  id: number
+  user: UserSummary
+  codeText: string | null
+  language: string | null
+  fileName: string | null
+  fileSize: number | null
+  linkUrl: string | null
+  /** 제출 시각(UTC) = 서버 수신 시각 */
+  submittedAt: string
+  /** 지각 여부 - 서버 판정값. 마감이 수정되면 재조회 시 바뀔 수 있다 */
+  late: boolean
+}
+
+/** GET .../submissions/my(#19) 행 - 코드 전문 제외(확인은 단건 #20) */
+export interface SubmissionSummary {
+  id: number
+  language: string | null
+  fileName: string | null
+  fileSize: number | null
+  linkUrl: string | null
+  submittedAt: string
+  late: boolean
+}
+
+/** GET .../status-board(#22) 행 - 현재 수강생 명단(이름순), 미제출자 포함 */
+export interface StatusBoardRow {
+  user: UserSummary
+  status: SubmissionStatus
+  submissionCount: number
+  lastSubmittedAt: string | null
+  /** 최신 제출 id - 상세(#20)·파일(#21) 진입용. 제출 없으면 null */
+  latestSubmissionId: number | null
 }
 
 /** 모든 에러 응답의 공통 모양 */

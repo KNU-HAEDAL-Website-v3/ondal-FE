@@ -21,7 +21,8 @@ export class ApiError extends Error {
   }
 }
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+/** 파일 다운로드처럼 fetch 없이 브라우저가 직접 여는 URL을 만들 때도 이 값을 쓴다 */
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 /** 401을 받았을 때 앱 전역에서 할 일(세션 만료 처리). main에서 등록한다. */
 let onUnauthenticated: (() => void) | undefined
@@ -32,6 +33,8 @@ export function setUnauthenticatedHandler(handler: () => void) {
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   /** JSON 본문 - 직렬화와 Content-Type을 대신 처리 */
   json?: unknown
+  /** multipart 본문(제출 등) - Content-Type은 브라우저가 boundary와 함께 채우므로 건드리지 않는다 */
+  form?: FormData
 }
 
 /**
@@ -40,7 +43,7 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
  * - 2xx가 아니면 ApiError로 던진다 (본문 {code, message} 그대로)
  * - 204/빈 본문은 undefined
  */
-export async function apiFetch<T>(path: string, { json, headers, ...init }: RequestOptions = {}): Promise<T> {
+export async function apiFetch<T>(path: string, { json, form, headers, ...init }: RequestOptions = {}): Promise<T> {
   let res: Response
   try {
     res = await fetch(BASE_URL + path, {
@@ -51,7 +54,7 @@ export async function apiFetch<T>(path: string, { json, headers, ...init }: Requ
         ...(json !== undefined ? { 'Content-Type': 'application/json' } : {}),
         ...headers,
       },
-      body: json !== undefined ? JSON.stringify(json) : undefined,
+      body: json !== undefined ? JSON.stringify(json) : form,
     })
   } catch {
     throw new ApiError(0, 'NETWORK', '서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.')
