@@ -169,11 +169,12 @@ function toSubmissionResponse(s: MockSubmission, a: MockAssignment, cohortId: nu
   return {
     id: s.id,
     user: toUserSummary(s.loginId, cohortId),
+    type: s.type,
     codeText: s.codeText,
     language: s.language,
     fileName: s.fileName,
     fileSize: s.fileSize,
-    linkUrl: s.linkUrl,
+    links: s.links,
     submittedAt: s.submittedAt,
     late: s.submittedAt > a.dueAt,
   }
@@ -182,10 +183,11 @@ function toSubmissionResponse(s: MockSubmission, a: MockAssignment, cohortId: nu
 function toSubmissionSummary(s: MockSubmission, a: MockAssignment): SubmissionSummary {
   return {
     id: s.id,
+    type: s.type,
     language: s.language,
     fileName: s.fileName,
     fileSize: s.fileSize,
-    linkUrl: s.linkUrl,
+    links: s.links,
     submittedAt: s.submittedAt,
     late: s.submittedAt > a.dueAt,
   }
@@ -367,36 +369,53 @@ export const handlers = [
       return error(400, 'INVALID_INPUT', '요청 본문을 읽을 수 없습니다.')
     }
 
-    // BE SubmissionService.validate 미러 - 빈 문자열은 없는 것으로
+    // BE SubmissionService.validate 미러 - 3종 택1(type), 형태별 필수·금지
     const normalize = (v: unknown) => (typeof v === 'string' && v.trim() !== '' ? v : null)
+    const type = body.type
+    if (type !== 'CODE' && type !== 'FILE' && type !== 'LINK') {
+      return error(400, 'INVALID_INPUT', '제출 형태는 필수입니다.')
+    }
     const codeText = normalize(body.codeText)
     const language = normalize(body.language)
-    const linkUrl = normalize(body.linkUrl)
+    const linkUrls = Array.isArray(body.linkUrls) ? body.linkUrls.map((u) => (typeof u === 'string' ? u.trim() : '')) : []
     const filePart = formData.get('file')
     const file = filePart instanceof File && filePart.size > 0 ? filePart : null
 
     if (codeText !== null && codeText.length > 100_000) return error(400, 'INVALID_INPUT', '코드는 100000자 이하여야 합니다.')
     if (language !== null && language.length > 30) return error(400, 'INVALID_INPUT', '제출 언어는 30자 이하여야 합니다.')
-    if (linkUrl !== null && linkUrl.length > 2048) return error(400, 'INVALID_INPUT', '링크는 2048자 이하여야 합니다.')
-    if (codeText !== null && file !== null) return error(400, 'INVALID_INPUT', '본문은 코드와 파일 중 하나만 담을 수 있습니다.')
-    if (codeText === null && file === null && linkUrl === null) {
-      return error(400, 'INVALID_INPUT', '코드, 파일, 링크 중 최소 1개는 있어야 합니다.')
+    if (linkUrls.some((u) => u.length > 2048)) return error(400, 'INVALID_INPUT', '링크는 2048자 이하여야 합니다.')
+    if (type === 'CODE') {
+      if (codeText === null) return error(400, 'INVALID_INPUT', '코드 제출에는 코드가 있어야 합니다.')
+      if (language === null) return error(400, 'INVALID_INPUT', '코드 제출에는 제출 언어가 있어야 합니다.')
+      if (file !== null || linkUrls.length > 0) return error(400, 'INVALID_INPUT', '코드 제출에는 파일·링크를 담을 수 없습니다.')
     }
-    if (language !== null && codeText === null) return error(400, 'INVALID_INPUT', '제출 언어는 코드 제출에만 지정할 수 있습니다.')
-    if (file !== null) {
+    if (type === 'FILE') {
+      if (file === null) return error(400, 'INVALID_INPUT', '파일 제출에는 zip 파일이 있어야 합니다.')
+      if (codeText !== null || language !== null || linkUrls.length > 0) {
+        return error(400, 'INVALID_INPUT', '파일 제출에는 코드·언어·링크를 담을 수 없습니다.')
+      }
       if (!file.name.toLowerCase().endsWith('.zip')) return error(400, 'INVALID_INPUT', 'zip 파일만 업로드할 수 있습니다.')
-      if (file.size > 20 * 1024 * 1024) return error(400, 'INVALID_INPUT', '파일은 20MB 이하여야 합니다.')
+      if (file.size > 10 * 1024 * 1024) return error(400, 'INVALID_INPUT', '파일은 10MB 이하여야 합니다.')
+    }
+    if (type === 'LINK') {
+      if (codeText !== null || language !== null || file !== null) {
+        return error(400, 'INVALID_INPUT', '링크 제출에는 코드·언어·파일을 담을 수 없습니다.')
+      }
+      if (linkUrls.length === 0) return error(400, 'INVALID_INPUT', '링크 제출에는 링크가 1개 이상 있어야 합니다.')
+      if (linkUrls.length > 5) return error(400, 'INVALID_INPUT', '링크는 최대 5개까지입니다.')
+      if (linkUrls.some((u) => u === '')) return error(400, 'INVALID_INPUT', '빈 링크는 담을 수 없습니다.')
     }
 
     const created: MockSubmission = {
       id: Math.max(0, ...submissions.map((s) => s.id)) + 1,
       assignmentId: guard.assignment.id,
       loginId: user.loginId,
-      codeText,
-      language,
-      fileName: file?.name ?? null,
-      fileSize: file?.size ?? null,
-      linkUrl,
+      type,
+      codeText: type === 'CODE' ? codeText : null,
+      language: type === 'CODE' ? language : null,
+      fileName: type === 'FILE' ? (file?.name ?? null) : null,
+      fileSize: type === 'FILE' ? (file?.size ?? null) : null,
+      links: type === 'LINK' ? linkUrls : [],
       submittedAt: new Date().toISOString(), // 서버 수신 시각 기준 지각 판정
     }
     submissions.push(created)

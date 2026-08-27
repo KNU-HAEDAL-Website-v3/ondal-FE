@@ -33,29 +33,30 @@ export function SubmissionDetailView({
           {submission.codeText}
         </pre>
       )}
-      <div className="flex flex-wrap items-center gap-3 text-sm">
+      <div className="space-y-1.5 text-sm">
         {submission.fileName !== null && (
           <a
             href={submissionFileUrl(cohortId, assignmentId, submission.id)}
             download={submission.fileName}
-            className="flex items-center gap-1.5 font-semibold text-primary hover:underline"
+            className="flex w-fit items-center gap-1.5 font-semibold text-primary hover:underline"
           >
             <Download className="size-4" />
             {submission.fileName}
             {submission.fileSize !== null && ` (${(submission.fileSize / 1024).toFixed(0)}KB)`}
           </a>
         )}
-        {submission.linkUrl !== null && (
+        {submission.links.map((url, index) => (
           <a
-            href={submission.linkUrl}
+            key={url + index}
+            href={url}
             target="_blank"
             rel="noreferrer noopener"
-            className="flex items-center gap-1.5 font-semibold text-primary hover:underline"
+            className="flex w-fit max-w-full items-center gap-1.5 font-semibold text-primary hover:underline"
           >
-            <ExternalLink className="size-4" />
-            제출 링크 열기
+            <ExternalLink className="size-4 shrink-0" />
+            <span className="truncate">{url}</span>
           </a>
-        )}
+        ))}
       </div>
     </div>
   )
