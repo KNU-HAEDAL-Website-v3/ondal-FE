@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Code, FileArchive, Link2, Plus, Send, X } from 'lucide-react'
 import { useCreateSubmission } from '@/api/submissions'
 import type { SubmissionType } from '@/api/types'
+import { CodeEditor } from '@/components/code/CodePane'
 import { Button } from '@/components/ui/button'
 import { isOverdue } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
@@ -130,14 +131,7 @@ export function SubmissionForm({ cohortId, assignmentId, dueAt }: { cohortId: nu
 
       <div className="space-y-3 p-4">
         {tab === 'CODE' && (
-          <textarea
-            value={codeText}
-            onChange={(e) => setCodeText(e.target.value)}
-            placeholder="코드를 붙여넣으세요"
-            aria-label="제출 코드"
-            spellCheck={false}
-            className="h-56 w-full resize-y rounded-[2px] border bg-muted/40 p-3 font-mono text-sm outline-none focus:border-primary"
-          />
+          <CodeEditor value={codeText} onChange={setCodeText} language={language === '' ? null : language} />
         )}
         {tab === 'FILE' && (
           <div className="flex h-56 flex-col items-center justify-center gap-2 rounded-[2px] border border-dashed p-6 text-center">
