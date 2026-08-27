@@ -110,7 +110,7 @@ export default function AssignmentFormPage() {
             onChange={(e) => setTitle(e.target.value)}
             required
             maxLength={200}
-            placeholder="예: 백준 1000번 - A+B"
+            placeholder="예: 1차시 - 입출력 연습"
           />
         </div>
 

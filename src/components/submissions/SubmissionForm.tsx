@@ -1,31 +1,40 @@
 import { useRef, useState } from 'react'
-import { Code, FileArchive, Send } from 'lucide-react'
+import { Code, FileArchive, Link2, Plus, Send, X } from 'lucide-react'
 import { useCreateSubmission } from '@/api/submissions'
+import type { SubmissionType } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { isOverdue } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
 
 const LANGUAGES = ['C', 'C++', 'Java', 'Python 3', 'JavaScript', 'TypeScript'] as const
-const MAX_FILE_SIZE = 20 * 1024 * 1024 // 서버 제한(20MB)의 선반영 - 최종 판정은 서버
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 서버 제한(10MB)의 선반영 - 최종 판정은 서버
+const MAX_LINKS = 5
 
 /**
- * 제출 폼 (#18) - 본문은 코드/파일 탭 택1, 링크는 공통. 최소 1개여야 제출 가능(버튼 비활성으로 선반영).
+ * 제출 폼 (#18) - 3종 택1(type): 코드(언어 필수) / zip 파일(10MB) / 링크(1~5개, + 버튼).
+ * 선택한 탭의 필수값이 다 차야 제출 가능(버튼 비활성으로 서버 400 선반영).
  * CLAUDE.md 필수 규칙: 실패 시 입력 보존(상태를 지우지 않는다) + 요청 중 버튼 잠금.
  * 마감 후에도 제출 가능 - "지각 제출로 기록" 확인 안내 후 진행 (flows UC-S4 A1).
  */
 export function SubmissionForm({ cohortId, assignmentId, dueAt }: { cohortId: number; assignmentId: number; dueAt: string }) {
-  const [tab, setTab] = useState<'code' | 'file'>('code')
+  const [tab, setTab] = useState<SubmissionType>('CODE')
   const [codeText, setCodeText] = useState('')
   const [language, setLanguage] = useState('')
-  const [linkUrl, setLinkUrl] = useState('')
+  const [linkUrls, setLinkUrls] = useState<string[]>([''])
   const [file, setFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const mutation = useCreateSubmission(cohortId, assignmentId)
 
-  const hasBody = tab === 'code' ? codeText.trim() !== '' : file !== null
-  const canSubmit = (hasBody || linkUrl.trim() !== '') && !mutation.isPending
+  const filledLinks = linkUrls.map((url) => url.trim()).filter((url) => url !== '')
+  const canSubmit =
+    !mutation.isPending &&
+    (tab === 'CODE'
+      ? codeText.trim() !== '' && language !== ''
+      : tab === 'FILE'
+        ? file !== null
+        : filledLinks.length >= 1)
 
   const handleFileChange = (selected: File | null) => {
     setFileError(null)
@@ -40,30 +49,38 @@ export function SubmissionForm({ cohortId, assignmentId, dueAt }: { cohortId: nu
     }
     if (selected.size > MAX_FILE_SIZE) {
       setFile(null)
-      setFileError('파일은 20MB 이하여야 해요.')
+      setFileError('파일은 10MB 이하여야 해요.')
       return
     }
     setFile(selected)
   }
 
+  const setLinkAt = (index: number, value: string) => {
+    setLinkUrls((prev) => prev.map((url, i) => (i === index ? value : url)))
+  }
+
+  const removeLinkAt = (index: number) => {
+    setLinkUrls((prev) => (prev.length === 1 ? [''] : prev.filter((_, i) => i !== index)))
+  }
+
   const handleSubmit = () => {
     if (isOverdue(dueAt) && !window.confirm('마감이 지난 과제예요. 지각 제출로 기록됩니다. 계속할까요?')) return
-    const usingCode = tab === 'code' && codeText.trim() !== ''
     mutation.mutate(
       {
         payload: {
-          codeText: usingCode ? codeText : null,
-          language: usingCode && language !== '' ? language : null,
-          linkUrl: linkUrl.trim() !== '' ? linkUrl.trim() : null,
+          type: tab,
+          codeText: tab === 'CODE' ? codeText : null,
+          language: tab === 'CODE' ? language : null,
+          linkUrls: tab === 'LINK' ? filledLinks : null,
         },
-        file: tab === 'file' ? file : null,
+        file: tab === 'FILE' ? file : null,
       },
       {
         onSuccess: () => {
           // 성공했을 때만 비운다 - 실패 시 입력 보존 (CLAUDE.md 규칙 1)
           setCodeText('')
           setLanguage('')
-          setLinkUrl('')
+          setLinkUrls([''])
           setFile(null)
           if (fileInputRef.current) fileInputRef.current.value = ''
         },
@@ -80,24 +97,28 @@ export function SubmissionForm({ cohortId, assignmentId, dueAt }: { cohortId: nu
   return (
     <section className="rounded-lg border bg-card">
       <div className="flex items-center justify-between border-b px-4">
-        <div className="flex" role="tablist" aria-label="제출 방식">
-          <button type="button" role="tab" aria-selected={tab === 'code'} className={tabClass(tab === 'code')} onClick={() => setTab('code')}>
+        <div className="flex" role="tablist" aria-label="제출 형태">
+          <button type="button" role="tab" aria-selected={tab === 'CODE'} className={tabClass(tab === 'CODE')} onClick={() => setTab('CODE')}>
             <Code className="size-4" />
             코드 작성
           </button>
-          <button type="button" role="tab" aria-selected={tab === 'file'} className={tabClass(tab === 'file')} onClick={() => setTab('file')}>
+          <button type="button" role="tab" aria-selected={tab === 'FILE'} className={tabClass(tab === 'FILE')} onClick={() => setTab('FILE')}>
             <FileArchive className="size-4" />
             파일 업로드
           </button>
+          <button type="button" role="tab" aria-selected={tab === 'LINK'} className={tabClass(tab === 'LINK')} onClick={() => setTab('LINK')}>
+            <Link2 className="size-4" />
+            링크 제출
+          </button>
         </div>
-        {tab === 'code' && (
+        {tab === 'CODE' && (
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
             aria-label="제출 언어"
             className="h-8 rounded-[2px] border bg-card px-2 text-sm"
           >
-            <option value="">언어 선택 (선택)</option>
+            <option value="">언어 선택 (필수)</option>
             {LANGUAGES.map((lang) => (
               <option key={lang} value={lang}>
                 {lang}
@@ -108,7 +129,7 @@ export function SubmissionForm({ cohortId, assignmentId, dueAt }: { cohortId: nu
       </div>
 
       <div className="space-y-3 p-4">
-        {tab === 'code' ? (
+        {tab === 'CODE' && (
           <textarea
             value={codeText}
             onChange={(e) => setCodeText(e.target.value)}
@@ -117,10 +138,11 @@ export function SubmissionForm({ cohortId, assignmentId, dueAt }: { cohortId: nu
             spellCheck={false}
             className="h-56 w-full resize-y rounded-[2px] border bg-muted/40 p-3 font-mono text-sm outline-none focus:border-primary"
           />
-        ) : (
+        )}
+        {tab === 'FILE' && (
           <div className="flex h-56 flex-col items-center justify-center gap-2 rounded-[2px] border border-dashed p-6 text-center">
             <FileArchive className="size-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">zip 파일 1개, 최대 20MB</p>
+            <p className="text-sm text-muted-foreground">zip 파일 1개, 최대 10MB</p>
             <input
               ref={fileInputRef}
               type="file"
@@ -137,23 +159,52 @@ export function SubmissionForm({ cohortId, assignmentId, dueAt }: { cohortId: nu
             {fileError && <p className="text-sm text-destructive">{fileError}</p>}
           </div>
         )}
+        {tab === 'LINK' && (
+          <div className="min-h-56 space-y-2 rounded-[2px] border p-4">
+            <p className="text-sm text-muted-foreground">GitHub·배포 URL 등을 1~5개 제출할 수 있어요. 입력 순서대로 저장됩니다.</p>
+            {linkUrls.map((url, index) => (
+              // index key 사용: 순서가 곧 의미(position)라 재정렬이 없다
+              <div key={index} className="flex items-center gap-2">
+                <span className="w-5 text-right font-mono text-xs text-muted-foreground">{index + 1}</span>
+                <input
+                  type="url"
+                  value={url}
+                  onChange={(e) => setLinkAt(index, e.target.value)}
+                  placeholder="https://"
+                  aria-label={`제출 링크 ${index + 1}`}
+                  className="h-9 flex-1 rounded-[2px] border bg-card px-3 text-sm outline-none focus:border-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeLinkAt(index)}
+                  aria-label={`링크 ${index + 1} 삭제`}
+                  className="rounded p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            ))}
+            {linkUrls.length < MAX_LINKS && (
+              <button
+                type="button"
+                onClick={() => setLinkUrls((prev) => [...prev, ''])}
+                className="flex items-center gap-1 rounded-[2px] border border-dashed px-3 py-1.5 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary"
+              >
+                <Plus className="size-4" />
+                링크 추가 ({linkUrls.length}/{MAX_LINKS})
+              </button>
+            )}
+          </div>
+        )}
 
-        <div className="flex flex-wrap items-center gap-3">
-          <input
-            type="url"
-            value={linkUrl}
-            onChange={(e) => setLinkUrl(e.target.value)}
-            placeholder="링크 (선택) - GitHub·배포 URL"
-            aria-label="제출 링크"
-            className="h-9 min-w-60 flex-1 rounded-[2px] border bg-card px-3 text-sm outline-none focus:border-primary"
-          />
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">코드 / 파일 / 링크 중 한 형태를 골라 제출해요. 재제출은 이력으로 쌓입니다.</p>
           <Button className="rounded-[2px]" onClick={handleSubmit} disabled={!canSubmit}>
             <Send data-icon="inline-start" />
             {mutation.isPending ? '제출 중...' : '제출하기'}
           </Button>
         </div>
 
-        <p className="text-xs text-muted-foreground">코드 또는 파일 중 하나(택1)나 링크, 최소 1개면 제출할 수 있어요. 재제출은 이력으로 쌓입니다.</p>
         {mutation.error && <p className="text-sm text-destructive">{(mutation.error as Error).message}</p>}
         {mutation.isSuccess && !mutation.isPending && <p className="text-sm font-semibold text-[#16a34a]">제출 완료! 아래 기록에서 확인하세요.</p>}
       </div>

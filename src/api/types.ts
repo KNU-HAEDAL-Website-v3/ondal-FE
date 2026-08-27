@@ -72,23 +72,31 @@ export interface AssignmentPayload {
   dueAt: string
 }
 
-/** POST .../submissions 의 request JSON 파트 - 파일은 별도 multipart 파트(file). 조합 규칙(본문 택1·최소 1개)은 서버 검증 */
+/** 제출 형태 - 3종 택1 (docs/submission/design.md 결정 12) */
+export type SubmissionType = 'CODE' | 'FILE' | 'LINK'
+
+/** POST .../submissions 의 request JSON 파트 - 파일은 별도 multipart 파트(file). type별 필수·금지 조합은 서버 검증 */
 export interface SubmissionPayload {
+  type: SubmissionType
+  /** CODE 필수 */
   codeText: string | null
-  /** 코드 제출일 때만 (선택) */
+  /** CODE 필수 */
   language: string | null
-  linkUrl: string | null
+  /** LINK 필수 - 1~5개, 입력 순서 보존 */
+  linkUrls: string[] | null
 }
 
 /** POST(#18)·GET 단건(#20) 응답 - 코드 전문 포함 */
 export interface SubmissionResponse {
   id: number
   user: UserSummary
+  type: SubmissionType
   codeText: string | null
   language: string | null
   fileName: string | null
   fileSize: number | null
-  linkUrl: string | null
+  /** 링크 URL 목록 - position 순. LINK 외 형태는 빈 배열 */
+  links: string[]
   /** 제출 시각(UTC) = 서버 수신 시각 */
   submittedAt: string
   /** 지각 여부 - 서버 판정값. 마감이 수정되면 재조회 시 바뀔 수 있다 */
@@ -98,10 +106,11 @@ export interface SubmissionResponse {
 /** GET .../submissions/my(#19) 행 - 코드 전문 제외(확인은 단건 #20) */
 export interface SubmissionSummary {
   id: number
+  type: SubmissionType
   language: string | null
   fileName: string | null
   fileSize: number | null
-  linkUrl: string | null
+  links: string[]
   submittedAt: string
   late: boolean
 }
