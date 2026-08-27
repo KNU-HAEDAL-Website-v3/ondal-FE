@@ -30,8 +30,12 @@ export default function AssignmentFormPage() {
   const cohortQuery = useCohort(cohortId)
   const existingQuery = useAssignment(editing ? cohortId : NaN, editing ? aid : NaN)
 
+  // "차시 추가"·블럭 "+ 과제"가 넘기는 차시 프리필 (?session= - assignment/design.md 결정 8)
+  const sessionParam = searchParams.get('session')
   const [problemNo, setProblemNo] = useState('')
-  const [sessionNo, setSessionNo] = useState('')
+  const [sessionNo, setSessionNo] = useState(() =>
+    !editing && sessionParam !== null && /^[1-9]\d*$/.test(sessionParam) ? sessionParam : '',
+  )
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [dueAt, setDueAt] = useState('')

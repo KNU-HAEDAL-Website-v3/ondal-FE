@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { CalendarDays, Plus } from 'lucide-react'
+import { CalendarDays, LayoutGrid, List, Plus } from 'lucide-react'
 import { useAssignments } from '@/api/assignments'
 import { useCohort, useMyCohorts } from '@/api/cohorts'
 import type { AssignmentResponse } from '@/api/types'
@@ -10,10 +11,15 @@ import { SubmissionStatusBadge } from '@/components/submissions/SubmissionStatus
 import { ddayLabel, formatKst, isOverdue } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
 
+const VIEW_STORAGE_KEY = 'ondal-assignments-view'
+type ViewMode = 'grid' | 'border'
+
 /**
- * 과제 목록 (피그마 28:1317) - 차시별 그룹, 서버 정렬(차시 오름차순 → 등록순) 그대로.
- * 분반은 ?cohort= 로 정하고, 없으면 내 첫 분반(ACTIVE 우선 - 서버 정렬). 여러 분반 소속이면 셀렉터 표시.
- * 카드의 상태 배지 = 서버 판정값 myStatus 그대로 (프론트 재계산 금지).
+ * 과제 목록 - 2단 구조: 차시 블럭(테두리 섹션) → 문제 목록 (assignment/design.md 결정 8).
+ * - 차시 블럭은 sessionNo 그룹 - 빈 차시 없음(과제가 있어야 블럭 생성)
+ * - "차시 추가"(운영진) = 다음 차시 번호 프리필 등록 폼, 블럭 안 "+ 과제" = 그 차시 번호 프리필
+ * - 보기 토글: 그리드(카드) / 보더(행) - localStorage 저장
+ * 분반은 ?cohort= 로 정하고, 없으면 내 첫 분반. 상태 배지 = 서버 판정값 myStatus 그대로.
  */
 export default function AssignmentsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -24,6 +30,14 @@ export default function AssignmentsPage() {
 
   const cohortQuery = useCohort(cohortId)
   const assignmentsQuery = useAssignments(cohortId)
+
+  const [view, setView] = useState<ViewMode>(() =>
+    localStorage.getItem(VIEW_STORAGE_KEY) === 'border' ? 'border' : 'grid',
+  )
+  const changeView = (next: ViewMode) => {
+    setView(next)
+    localStorage.setItem(VIEW_STORAGE_KEY, next)
+  }
 
   if (myCohortsQuery.isPending) return <LoadingScreen />
   if (myCohortsQuery.error) {
@@ -36,7 +50,10 @@ export default function AssignmentsPage() {
   }
 
   const cohort = cohortQuery.data
-  const groups = groupBySession(assignmentsQuery.data ?? [])
+  const assignments = assignmentsQuery.data ?? []
+  const groups = groupBySession(assignments)
+  const canWrite = (cohort?.canManage ?? false) && cohort?.status !== 'ARCHIVED'
+  const nextSessionNo = Math.max(0, ...assignments.map((a) => a.sessionNo ?? 0)) + 1
 
   return (
     <div className="space-y-6">
@@ -44,7 +61,7 @@ export default function AssignmentsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">과제</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {cohort ? `${cohort.name} - 차시별 과제 목록` : '차시별 과제 목록'}
+            {cohort ? `${cohort.name} - 차시별 문제 목록` : '차시별 문제 목록'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -63,13 +80,41 @@ export default function AssignmentsPage() {
               ))}
             </select>
           )}
-          {cohort?.canManage && (
-            <Button size="sm" className="rounded-[2px]" asChild>
-              <Link to={`/assignments/new?cohort=${cohortId}`}>
-                <Plus data-icon="inline-start" />
-                과제 등록
-              </Link>
-            </Button>
+          <div role="group" aria-label="보기 방식" className="flex overflow-hidden rounded-[2px] border">
+            <button
+              type="button"
+              aria-pressed={view === 'grid'}
+              aria-label="그리드 보기"
+              onClick={() => changeView('grid')}
+              className={cn('px-2 py-1.5', view === 'grid' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground')}
+            >
+              <LayoutGrid className="size-4" />
+            </button>
+            <button
+              type="button"
+              aria-pressed={view === 'border'}
+              aria-label="보더 보기"
+              onClick={() => changeView('border')}
+              className={cn('px-2 py-1.5', view === 'border' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground')}
+            >
+              <List className="size-4" />
+            </button>
+          </div>
+          {canWrite && (
+            <>
+              <Button size="sm" variant="outline" className="rounded-[2px]" asChild>
+                <Link to={`/assignments/new?cohort=${cohortId}&session=${nextSessionNo}`}>
+                  <Plus data-icon="inline-start" />
+                  차시 추가
+                </Link>
+              </Button>
+              <Button size="sm" className="rounded-[2px]" asChild>
+                <Link to={`/assignments/new?cohort=${cohortId}`}>
+                  <Plus data-icon="inline-start" />
+                  과제 등록
+                </Link>
+              </Button>
+            </>
           )}
         </div>
       </header>
@@ -91,13 +136,34 @@ export default function AssignmentsPage() {
         />
       ) : (
         groups.map((group) => (
-          <section key={group.label} className="space-y-3">
-            <h2 className="text-lg font-bold">{group.label}</h2>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {group.items.map((a) => (
-                <AssignmentCard key={a.id} assignment={a} cohortId={cohortId} />
-              ))}
+          <section key={group.label} className="space-y-3 rounded-lg border bg-card/40 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-lg font-bold">{group.label}</h2>
+              {canWrite && (
+                <Button size="sm" variant="outline" className="rounded-[2px]" asChild>
+                  <Link
+                    to={`/assignments/new?cohort=${cohortId}${group.sessionNo !== null ? `&session=${group.sessionNo}` : ''}`}
+                    aria-label={`${group.label}에 과제 추가`}
+                  >
+                    <Plus data-icon="inline-start" />
+                    과제
+                  </Link>
+                </Button>
+              )}
             </div>
+            {view === 'grid' ? (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {group.items.map((a) => (
+                  <AssignmentCard key={a.id} assignment={a} cohortId={cohortId} />
+                ))}
+              </div>
+            ) : (
+              <ul className="divide-y overflow-hidden rounded-[2px] border bg-card">
+                {group.items.map((a) => (
+                  <AssignmentRow key={a.id} assignment={a} cohortId={cohortId} />
+                ))}
+              </ul>
+            )}
           </section>
         ))
       )}
@@ -107,12 +173,12 @@ export default function AssignmentsPage() {
 
 /** 서버 정렬이 차시끼리 붙여 주므로(오름차순, null 마지막) 인접 그룹으로만 묶으면 된다 */
 function groupBySession(assignments: AssignmentResponse[]) {
-  const groups: { label: string; items: AssignmentResponse[] }[] = []
+  const groups: { label: string; sessionNo: number | null; items: AssignmentResponse[] }[] = []
   for (const a of assignments) {
     const label = a.sessionNo === null ? '기타' : `${a.sessionNo}차시`
     const last = groups[groups.length - 1]
     if (last && last.label === label) last.items.push(a)
-    else groups.push({ label, items: [a] })
+    else groups.push({ label, sessionNo: a.sessionNo, items: [a] })
   }
   return groups
 }
@@ -150,5 +216,34 @@ function AssignmentCard({ assignment, cohortId }: { assignment: AssignmentRespon
         마감: {formatKst(assignment.dueAt)}
       </p>
     </Link>
+  )
+}
+
+/** 보더(행) 보기 - 한 줄 요약: 번호·제목·배지 왼쪽, 마감 오른쪽 */
+function AssignmentRow({ assignment, cohortId }: { assignment: AssignmentResponse; cohortId: number }) {
+  const overdue = isOverdue(assignment.dueAt)
+  return (
+    <li>
+      <Link
+        to={`/assignments/${assignment.id}?cohort=${cohortId}`}
+        className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 text-sm hover:bg-secondary/50"
+      >
+        <span className="font-mono font-semibold text-primary">#{assignment.problemNo}</span>
+        <span className="font-semibold">{assignment.title}</span>
+        <span
+          className={cn(
+            'rounded-[2px] px-1.5 py-0.5 text-[11px] font-semibold',
+            overdue ? 'bg-muted text-muted-foreground' : 'bg-[#dcfce7] text-[#16a34a]',
+          )}
+        >
+          {ddayLabel(assignment.dueAt)}
+        </span>
+        {assignment.myStatus !== null && <SubmissionStatusBadge status={assignment.myStatus} />}
+        <span className="ml-auto flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+          <CalendarDays className="size-3.5" />
+          {formatKst(assignment.dueAt)}
+        </span>
+      </Link>
+    </li>
   )
 }

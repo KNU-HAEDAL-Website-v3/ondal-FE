@@ -1,6 +1,7 @@
 import { Download, ExternalLink } from 'lucide-react'
 import { submissionFileUrl, useSubmission } from '@/api/submissions'
 import { ApiErrorView } from '@/components/ApiErrorView'
+import { CodeViewer } from '@/components/code/CodePane'
 import { formatKst } from '@/lib/datetime'
 
 /**
@@ -28,11 +29,7 @@ export function SubmissionDetailView({
         {submission.user.name} · {formatKst(submission.submittedAt)}
         {submission.language ? ` · ${submission.language}` : ''}
       </p>
-      {submission.codeText !== null && (
-        <pre className="max-h-80 overflow-auto rounded-[2px] border bg-muted/40 p-3 font-mono text-xs leading-5 whitespace-pre-wrap">
-          {submission.codeText}
-        </pre>
-      )}
+      {submission.codeText !== null && <CodeViewer value={submission.codeText} language={submission.language} />}
       <div className="space-y-1.5 text-sm">
         {submission.fileName !== null && (
           <a
