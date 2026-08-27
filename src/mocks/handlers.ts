@@ -106,6 +106,7 @@ function toAssignmentResponse(a: MockAssignment, viewer: MockUser): AssignmentRe
   const canSeeCount = viewer.globalRole === 'ADMIN' || mine?.role === 'OPERATOR'
   return {
     id: a.id,
+    problemNo: a.problemNo,
     sessionNo: a.sessionNo,
     title: a.title,
     description: a.description,
@@ -116,10 +117,10 @@ function toAssignmentResponse(a: MockAssignment, viewer: MockUser): AssignmentRe
   }
 }
 
-/** BE 요청 검증 흉내 - title 필수·200자, description 10000자, dueAt 필수, sessionNo 1 이상(선택) */
+/** BE 요청 검증 흉내 - title 필수·200자, description 10000자, dueAt 필수, sessionNo 1 이상·problemNo 1000 이상(선택) */
 function parseAssignmentBody(
   raw: unknown,
-): { payload: Omit<MockAssignment, 'id' | 'cohortId' | 'createdAt'> } | { fail: HttpResponse<ErrorResponse> } {
+): { payload: Omit<MockAssignment, 'id' | 'cohortId' | 'createdAt' | 'problemNo'> & { problemNo: number | null } } | { fail: HttpResponse<ErrorResponse> } {
   const body = (raw ?? {}) as Record<string, unknown>
   const title = typeof body.title === 'string' ? body.title : ''
   if (title.trim() === '') return { fail: error(400, 'INVALID_INPUT', '과제 제목은 비어 있을 수 없습니다.') }
@@ -135,7 +136,11 @@ function parseAssignmentBody(
   if (sessionNo !== null && (!Number.isInteger(sessionNo) || sessionNo < 1)) {
     return { fail: error(400, 'INVALID_INPUT', '차시 번호는 1 이상이어야 합니다.') }
   }
-  return { payload: { sessionNo, title, description, dueAt: new Date(body.dueAt).toISOString() } }
+  const problemNo = body.problemNo === null || body.problemNo === undefined ? null : Number(body.problemNo)
+  if (problemNo !== null && (!Number.isInteger(problemNo) || problemNo < 1000)) {
+    return { fail: error(400, 'INVALID_INPUT', '문제 번호는 1000 이상이어야 합니다.') }
+  }
+  return { payload: { problemNo, sessionNo, title, description, dueAt: new Date(body.dueAt).toISOString() } }
 }
 
 const archivedError = () =>
@@ -298,11 +303,16 @@ export const handlers = [
     if (guard.cohort.status === 'ARCHIVED') return archivedError()
     const parsed = parseAssignmentBody(await request.json().catch(() => null))
     if ('fail' in parsed) return parsed.fail
+    // BE 채번 미러: 비우면 자동(최대+1, 1000 시작), 지정 시 전역 중복 409
+    if (parsed.payload.problemNo !== null && assignments.some((a) => a.problemNo === parsed.payload.problemNo)) {
+      return error(409, 'CONFLICT', `이미 사용 중인 문제 번호입니다: ${parsed.payload.problemNo}`)
+    }
     const created: MockAssignment = {
       id: Math.max(0, ...assignments.map((a) => a.id)) + 1,
       cohortId: guard.cohort.id,
       createdAt: new Date().toISOString(),
       ...parsed.payload,
+      problemNo: parsed.payload.problemNo ?? Math.max(999, ...assignments.map((a) => a.problemNo)) + 1,
     }
     assignments.push(created)
     return HttpResponse.json(toAssignmentResponse(created, user), {
@@ -322,7 +332,12 @@ export const handlers = [
     if (!found) return error(404, 'NOT_FOUND', '과제를 찾을 수 없습니다.')
     const parsed = parseAssignmentBody(await request.json().catch(() => null))
     if ('fail' in parsed) return parsed.fail
-    Object.assign(found, parsed.payload)
+    // BE 미러: 비우면 기존 번호 유지, 변경 시 중복 409(자기 자신 제외)
+    const requestedNo = parsed.payload.problemNo
+    if (requestedNo !== null && assignments.some((a) => a.problemNo === requestedNo && a.id !== found.id)) {
+      return error(409, 'CONFLICT', `이미 사용 중인 문제 번호입니다: ${requestedNo}`)
+    }
+    Object.assign(found, parsed.payload, { problemNo: requestedNo ?? found.problemNo })
     return HttpResponse.json(toAssignmentResponse(found, user))
   }),
 
