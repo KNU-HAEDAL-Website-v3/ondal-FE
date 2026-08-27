@@ -138,7 +138,10 @@ function AssignmentCard({ assignment, cohortId }: { assignment: AssignmentRespon
         </span>
         {assignment.myStatus !== null && <SubmissionStatusBadge status={assignment.myStatus} />}
       </span>
-      <h3 className="mt-3 text-lg font-bold">{assignment.title}</h3>
+      <h3 className="mt-3 text-lg font-bold">
+        <span className="mr-1.5 font-mono text-primary">#{assignment.problemNo}</span>
+        {assignment.title}
+      </h3>
       {assignment.description && (
         <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{assignment.description}</p>
       )}

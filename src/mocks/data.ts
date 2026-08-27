@@ -49,6 +49,7 @@ export const enrollments: MockEnrollment[] = [
 export interface MockAssignment {
   id: number
   cohortId: number
+  problemNo: number
   sessionNo: number | null
   title: string
   description: string | null
@@ -65,6 +66,7 @@ export const assignments: MockAssignment[] = [
   {
     id: 1,
     cohortId: 1,
+    problemNo: 1000,
     sessionNo: 1,
     title: '1차시 - 입출력 연습',
     description: '두 정수 A와 B를 한 줄에 공백으로 구분해 입력받아 A+B를 출력하는 프로그램을 작성해 제출하세요.',
@@ -74,6 +76,7 @@ export const assignments: MockAssignment[] = [
   {
     id: 2,
     cohortId: 1,
+    problemNo: 1001,
     sessionNo: 2,
     title: '2차시 - 조건문과 반복문',
     description: '정수 N을 입력받아 N단 구구단을 출력하는 문제와, 점수를 입력받아 등급(A~F)을 출력하는 문제를 풀어 제출하세요.',
@@ -83,6 +86,7 @@ export const assignments: MockAssignment[] = [
   {
     id: 3,
     cohortId: 1,
+    problemNo: 1002,
     sessionNo: null,
     title: '설문 - 스터디 시간 조사',
     description: '차시와 무관한 공지형 과제입니다. 설문 링크를 확인하세요.',

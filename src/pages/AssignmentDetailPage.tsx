@@ -81,6 +81,7 @@ export default function AssignmentDetailPage() {
         </nav>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight">
+            <span className="font-mono text-primary">#{assignment.problemNo}</span>
             {assignment.title}
             {assignment.myStatus !== null && <SubmissionStatusBadge status={assignment.myStatus} />}
           </h1>

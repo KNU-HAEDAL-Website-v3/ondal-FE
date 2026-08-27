@@ -30,6 +30,7 @@ export default function AssignmentFormPage() {
   const cohortQuery = useCohort(cohortId)
   const existingQuery = useAssignment(editing ? cohortId : NaN, editing ? aid : NaN)
 
+  const [problemNo, setProblemNo] = useState('')
   const [sessionNo, setSessionNo] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -39,6 +40,7 @@ export default function AssignmentFormPage() {
   useEffect(() => {
     if (editing && existingQuery.data && !prefilled) {
       const a = existingQuery.data
+      setProblemNo(String(a.problemNo))
       setSessionNo(a.sessionNo === null ? '' : String(a.sessionNo))
       setTitle(a.title)
       setDescription(a.description ?? '')
@@ -64,8 +66,20 @@ export default function AssignmentFormPage() {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
+    const parsedProblemNo = problemNo.trim() === '' ? null : Number(problemNo)
+    const originalProblemNo = editing ? existingQuery.data?.problemNo : undefined
+    if (
+      editing &&
+      parsedProblemNo !== null &&
+      originalProblemNo !== undefined &&
+      parsedProblemNo !== originalProblemNo &&
+      !window.confirm('문제 번호를 바꾸면 학생이 혼동할 수 있어요. 계속할까요?')
+    ) {
+      return
+    }
     mutation.mutate(
       {
+        problemNo: parsedProblemNo,
         sessionNo: sessionNo.trim() === '' ? null : Number(sessionNo),
         title: title.trim(),
         description: description.trim() === '' ? null : description,
@@ -114,7 +128,19 @@ export default function AssignmentFormPage() {
           />
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="assignment-problem-no">문제 번호 (선택)</Label>
+            <Input
+              id="assignment-problem-no"
+              type="number"
+              min={1000}
+              value={problemNo}
+              onChange={(e) => setProblemNo(e.target.value)}
+              placeholder={editing ? '비우면 기존 번호 유지' : '비우면 자동 부여'}
+            />
+            <p className="text-xs text-muted-foreground">전역 유일, 1000부터. 중복이면 저장이 거부돼요.</p>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="assignment-session">차시 번호 (선택)</Label>
             <Input

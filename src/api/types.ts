@@ -50,6 +50,8 @@ export type SubmissionStatus = 'NOT_SUBMITTED' | 'SUBMITTED' | 'SUBMITTED_EXTRA'
 /** GET·POST·PUT /api/cohorts/{cohortId}/assignments - 목록·단건·등록·수정 응답이 전부 이 하나 */
 export interface AssignmentResponse {
   id: number
+  /** 문제 번호 - 전역 유일, 1000부터. 표시는 #1000 형식 (schema.md 결정 9) */
+  problemNo: number
   /** 차시 번호 - 차시에 속하지 않는 과제는 null. 목록은 차시 오름차순(null 마지막) → 등록순 (서버 정렬) */
   sessionNo: number | null
   title: string
@@ -66,6 +68,8 @@ export interface AssignmentResponse {
 
 /** POST·PUT /api/cohorts/{cohortId}/assignments 요청 본문 - 필드·검증 동일 (PUT은 전체 교체) */
 export interface AssignmentPayload {
+  /** 등록: 비우면(null) 자동 채번. 수정: 비우면 기존 번호 유지. 중복은 409 */
+  problemNo: number | null
   sessionNo: number | null
   title: string
   description: string | null
