@@ -1,11 +1,13 @@
 import { Link, useNavigate, useParams } from 'react-router'
 import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
 import { ApiError } from '@/api/client'
+import { useCohort } from '@/api/cohorts'
 import { useDeleteQuestion, useQuestion } from '@/api/questions'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ApiErrorView } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { AnswerSection } from '@/components/qna/AnswerSection'
 import { formatKst } from '@/lib/datetime'
 import { parseId } from '@/lib/params'
 
@@ -20,6 +22,7 @@ export default function QuestionDetailPage() {
   const questionId = parseId(questionParam)
   const navigate = useNavigate()
   const query = useQuestion(cohortId, questionId)
+  const cohortQuery = useCohort(cohortId) // 답변 폼 노출 판정(보관 분반이면 열람만)
   const deleteMutation = useDeleteQuestion(cohortId)
 
   if (!Number.isFinite(cohortId) || !Number.isFinite(questionId)) {
@@ -31,10 +34,11 @@ export default function QuestionDetailPage() {
   const question = query.data
 
   const handleDelete = () => {
-    // canEdit 이 false 인데 canDelete 면 남의 글을 지우는 운영진 - 작성자 글임을 알린다 (fe.md 1절)
+    // canEdit 이 false 인데 canDelete 면 남의 글을 지우는 운영진 - 작성자 글임을 알린다 (fe.md 1절). 답변도 함께 지워진다
+    const answers = question.answerCount > 0 ? ` 답변 ${question.answerCount}건도 함께 삭제돼요.` : ''
     const warning = question.canEdit
-      ? '이 질문을 삭제할까요? 삭제하면 되돌릴 수 없어요.'
-      : `${question.author.name} 님이 쓴 질문을 삭제합니다. 삭제하면 되돌릴 수 없어요. 계속할까요?`
+      ? `이 질문을 삭제할까요?${answers} 삭제하면 되돌릴 수 없어요.`
+      : `${question.author.name} 님이 쓴 질문을 삭제합니다.${answers} 삭제하면 되돌릴 수 없어요. 계속할까요?`
     if (!window.confirm(warning)) return
     deleteMutation.mutate(question.id, {
       onSuccess: () => navigate(`/cohorts/${cohortId}/questions`, { replace: true }),
@@ -91,6 +95,8 @@ export default function QuestionDetailPage() {
       <section className="rounded-lg border bg-card p-5">
         <p className="text-sm leading-6 break-words whitespace-pre-wrap">{question.content}</p>
       </section>
+
+      <AnswerSection cohortId={cohortId} questionId={question.id} archived={cohortQuery.data?.status === 'ARCHIVED'} />
     </div>
   )
 }

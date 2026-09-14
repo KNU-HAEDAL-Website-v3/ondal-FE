@@ -1,6 +1,7 @@
 // MSW 핸들러 - BE 계약(design.md 3절)을 흉내 낸다. 화면 미리보기용이지 계약의 기준이 아니다.
 import { delay, http, HttpResponse } from 'msw'
 import type {
+  AnswerResponse,
   AssignmentResponse,
   AttendanceRosterResponse,
   AttendanceStats,
@@ -22,6 +23,7 @@ import type {
   UserSummary,
 } from '@/api/types'
 import {
+  answers,
   assignments,
   attendances,
   cohorts,
@@ -31,6 +33,7 @@ import {
   sessions,
   submissions,
   users,
+  type MockAnswer,
   type MockAssignment,
   type MockAttendance,
   type MockCohort,
@@ -386,7 +389,26 @@ function toQuestionResponse(q: MockQuestion, cohort: MockCohort, viewer: MockUse
     createdAt: q.createdAt,
     canEdit,
     canDelete: canEdit || canModerate,
+    answerCount: answers.filter((a) => a.questionId === q.id).length,
   }
+}
+
+/** BE AnswerResponseAssembler - 질문과 같은 규칙 */
+function toAnswerResponse(a: MockAnswer, cohort: MockCohort, viewer: MockUser): AnswerResponse {
+  const active = cohort.status === 'ACTIVE'
+  const mine = enrollments.find((e) => e.cohortId === cohort.id && e.loginId === viewer.loginId)
+  const canModerate = active && (viewer.globalRole === 'ADMIN' || mine?.role === 'OPERATOR')
+  const canEdit = active && a.loginId === viewer.loginId
+  return { id: a.id, content: a.content, author: toUserSummary(a.loginId, cohort.id), createdAt: a.createdAt, canEdit, canDelete: canEdit || canModerate }
+}
+
+/** 답변 본문 검증 - BE AnswerCreateRequest/UpdateRequest 미러 */
+function parseAnswerBody(raw: unknown): { content: string } | { fail: HttpResponse<ErrorResponse> } {
+  const body = (raw ?? {}) as { content?: unknown }
+  const content = typeof body.content === 'string' ? body.content.trim() : ''
+  if (!content) return { fail: error(400, 'INVALID_INPUT', '답변 내용은 비어 있을 수 없습니다.') }
+  if (content.length > 10000) return { fail: error(400, 'INVALID_INPUT', '답변 내용은 10000자 이하여야 합니다.') }
+  return { content }
 }
 
 /** 등록·수정 공통 검증 - BE QuestionCreateRequest·QuestionUpdateRequest 미러 (title 200자·content 10000자, 둘 다 필수) */
@@ -979,7 +1001,84 @@ export const handlers = [
     if (questions[index].loginId !== user.loginId && !isModerator) {
       return error(403, 'FORBIDDEN', '작성자 또는 운영진만 삭제할 수 있습니다.')
     }
+    const questionId = questions[index].id
+    for (let i = answers.length - 1; i >= 0; i--) if (answers[i].questionId === questionId) answers.splice(i, 1) // 답변 연쇄 삭제
     questions.splice(index, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // ---- Q&A 답변 (#41~#44) - 조회·등록 소속 누구나, 수정 작성자, 삭제 작성자 또는 운영진 ----------------
+
+  http.get('/api/cohorts/:cohortId/questions/:questionId/answers', async ({ params }) => {
+    await delay(250)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), false)
+    if ('fail' in guard) return guard.fail
+    const question = questions.find((q) => q.id === Number(params.questionId) && q.cohortId === guard.cohort.id)
+    if (!question) return error(404, 'NOT_FOUND', '질문을 찾을 수 없습니다.')
+    const list = answers.filter((a) => a.questionId === question.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id - b.id)
+    return HttpResponse.json(list.map((a) => toAnswerResponse(a, guard.cohort, user)))
+  }),
+
+  http.post('/api/cohorts/:cohortId/questions/:questionId/answers', async ({ params, request }) => {
+    await delay(400)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), false)
+    if ('fail' in guard) return guard.fail
+    const parsed = parseAnswerBody(await request.json().catch(() => null))
+    if ('fail' in parsed) return parsed.fail
+    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    const question = questions.find((q) => q.id === Number(params.questionId) && q.cohortId === guard.cohort.id)
+    if (!question) return error(404, 'NOT_FOUND', '질문을 찾을 수 없습니다.')
+    const created: MockAnswer = {
+      id: Math.max(0, ...answers.map((a) => a.id)) + 1,
+      questionId: question.id,
+      loginId: user.loginId,
+      content: parsed.content,
+      createdAt: new Date().toISOString(),
+    }
+    answers.push(created)
+    return HttpResponse.json(toAnswerResponse(created, guard.cohort, user), {
+      status: 201,
+      headers: { Location: `/api/cohorts/${guard.cohort.id}/questions/${question.id}/answers/${created.id}` },
+    })
+  }),
+
+  http.put('/api/cohorts/:cohortId/questions/:questionId/answers/:answerId', async ({ params, request }) => {
+    await delay(400)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), false)
+    if ('fail' in guard) return guard.fail
+    const parsed = parseAnswerBody(await request.json().catch(() => null))
+    if ('fail' in parsed) return parsed.fail
+    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    const question = questions.find((q) => q.id === Number(params.questionId) && q.cohortId === guard.cohort.id)
+    if (!question) return error(404, 'NOT_FOUND', '질문을 찾을 수 없습니다.')
+    const found = answers.find((a) => a.id === Number(params.answerId) && a.questionId === question.id)
+    if (!found) return error(404, 'NOT_FOUND', '답변을 찾을 수 없습니다.')
+    if (found.loginId !== user.loginId) return error(403, 'FORBIDDEN', '작성자만 수정할 수 있습니다.')
+    found.content = parsed.content
+    return HttpResponse.json(toAnswerResponse(found, guard.cohort, user))
+  }),
+
+  http.delete('/api/cohorts/:cohortId/questions/:questionId/answers/:answerId', async ({ params }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), false)
+    if ('fail' in guard) return guard.fail
+    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    const question = questions.find((q) => q.id === Number(params.questionId) && q.cohortId === guard.cohort.id)
+    if (!question) return error(404, 'NOT_FOUND', '질문을 찾을 수 없습니다.')
+    const index = answers.findIndex((a) => a.id === Number(params.answerId) && a.questionId === question.id)
+    if (index < 0) return error(404, 'NOT_FOUND', '답변을 찾을 수 없습니다.')
+    const mine = enrollments.find((e) => e.cohortId === guard.cohort.id && e.loginId === user.loginId)
+    const isModerator = user.globalRole === 'ADMIN' || mine?.role === 'OPERATOR'
+    if (answers[index].loginId !== user.loginId && !isModerator) return error(403, 'FORBIDDEN', '작성자 또는 운영진만 삭제할 수 있습니다.')
+    answers.splice(index, 1)
     return new HttpResponse(null, { status: 204 })
   }),
 

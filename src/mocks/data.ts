@@ -126,6 +126,25 @@ export const questions: MockQuestion[] = [
   },
 ]
 
+export interface MockAnswer {
+  id: number
+  questionId: number
+  loginId: string
+  content: string
+  createdAt: string
+}
+
+// BE LocalDataSeeder 와 동일: 1차시 질문(id 1)에 운영진 답변 1건
+export const answers: MockAnswer[] = [
+  {
+    id: 1,
+    questionId: 1,
+    loginId: 'operator1',
+    content: 'scanf("%d %d", &a, &b) 는 공백과 줄바꿈을 모두 구분자로 읽으니 따로 처리하지 않아도 됩니다.',
+    createdAt: hours(-36),
+  },
+]
+
 export interface MockNotice {
   id: number
   /** null = 전체 공지(관리자), 값 = 분반 공지(운영진 이상) */
