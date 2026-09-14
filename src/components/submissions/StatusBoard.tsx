@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react'
 import { Eye } from 'lucide-react'
 import { useStatusBoard } from '@/api/submissions'
 import { ApiErrorView } from '@/components/ApiErrorView'
+import { VerdictBadge } from '@/components/judge/VerdictBadge'
 import { SubmissionStatusBadge } from '@/components/submissions/SubmissionStatusBadge'
 import { SubmissionDetailView } from '@/components/submissions/SubmissionDetailView'
 import { formatKst } from '@/lib/datetime'
@@ -10,6 +11,7 @@ import { formatKst } from '@/lib/datetime'
  * [운영진] 제출 현황판 (#22) - 현재 수강생 명단(이름순) x 상태/횟수/최근 제출/코멘트. 미제출자도 행으로 보인다.
  * "열람" = 최신 제출(대표)을 펼쳐 코드(#20)·파일(#21) 확인 + 코멘트 남기기(#45, canComment). 전체 이력 열람은 P2.
  * "코멘트" 열 = 최신 제출에 코멘트가 달렸는가(latestCommented) - 아직 검토하지 않은 제출을 한눈에.
+ * "판정" 열 = 최신 제출의 자동 채점 판정(latestVerdict, judge/fe.md 3절) - 자동 채점 문제가 아니면 전부 '-'. 채점 중이면 2초 폴링.
  */
 export function StatusBoard({
   cohortId,
@@ -29,12 +31,19 @@ export function StatusBoard({
 
   const rows = query.data
   const submitted = rows.filter((r) => r.status !== 'NOT_SUBMITTED').length
+  const judged = rows.some((r) => r.latestJudgeStatus !== null)
+  const accepted = rows.filter((r) => r.latestVerdict === 'ACCEPTED').length
 
   return (
     <section className="rounded-lg border bg-card p-4">
       <div className="flex items-baseline justify-between">
         <h2 className="text-xs font-bold tracking-[0.55px] text-muted-foreground">제출 현황판 (운영진)</h2>
         <p className="text-xs text-muted-foreground">
+          {judged && (
+            <>
+              맞았습니다 <span className="font-mono">{accepted}</span> ·{' '}
+            </>
+          )}
           제출 {submitted} / {rows.length}명
         </p>
       </div>
@@ -48,6 +57,7 @@ export function StatusBoard({
               <tr className="border-b bg-muted text-[13px] tracking-[0.55px] text-muted-foreground">
                 <th className="px-3 py-2 text-left font-bold">이름</th>
                 <th className="px-2 py-2 text-center font-bold">상태</th>
+                <th className="px-2 py-2 text-center font-bold">판정</th>
                 <th className="px-2 py-2 text-center font-bold">제출 횟수</th>
                 <th className="px-2 py-2 text-center font-bold">최근 제출</th>
                 <th className="px-2 py-2 text-center font-bold">코멘트</th>
@@ -61,6 +71,13 @@ export function StatusBoard({
                     <td className="px-3 py-2.5 font-medium">{row.user.name}</td>
                     <td className="px-2 py-2.5 text-center">
                       <SubmissionStatusBadge status={row.status} />
+                    </td>
+                    <td className="px-2 py-2.5 text-center" data-judge-status={row.latestJudgeStatus ?? 'NONE'}>
+                      {row.latestJudgeStatus === null ? (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      ) : (
+                        <VerdictBadge status={row.latestJudgeStatus} verdict={row.latestVerdict} />
+                      )}
                     </td>
                     <td className="px-2 py-2.5 text-center font-mono">{row.submissionCount}</td>
                     <td className="px-2 py-2.5 text-center font-mono text-xs">
@@ -93,7 +110,7 @@ export function StatusBoard({
                   </tr>
                   {openUserId === row.user.id && row.latestSubmissionId !== null && (
                     <tr className="border-b bg-muted/20 last:border-0">
-                      <td colSpan={6}>
+                      <td colSpan={7}>
                         <SubmissionDetailView
                           cohortId={cohortId}
                           assignmentId={assignmentId}

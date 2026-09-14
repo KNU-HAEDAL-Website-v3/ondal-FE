@@ -17,7 +17,18 @@ const MAX_LINKS = 5
  * CLAUDE.md 필수 규칙: 실패 시 입력 보존(상태를 지우지 않는다) + 요청 중 버튼 잠금.
  * 마감 후에도 제출 가능 - "지각 제출로 기록" 확인 안내 후 진행 (flows UC-S4 A1).
  */
-export function SubmissionForm({ cohortId, assignmentId, dueAt }: { cohortId: number; assignmentId: number; dueAt: string }) {
+export function SubmissionForm({
+  cohortId,
+  assignmentId,
+  dueAt,
+  judgeEnabled = false,
+}: {
+  cohortId: number
+  assignmentId: number
+  dueAt: string
+  /** 자동 채점 문제 - 코드 제출은 바로 채점된다는 안내 (judge/fe.md 2절) */
+  judgeEnabled?: boolean
+}) {
   const [tab, setTab] = useState<SubmissionType>('CODE')
   const [codeText, setCodeText] = useState('')
   const [language, setLanguage] = useState('')
@@ -192,7 +203,11 @@ export function SubmissionForm({ cohortId, assignmentId, dueAt }: { cohortId: nu
         )}
 
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-muted-foreground">코드 / 파일 / 링크 중 한 형태를 골라 제출해요. 재제출은 이력으로 쌓입니다.</p>
+          <p className="text-xs text-muted-foreground">
+            {judgeEnabled
+              ? '자동 채점 문제예요. 코드 제출은 바로 채점되고, zip·링크는 운영진이 확인합니다. 재제출은 이력으로 쌓여요.'
+              : '코드 / 파일 / 링크 중 한 형태를 골라 제출해요. 재제출은 이력으로 쌓입니다.'}
+          </p>
           <Button className="rounded-[2px]" onClick={handleSubmit} disabled={!canSubmit}>
             <Send data-icon="inline-start" />
             {mutation.isPending ? '제출 중...' : '제출하기'}
@@ -200,7 +215,11 @@ export function SubmissionForm({ cohortId, assignmentId, dueAt }: { cohortId: nu
         </div>
 
         {mutation.error && <p className="text-sm text-destructive">{(mutation.error as Error).message}</p>}
-        {mutation.isSuccess && !mutation.isPending && <p className="text-sm font-semibold text-[#16a34a]">제출 완료! 아래 기록에서 확인하세요.</p>}
+        {mutation.isSuccess && !mutation.isPending && (
+          <p className="text-sm font-semibold text-[#16a34a]">
+            {judgeEnabled && tab === 'CODE' ? '제출 완료! 채점 중이에요 - 아래 기록에서 결과를 확인하세요.' : '제출 완료! 아래 기록에서 확인하세요.'}
+          </p>
+        )}
       </div>
     </section>
   )

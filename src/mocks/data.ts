@@ -2,7 +2,7 @@
 // 계정: admin(ADMIN) / operator1 / student1~3. 모르는 아이디로 로그인하면 MEMBER로 새로 만든다 (find-or-create).
 // 분반: "2026-2 C언어"(ACTIVE: operator1 + student1~3), "2026-1 파이썬"(ARCHIVED: student1)
 
-import type { AttendanceStatus, CohortStatus, EnrollmentRole, GlobalRole } from '@/api/types'
+import type { AttendanceStatus, CohortStatus, EnrollmentRole, GlobalRole, JudgeStatus, Verdict } from '@/api/types'
 
 export interface MockUser {
   id: number
@@ -57,6 +57,9 @@ export interface MockAssignment {
   description: string | null
   dueAt: string
   createdAt: string
+  /** 자동 채점 제한 - 없으면(undefined/null) 서버 기본값. PUT .../judge 로만 바뀐다 */
+  timeLimitMs?: number | null
+  memoryLimitMb?: number | null
 }
 
 const now = Date.now()
@@ -249,4 +252,63 @@ export const submissions: MockSubmission[] = [
   { id: 3, assignmentId: 1, loginId: 'student2', type: 'LINK', codeText: null, language: null, fileName: null, fileSize: null, links: ['https://github.com/example/aplusb', 'https://aplusb.example.dev'], submittedAt: days(-1), comment: null },
   { id: 4, assignmentId: 1, loginId: 'student3', type: 'LINK', codeText: null, language: null, fileName: null, fileSize: null, links: ['https://github.com/example/late-submit'], submittedAt: days(-1), comment: null },
   { id: 5, assignmentId: 2, loginId: 'student1', type: 'CODE', codeText: sampleCode, language: 'C', fileName: null, fileSize: null, links: [], submittedAt: hours(-1), comment: null },
+]
+
+// ---- 자동 채점 (docs judge/design.md) - BE LocalDataSeeder 동일: 1차시(A+B)에 케이스 3개(첫 번째 공개), 코드 제출 결과 student1 ACCEPTED 3/3 · student2 WRONG_ANSWER 2/3
+// 가짜 엔진(mocks/judge.ts)은 BE FakeJudgeEngine 과 같이 지시 주석 없으면 입력을 echo 한다 - 이 과제(기대 출력 = 합)에 새로 제출하면 틀렸습니다가 정상. 맞았습니다를 보려면 기대 출력 = 입력인 문제를 출제하거나 `// judge: AC` 대신 echo 규칙을 따른다
+export interface MockTestCase {
+  id: number
+  assignmentId: number
+  position: number
+  input: string
+  expectedOutput: string
+  isPublic: boolean
+}
+
+export interface MockJudgeCase {
+  position: number
+  verdict: Verdict
+  timeMs: number | null
+  memoryKb: number | null
+  actualOutput: string
+  truncated: boolean
+}
+
+export interface MockJudgeResult {
+  submissionId: number
+  assignmentId: number
+  status: JudgeStatus
+  verdict: Verdict | null
+  passedCases: number
+  totalCases: number
+  maxTimeMs: number | null
+  maxMemoryKb: number | null
+  compileOutput: string | null
+  cases: MockJudgeCase[]
+  judgedAt: string | null
+}
+
+export const testCases: MockTestCase[] = [
+  { id: 1, assignmentId: 1, position: 0, input: '1 2\n', expectedOutput: '3\n', isPublic: true },
+  { id: 2, assignmentId: 1, position: 1, input: '10 20\n', expectedOutput: '30\n', isPublic: false },
+  { id: 3, assignmentId: 1, position: 2, input: '-5 5\n', expectedOutput: '0\n', isPublic: false },
+]
+
+export const judgeResults: MockJudgeResult[] = [
+  {
+    submissionId: 1, assignmentId: 1, status: 'DONE', verdict: 'ACCEPTED', passedCases: 3, totalCases: 3, maxTimeMs: 3, maxMemoryKb: 1600, compileOutput: null, judgedAt: days(-5),
+    cases: [
+      { position: 0, verdict: 'ACCEPTED', timeMs: 2, memoryKb: 1536, actualOutput: '3\n', truncated: false },
+      { position: 1, verdict: 'ACCEPTED', timeMs: 2, memoryKb: 1536, actualOutput: '30\n', truncated: false },
+      { position: 2, verdict: 'ACCEPTED', timeMs: 3, memoryKb: 1600, actualOutput: '0\n', truncated: false },
+    ],
+  },
+  {
+    submissionId: 2, assignmentId: 1, status: 'DONE', verdict: 'WRONG_ANSWER', passedCases: 2, totalCases: 3, maxTimeMs: 3, maxMemoryKb: 1600, compileOutput: null, judgedAt: days(-4),
+    cases: [
+      { position: 0, verdict: 'ACCEPTED', timeMs: 2, memoryKb: 1536, actualOutput: '3\n', truncated: false },
+      { position: 1, verdict: 'ACCEPTED', timeMs: 2, memoryKb: 1536, actualOutput: '30\n', truncated: false },
+      { position: 2, verdict: 'WRONG_ANSWER', timeMs: 3, memoryKb: 1600, actualOutput: '10\n', truncated: false },
+    ],
+  },
 ]

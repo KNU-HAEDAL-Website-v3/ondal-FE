@@ -6,6 +6,7 @@ import { useMe } from '@/api/auth'
 import { useCohort, useMyCohorts } from '@/api/cohorts'
 import { Button } from '@/components/ui/button'
 import { ApiErrorView, EmptyState } from '@/components/ApiErrorView'
+import { JudgeSamplesSection } from '@/components/judge/JudgeSamplesSection'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { MySubmissionList } from '@/components/submissions/MySubmissionList'
 import { StatusBoard } from '@/components/submissions/StatusBoard'
@@ -17,7 +18,7 @@ import { cn } from '@/lib/utils'
 /**
  * 과제 상세 (피그마 28:1433) - 설명·기간 + 제출란·내 제출 기록, 운영진에게는 현황판까지.
  * 분반은 ?cohort= (목록에서 링크로 전달, 없으면 내 첫 분반).
- * 문제 목록·진행률·채점 결과는 P2·P3 요소라 아직 없다 (docs submission/fe.md 3절).
+ * 자동 채점 문제(judgeEnabled)면 헤더 배지 + 예시 절(#50), 제출 결과는 내 기록·현황판 안에서 (docs judge/fe.md 2·3절).
  */
 export default function AssignmentDetailPage() {
   const { assignmentId } = useParams()
@@ -84,6 +85,9 @@ export default function AssignmentDetailPage() {
             <span className="font-mono text-primary">#{assignment.problemNo}</span>
             {assignment.title}
             {assignment.myStatus !== null && <SubmissionStatusBadge status={assignment.myStatus} />}
+            {assignment.judgeEnabled && (
+              <span className="rounded-[2px] bg-[#ede9fe] px-2 py-0.5 text-xs font-bold text-[#6d28d9]">자동 채점</span>
+            )}
           </h1>
           <div className="flex items-center gap-2">
             <span
@@ -142,12 +146,14 @@ export default function AssignmentDetailPage() {
         </section>
       </div>
 
+      {assignment.judgeEnabled && <JudgeSamplesSection cohortId={cohortId} assignmentId={assignment.id} />}
+
       {archived ? (
         <p className="rounded-[2px] border bg-muted px-3 py-2 text-sm text-muted-foreground">
           보관된 분반이라 새 제출은 할 수 없어요. 기록 열람은 가능합니다.
         </p>
       ) : (
-        <SubmissionForm cohortId={cohortId} assignmentId={assignment.id} dueAt={assignment.dueAt} />
+        <SubmissionForm cohortId={cohortId} assignmentId={assignment.id} dueAt={assignment.dueAt} judgeEnabled={assignment.judgeEnabled} />
       )}
 
       <MySubmissionList cohortId={cohortId} assignmentId={assignment.id} />

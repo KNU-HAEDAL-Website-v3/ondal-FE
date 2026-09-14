@@ -4,6 +4,7 @@ import { submissionFileUrl, useClearSubmissionComment, useCommentSubmission, use
 import type { SubmissionResponse } from '@/api/types'
 import { ApiErrorView } from '@/components/ApiErrorView'
 import { CodeViewer } from '@/components/code/CodePane'
+import { JudgeResultView } from '@/components/judge/JudgeResultView'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatKst } from '@/lib/datetime'
@@ -16,7 +17,7 @@ const TEXTAREA_CLASS =
 /**
  * 제출 단건(#20) 펼침 뷰 - 내 이력 행과 현황판(운영진) 열람이 공용한다.
  * 코드 전문은 이 컴포넌트가 마운트될 때(행을 펼칠 때)만 서버에서 가져온다.
- * 하단에 운영진 코멘트(design.md 결정 18) - 학생은 읽기만, canComment(운영진 + ACTIVE)면 남기기·수정·지우기.
+ * 코드 아래에 채점 결과(judge - 자동 채점 문제의 CODE 제출만, judge/fe.md 3절), 하단에 운영진 코멘트(design.md 결정 18) - 학생은 읽기만, canComment(운영진 + ACTIVE)면 남기기·수정·지우기.
  */
 export function SubmissionDetailView({
   cohortId,
@@ -68,6 +69,7 @@ export function SubmissionDetailView({
           </a>
         ))}
       </div>
+      {submission.judge !== null && <JudgeResultView judge={submission.judge} />}
       {(submission.comment !== null || canComment) && (
         <CommentBox cohortId={cohortId} assignmentId={assignmentId} submission={submission} canComment={canComment} />
       )}
