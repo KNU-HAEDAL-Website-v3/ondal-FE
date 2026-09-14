@@ -32,7 +32,7 @@ export default function HomePage() {
           <AlertDescription>{notice}</AlertDescription>
         </Alert>
       )}
-      {isOperator ? <OperatorDashboard /> : <StudentDashboard cohorts={cohorts} />}
+      {isOperator ? <OperatorDashboard cohorts={cohorts} /> : <StudentDashboard cohorts={cohorts} />}
     </div>
   )
 }

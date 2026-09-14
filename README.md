@@ -56,7 +56,7 @@ npm run lint       # 린트 (oxlint)
 src/
   api/          서버 통신 - client.ts(fetch 래퍼·ApiError), types.ts(BE DTO 미러), auth.ts·cohorts.ts·members.ts·assignments.ts·submissions.ts·questions.ts·notices.ts·sessions.ts·attendances.ts(요청 함수 + React Query 훅)
   components/   RequireAuth(로그인 울타리) · RequireAdmin(관리자 울타리) · ApiErrorView(403→홈, 404 안내, 재시도) · layout/AppShell(사이드바·상단 바) · cohorts/(분반 카드·섹션·운영진 팝업) · ui/(shadcn)
-  pages/        LoginPage · HomePage · CohortPage · CohortMembersPage(명부·배정) · AdminCohortsPage·CohortFormPage(관리자 분반 관리) · Assignments*(목록·상세·폼) · Questions*(Q&A 목록·상세·폼) · Notice*(공지 목록·상세·폼) · NotFoundPage
+  pages/        LoginPage · HomePage(역할별 대시보드 - dashboard/) · CohortPage · CohortMembersPage(명부·배정) · AdminCohortsPage·CohortFormPage(관리자 분반 관리) · Assignments*(목록·상세·폼) · AttendancePage(attendance/) · Questions*(Q&A 목록·상세·폼) · Notice*(공지 목록·상세·폼) · ProblemsPage(P3 안내) · NotFoundPage
   lib/          datetime(KST 표시) · draft(폼 임시 저장 - 세션 만료 대비) · loginIds(명단 붙여넣기 파싱) · params(경로 변수 검증)
   routes.tsx    라우트 한눈에 보기
   mocks/        MSW 핸들러 + 시드 데이터 (BE LocalDataSeeder 와 동일하게 유지)

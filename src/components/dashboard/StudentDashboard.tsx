@@ -1,28 +1,36 @@
 import { Link } from 'react-router'
-import { CalendarClock, CircleCheckBig, FileText, GraduationCap, Play, UserCheck } from 'lucide-react'
+import { CalendarClock, CircleCheckBig, FileText, GraduationCap, Megaphone, Play, UserCheck } from 'lucide-react'
+import { useAssignments } from '@/api/assignments'
+import { useMyAttendance } from '@/api/attendances'
 import { useMe } from '@/api/auth'
+import { useNotices } from '@/api/notices'
 import type { CohortResponse } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { StatCard } from '@/components/dashboard/StatCard'
-import { cn } from '@/lib/utils'
+import { SubmissionStatusBadge } from '@/components/submissions/SubmissionStatusBadge'
+import { ddayLabel, formatKst, isOverdue } from '@/lib/datetime'
 
-// 모양 잡기용 견본 데이터 - 과제/제출 BE API가 생기면 실제 데이터로 교체한다.
-const SAMPLE_SUBMISSIONS = [
-  { id: 1, problem: 'Valid Parentheses', language: 'Python 3', result: '틀렸습니다', tone: 'red', submittedAt: '1시간 전' },
-  { id: 2, problem: 'Valid Parentheses', language: 'Python 3', result: '컴파일 에러', tone: 'yellow', submittedAt: '어제' },
-  { id: 3, problem: 'Binary Search', language: 'Python 3', result: '맞았습니다', tone: 'green', submittedAt: '2일 전' },
-] as const
-
-const RESULT_TONES: Record<string, string> = {
-  green: 'bg-[#dcfce7] text-[#16a34a]',
-  yellow: 'bg-[#fef08a] text-[#854d0e]',
-  red: 'bg-[#ffdad6] text-[#ba1a1a]',
-}
-
-/** 수강자 홈 대시보드 (피그마 28:368) */
+/**
+ * 수강자 홈 대시보드 (피그마 28:368) - 첫 ACTIVE 분반 기준 실데이터 요약.
+ * 카드·목록 값은 전부 서버 응답(과제 myStatus·출석 rate·공지 pinned) - 프론트는 세고 고르기만 한다 (CLAUDE.md 규칙 4).
+ * 채점 결과 위젯은 자동 채점(P2 Judge0) 전까지 두지 않는다 - 가짜 결과를 보이지 않게. 대신 마감 임박 과제와 필독 공지.
+ */
 export function StudentDashboard({ cohorts }: { cohorts: CohortResponse[] }) {
   const { data: me } = useMe()
   const activeCohort = cohorts.find((c) => c.status === 'ACTIVE')
+  const cohortId = activeCohort?.id ?? NaN
+  const assignmentsQuery = useAssignments(cohortId)
+  const attendanceQuery = useMyAttendance(cohortId)
+  const noticesQuery = useNotices()
+
+  const assignments = assignmentsQuery.data ?? []
+  // 진행 중 = 마감 전. 가까운 마감 순
+  const open = assignments.filter((a) => !isOverdue(a.dueAt)).sort((a, b) => a.dueAt.localeCompare(b.dueAt))
+  const nearest = open[0]
+  const submitted = assignments.filter((a) => a.myStatus !== null && a.myStatus !== 'NOT_SUBMITTED').length
+  const rate = attendanceQuery.data?.summary.rate ?? null
+  const notices = (noticesQuery.data ?? []).slice(0, 3) // 서버 정렬 = 필독 먼저 → 최신순
+  const loaded = activeCohort !== undefined && !assignmentsQuery.isPending
 
   return (
     <div className="space-y-6">
@@ -34,68 +42,113 @@ export function StudentDashboard({ cohorts }: { cohorts: CohortResponse[] }) {
             {activeCohort ? activeCohort.name : '소속된 분반이 없어요'}
           </p>
         </div>
-        <Button className="rounded-[2px]" asChild>
-          <Link to="/assignments">
-            <Play data-icon="inline-start" />
-            이어서 학습하기
-          </Link>
-        </Button>
+        {activeCohort && (
+          <Button className="rounded-[2px]" asChild>
+            <Link to={nearest ? `/assignments/${nearest.id}?cohort=${cohortId}` : `/assignments?cohort=${cohortId}`}>
+              <Play data-icon="inline-start" />
+              {nearest ? '가장 급한 과제로' : '과제 보기'}
+            </Link>
+          </Button>
+        )}
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="진행 중인 과제" value="2" unit="개" icon={FileText} iconClassName="bg-secondary text-primary" />
+        <StatCard label="진행 중인 과제" value={loaded ? String(open.length) : '-'} unit="개" icon={FileText} iconClassName="bg-secondary text-primary" />
         <StatCard
-          label="과제 마감 D-Day"
-          value="D-1"
-          valueClassName="text-destructive"
+          label="가장 가까운 마감"
+          value={loaded && nearest ? ddayLabel(nearest.dueAt) : '-'}
+          valueClassName={nearest ? 'text-destructive' : undefined}
           icon={CalendarClock}
           iconClassName="bg-[#ffdad6] text-destructive"
         />
         <StatCard
-          label="최근 제출 결과"
-          value="정답"
+          label="제출한 과제"
+          value={loaded ? String(submitted) : '-'}
+          unit={loaded ? `/ ${assignments.length}개` : undefined}
           valueClassName="text-[#16a34a]"
           icon={CircleCheckBig}
           iconClassName="bg-[#dcfce7] text-[#16a34a]"
         />
-        <StatCard label="전체 출석률" value="95" unit="%" icon={UserCheck} iconClassName="bg-secondary text-primary" />
+        <StatCard
+          label="전체 출석률"
+          value={attendanceQuery.isPending && activeCohort ? '-' : rate === null ? '-' : String(rate)}
+          unit={rate === null ? undefined : '%'}
+          icon={UserCheck}
+          iconClassName="bg-secondary text-primary"
+        />
       </div>
 
-      <section className="rounded-lg border bg-card p-4">
-        <h2 className="text-xl font-bold">최근 제출 결과</h2>
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted text-[13px] tracking-[0.55px] text-muted-foreground">
-                <th className="px-4 py-2 text-left font-bold">문제명</th>
-                <th className="px-2 py-2 text-center font-bold">언어</th>
-                <th className="px-2 py-2 text-center font-bold">결과</th>
-                <th className="px-4 py-2 text-right font-bold">제출 시각</th>
-              </tr>
-            </thead>
-            <tbody>
-              {SAMPLE_SUBMISSIONS.map((s) => (
-                <tr key={s.id} className="border-b last:border-0">
-                  <td className="px-4 py-3 font-mono">{s.problem}</td>
-                  <td className="px-2 py-3 text-center font-mono text-[#464555]">{s.language}</td>
-                  <td className="px-2 py-3 text-center">
-                    <span className={cn('inline-block rounded-[2px] px-2 py-0.5 text-xs font-bold', RESULT_TONES[s.tone])}>
-                      {s.result}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <section className="rounded-lg border bg-card p-4 lg:col-span-2">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-xl font-bold">마감 임박 과제</h2>
+            {activeCohort && (
+              <Button variant="link" size="sm" asChild>
+                <Link to={`/assignments?cohort=${cohortId}`}>전체 과제</Link>
+              </Button>
+            )}
+          </div>
+          {!activeCohort ? (
+            <p className="mt-4 text-sm text-muted-foreground">분반에 배정되면 과제가 여기에 표시됩니다.</p>
+          ) : assignmentsQuery.isPending ? (
+            <p className="mt-4 text-sm text-muted-foreground">과제 불러오는 중...</p>
+          ) : assignmentsQuery.error ? (
+            <p className="mt-4 text-sm text-destructive">{assignmentsQuery.error.message}</p>
+          ) : open.length === 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">진행 중인 과제가 없어요. 수고했어요!</p>
+          ) : (
+            <ul className="mt-4 divide-y">
+              {open.slice(0, 5).map((a) => (
+                <li key={a.id}>
+                  <Link
+                    to={`/assignments/${a.id}?cohort=${cohortId}`}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-sm hover:bg-secondary/40"
+                  >
+                    <span className="font-mono font-semibold text-primary">#{a.problemNo}</span>
+                    <span className="font-semibold">{a.title}</span>
+                    {a.myStatus !== null && <SubmissionStatusBadge status={a.myStatus} />}
+                    <span className="ml-auto flex items-center gap-2 font-mono text-xs text-muted-foreground">
+                      <span className="rounded-[2px] bg-[#dcfce7] px-1.5 py-0.5 font-semibold text-[#16a34a]">{ddayLabel(a.dueAt)}</span>
+                      {formatKst(a.dueAt)}
                     </span>
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium text-muted-foreground">{s.submittedAt}</td>
-                </tr>
+                  </Link>
+                </li>
               ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="mt-2 text-center">
-          {/* 제출 이력은 과제 상세 안에 있다 - /submissions(전체 기록)는 P2 이연 */}
-          <Button variant="link" size="sm" asChild>
-            <Link to="/assignments">과제에서 제출 기록 보기</Link>
-          </Button>
-        </div>
-      </section>
+            </ul>
+          )}
+        </section>
+
+        <section className="rounded-lg border bg-card p-4">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-xl font-bold">공지</h2>
+            <Button variant="link" size="sm" asChild>
+              <Link to="/notices">전체 보기</Link>
+            </Button>
+          </div>
+          {noticesQuery.isPending ? (
+            <p className="mt-4 text-sm text-muted-foreground">공지 불러오는 중...</p>
+          ) : notices.length === 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">아직 공지가 없어요.</p>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {notices.map((n) => (
+                <li key={n.id}>
+                  <Link to={`/notices/${n.id}`} className="flex items-start gap-2 rounded-md border p-3 text-sm hover:bg-secondary/40">
+                    <Megaphone className={`mt-0.5 size-4 shrink-0 ${n.pinned ? 'text-[#ba1a1a]' : 'text-primary'}`} />
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-1.5">
+                        {n.pinned && <span className="rounded-[2px] bg-[#ffdad6] px-1.5 py-0.5 text-[11px] font-bold text-[#ba1a1a]">필독</span>}
+                        <span className="truncate font-semibold">{n.title}</span>
+                      </span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">{n.cohort?.name ?? '전체 공지'} · {n.author.name}</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   )
 }
