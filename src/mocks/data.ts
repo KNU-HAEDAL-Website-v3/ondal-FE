@@ -23,6 +23,8 @@ export interface MockEnrollment {
   cohortId: number
   loginId: string
   role: EnrollmentRole
+  /** 소속 등록 시각 - 시드는 생략(분반 생성 시각으로 표시), 화면에서 배정한 것은 채운다 */
+  enrolledAt?: string
 }
 
 export const users: MockUser[] = [

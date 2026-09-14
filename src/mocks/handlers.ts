@@ -3,8 +3,10 @@ import { delay, http, HttpResponse } from 'msw'
 import type {
   AssignmentResponse,
   CohortResponse,
+  CohortStatus,
   ErrorResponse,
   LogoutResponse,
+  MemberResponse,
   QuestionResponse,
   StatusBoardRow,
   SubmissionResponse,
@@ -22,6 +24,7 @@ import {
   users,
   type MockAssignment,
   type MockCohort,
+  type MockEnrollment,
   type MockQuestion,
   type MockSubmission,
   type MockUser,
@@ -149,6 +152,84 @@ function parseAssignmentBody(
 
 const archivedError = () =>
   error(409, 'COHORT_ARCHIVED', '보관된 분반은 변경할 수 없습니다. 보관을 해제한 뒤 다시 시도하세요.')
+
+// ---- 분반 관리·명부 헬퍼 -------------------------------------------------------------------
+
+/** BE @AdminOnly - 관리자가 아니면 403 */
+const forbiddenAdmin = () => error(403, 'FORBIDDEN', '관리자만 사용할 수 있습니다.')
+
+/** BE UserService.findOrCreateMember - 모르는 loginId 는 MEMBER 로 선등록 (이름 = loginId) */
+function findOrCreateUser(loginId: string): MockUser {
+  let user = users.find((u) => u.loginId === loginId)
+  if (!user) {
+    user = { id: Math.max(0, ...users.map((u) => u.id)) + 1, loginId, name: loginId, globalRole: 'MEMBER' }
+    users.push(user)
+  }
+  return user
+}
+
+/** loginId 검증 - @NotBlank·@Size(50) 미러. 목록이면 @NotEmpty 도 */
+function validateLoginIds(raw: unknown, allowEmpty: boolean): { ids: string[] } | { fail: HttpResponse<ErrorResponse> } {
+  if (!Array.isArray(raw)) return { fail: error(400, 'INVALID_INPUT', 'loginIds는 비어 있을 수 없습니다.') }
+  if (!allowEmpty && raw.length === 0) return { fail: error(400, 'INVALID_INPUT', 'loginIds는 비어 있을 수 없습니다.') }
+  const ids: string[] = []
+  for (const item of raw) {
+    const id = typeof item === 'string' ? item.trim() : ''
+    if (!id) return { fail: error(400, 'INVALID_INPUT', 'loginId는 비어 있을 수 없습니다.') }
+    if (id.length > 50) return { fail: error(400, 'INVALID_INPUT', 'loginId는 50자 이하여야 합니다.') }
+    ids.push(id)
+  }
+  return { ids }
+}
+
+function toMemberResponse(e: MockEnrollment): MemberResponse {
+  const user = users.find((u) => u.loginId === e.loginId)!
+  const cohort = cohorts.find((c) => c.id === e.cohortId)
+  return {
+    user: toUserResponse(user),
+    role: e.role,
+    title: titleOf(user, e.cohortId),
+    enrolledAt: e.enrolledAt ?? cohort?.createdAt ?? new Date(0).toISOString(),
+  }
+}
+
+/** 명부 - 운영진 먼저(서버 정렬), 같은 역할 안에서는 등록 순서 */
+function membersOf(cohortId: number): MemberResponse[] {
+  return enrollments
+    .filter((e) => e.cohortId === cohortId)
+    .sort((a, b) => Number(a.role === 'STUDENT') - Number(b.role === 'STUDENT'))
+    .map(toMemberResponse)
+}
+
+/**
+ * BE EnrollmentService.assign - 없는 사람은 만들고, 같은 role 이면 그대로(멱등), 다른 role 로 소속이면 409 (전체 롤백 - 아무도 배정되지 않음).
+ * 트랜잭션 미러: 충돌을 먼저 전부 검사한 뒤 반영한다
+ */
+function assignRole(cohort: MockCohort, loginIds: string[], role: MockEnrollment['role']): HttpResponse<ErrorResponse> | null {
+  const unique = [...new Set(loginIds)]
+  for (const loginId of unique) {
+    const existing = enrollments.find((e) => e.cohortId === cohort.id && e.loginId === loginId)
+    if (existing && existing.role !== role) {
+      return error(409, 'CONFLICT', `이미 ${existing.role} 로 소속된 사용자입니다: ${loginId}`)
+    }
+  }
+  const now = new Date().toISOString()
+  for (const loginId of unique) {
+    findOrCreateUser(loginId)
+    if (!enrollments.some((e) => e.cohortId === cohort.id && e.loginId === loginId)) {
+      enrollments.push({ cohortId: cohort.id, loginId, role, enrolledAt: now })
+    }
+  }
+  return null
+}
+
+/** 분반 쓰기 3종(수정·명부 변경)의 공통 앞부분 - 404 → 보관 409 */
+function requireActiveCohort(cohortId: number): { cohort: MockCohort } | { fail: HttpResponse<ErrorResponse> } {
+  const cohort = cohorts.find((c) => c.id === cohortId)
+  if (!cohort) return { fail: error(404, 'NOT_FOUND', '분반을 찾을 수 없습니다.') }
+  if (cohort.status === 'ARCHIVED') return { fail: archivedError() }
+  return { cohort }
+}
 
 // ---- Q&A 헬퍼 ------------------------------------------------------------------------
 
@@ -301,6 +382,160 @@ export const handlers = [
     if (user.globalRole !== 'ADMIN' && !isMember) return error(403, 'FORBIDDEN', '이 분반에 접근할 권한이 없습니다.')
     if (!cohort) return error(404, 'NOT_FOUND', '분반을 찾을 수 없습니다.')
     return HttpResponse.json(toCohortResponse(cohort, user))
+  }),
+
+  // ---- 분반 관리 (#2·#3·#5~#7, 관리자) --------------------------------------------------
+
+  http.get('/api/cohorts', async ({ request }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    const status = (new URL(request.url).searchParams.get('status') ?? 'ACTIVE') as CohortStatus
+    if (status !== 'ACTIVE' && status !== 'ARCHIVED') return error(400, 'INVALID_INPUT', '잘못된 status 값입니다.')
+    const list = cohorts.filter((c) => c.status === status).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    return HttpResponse.json(list.map((c) => toCohortResponse(c, user)))
+  }),
+
+  http.post('/api/cohorts', async ({ request }) => {
+    await delay(400)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    const body = ((await request.json().catch(() => null)) ?? {}) as { name?: unknown; description?: unknown; operatorLoginIds?: unknown }
+    const name = typeof body.name === 'string' ? body.name.trim() : ''
+    if (!name) return error(400, 'INVALID_INPUT', '분반 이름은 비어 있을 수 없습니다.')
+    if (name.length > 100) return error(400, 'INVALID_INPUT', '분반 이름은 100자 이하여야 합니다.')
+    const description = typeof body.description === 'string' && body.description.trim() !== '' ? body.description : null
+    if (description !== null && description.length > 2000) return error(400, 'INVALID_INPUT', '설명은 2000자 이하여야 합니다.')
+    const operators = validateLoginIds(body.operatorLoginIds ?? [], true)
+    if ('fail' in operators) return operators.fail
+    const created: MockCohort = {
+      id: Math.max(0, ...cohorts.map((c) => c.id)) + 1,
+      name,
+      description,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+    }
+    cohorts.push(created)
+    assignRole(created, operators.ids, 'OPERATOR') // 새 분반이라 충돌 없음
+    return HttpResponse.json(toCohortResponse(created, user), {
+      status: 201,
+      headers: { Location: `/api/cohorts/${created.id}` },
+    })
+  }),
+
+  http.put('/api/cohorts/:cohortId', async ({ params, request }) => {
+    await delay(400)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    const body = ((await request.json().catch(() => null)) ?? {}) as { name?: unknown; description?: unknown }
+    const name = typeof body.name === 'string' ? body.name.trim() : ''
+    if (!name) return error(400, 'INVALID_INPUT', '분반 이름은 비어 있을 수 없습니다.')
+    if (name.length > 100) return error(400, 'INVALID_INPUT', '분반 이름은 100자 이하여야 합니다.')
+    const description = typeof body.description === 'string' && body.description.trim() !== '' ? body.description : null
+    if (description !== null && description.length > 2000) return error(400, 'INVALID_INPUT', '설명은 2000자 이하여야 합니다.')
+    const target = requireActiveCohort(Number(params.cohortId))
+    if ('fail' in target) return target.fail
+    Object.assign(target.cohort, { name, description })
+    return HttpResponse.json(toCohortResponse(target.cohort, user))
+  }),
+
+  http.post('/api/cohorts/:cohortId/archive', async ({ params }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    const cohort = cohorts.find((c) => c.id === Number(params.cohortId))
+    if (!cohort) return error(404, 'NOT_FOUND', '분반을 찾을 수 없습니다.')
+    cohort.status = 'ARCHIVED' // 멱등
+    return HttpResponse.json(toCohortResponse(cohort, user))
+  }),
+
+  http.post('/api/cohorts/:cohortId/restore', async ({ params }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    const cohort = cohorts.find((c) => c.id === Number(params.cohortId))
+    if (!cohort) return error(404, 'NOT_FOUND', '분반을 찾을 수 없습니다.')
+    cohort.status = 'ACTIVE' // 멱등
+    return HttpResponse.json(toCohortResponse(cohort, user))
+  }),
+
+  // ---- 명부·배정 (#8~#12, 운영진 이상 / 운영진 지정·해제는 관리자) ----------------------------
+
+  http.get('/api/cohorts/:cohortId/members', async ({ params }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), true)
+    if ('fail' in guard) return guard.fail
+    return HttpResponse.json(membersOf(guard.cohort.id))
+  }),
+
+  http.post('/api/cohorts/:cohortId/students', async ({ params, request }) => {
+    await delay(400)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), true)
+    if ('fail' in guard) return guard.fail
+    const body = ((await request.json().catch(() => null)) ?? {}) as { loginIds?: unknown }
+    const parsed = validateLoginIds(body.loginIds, false)
+    if ('fail' in parsed) return parsed.fail
+    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    const conflict = assignRole(guard.cohort, parsed.ids, 'STUDENT')
+    if (conflict) return conflict
+    return HttpResponse.json(membersOf(guard.cohort.id)) // 갱신된 명부 전체
+  }),
+
+  http.delete('/api/cohorts/:cohortId/students/:loginId', async ({ params }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), true)
+    if ('fail' in guard) return guard.fail
+    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    const loginId = decodeURIComponent(String(params.loginId))
+    const index = enrollments.findIndex((e) => e.cohortId === guard.cohort.id && e.loginId === loginId && e.role === 'STUDENT')
+    if (index < 0) return error(404, 'NOT_FOUND', `해당 분반의 수강생이 아닙니다: ${loginId}`)
+    enrollments.splice(index, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.put('/api/cohorts/:cohortId/operators/:loginId', async ({ params }) => {
+    await delay(400)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    const loginId = decodeURIComponent(String(params.loginId))
+    if (loginId.length > 50) return error(400, 'INVALID_INPUT', 'loginId는 50자 이하여야 합니다.')
+    const target = requireActiveCohort(Number(params.cohortId))
+    if ('fail' in target) return target.fail
+    findOrCreateUser(loginId)
+    let enrollment = enrollments.find((e) => e.cohortId === target.cohort.id && e.loginId === loginId)
+    if (!enrollment) {
+      enrollment = { cohortId: target.cohort.id, loginId, role: 'OPERATOR', enrolledAt: new Date().toISOString() }
+      enrollments.push(enrollment)
+    } else {
+      enrollment.role = 'OPERATOR' // 수강생이면 승격, 이미 운영진이면 그대로 (멱등)
+    }
+    return HttpResponse.json(toMemberResponse(enrollment))
+  }),
+
+  http.delete('/api/cohorts/:cohortId/operators/:loginId', async ({ params }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    const target = requireActiveCohort(Number(params.cohortId))
+    if ('fail' in target) return target.fail
+    const loginId = decodeURIComponent(String(params.loginId))
+    const index = enrollments.findIndex((e) => e.cohortId === target.cohort.id && e.loginId === loginId && e.role === 'OPERATOR')
+    if (index < 0) return error(404, 'NOT_FOUND', `해당 분반의 운영진이 아닙니다: ${loginId}`)
+    enrollments.splice(index, 1)
+    return new HttpResponse(null, { status: 204 })
   }),
 
   // ---- Q&A (#23~#27) ----------------------------------------------------------------

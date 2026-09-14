@@ -11,6 +11,7 @@ import {
   Megaphone,
   Search,
   Settings,
+  Settings2,
   UserCheck,
 } from 'lucide-react'
 import { useLogout, useMe } from '@/api/auth'
@@ -29,6 +30,8 @@ const NAV_ITEMS = [
   { to: '/assignments', label: '과제', icon: FileText },
   { to: '/cohorts', label: '내 수업', icon: BookOpen },
   { to: '/notices', label: '공지사항', icon: Megaphone },
+  // 관리자 전용 - 분반 생성·보관·운영진 지정 (UC-A1). 비관리자에게는 숨기고, 라우트는 RequireAdmin 이 지킨다
+  { to: '/admin/cohorts', label: '분반 관리', icon: Settings2, adminOnly: true },
 ] as const
 
 const navItemClass = (isActive: boolean) =>
@@ -72,7 +75,7 @@ export function AppShell() {
         </Link>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
-          {NAV_ITEMS.map((item) => (
+          {NAV_ITEMS.filter((item) => !('adminOnly' in item && item.adminOnly) || me?.globalRole === 'ADMIN').map((item) => (
             <NavLink key={item.to} to={item.to} end={'end' in item && item.end} className={({ isActive }) => navItemClass(isActive)}>
               <item.icon className="size-[18px] shrink-0" />
               {item.label}

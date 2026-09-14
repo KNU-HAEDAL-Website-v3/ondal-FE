@@ -1,10 +1,14 @@
 import { Route, Routes } from 'react-router'
+import { RequireAdmin } from '@/components/RequireAdmin'
 import { RequireAuth } from '@/components/RequireAuth'
 import { AppShell } from '@/components/layout/AppShell'
+import AdminCohortsPage from '@/pages/AdminCohortsPage'
 import AssignmentDetailPage from '@/pages/AssignmentDetailPage'
 import AssignmentFormPage from '@/pages/AssignmentFormPage'
 import AssignmentsPage from '@/pages/AssignmentsPage'
 import AttendancePage from '@/pages/AttendancePage'
+import CohortFormPage from '@/pages/CohortFormPage'
+import CohortMembersPage from '@/pages/CohortMembersPage'
 import CohortPage from '@/pages/CohortPage'
 import HomePage from '@/pages/HomePage'
 import LoginPage from '@/pages/LoginPage'
@@ -28,13 +32,17 @@ import QuestionsPage from '@/pages/QuestionsPage'
  *   /assignments/:assignmentId/edit - 과제 수정 (운영진)
  *   /cohorts                   - 내 수업 (분반 목록)
  *   /cohorts/:cohortId         - 분반 페이지 (비소속은 서버 403 → 홈)
+ *   /cohorts/:cohortId/members - 명부·수강생 배정 (운영진 이상·관리자, 학생은 서버 403 → 홈)
+ *   /admin/cohorts             - [관리자] 분반 관리 - 목록·보관 (?status=ARCHIVED 보관함)
+ *   /admin/cohorts/new         - [관리자] 분반 만들기 (+운영진 지정)
+ *   /admin/cohorts/:cohortId/edit - [관리자] 분반 수정 (이름·설명)
  *   /cohorts/:cohortId/questions                  - Q&A 질문 목록 (분반 소속 누구나)
  *   /cohorts/:cohortId/questions/new              - 질문 등록
  *   /cohorts/:cohortId/questions/:questionId      - 질문 상세 (수정·삭제 버튼은 서버 canEdit·canDelete)
  *   /cohorts/:cohortId/questions/:questionId/edit - 질문 수정 (작성자)
  *   /notices                   - 공지사항 (역할별: 목록 / 관리)
  *   *                          - 404
- * 로그인 필요 화면은 RequireAuth(울타리) → AppShell(사이드바+상단 바) 아래에 둔다.
+ * 로그인 필요 화면은 RequireAuth(울타리) → AppShell(사이드바+상단 바) 아래에, 관리자 화면은 그 안의 RequireAdmin 아래에 둔다.
  */
 export function AppRoutes() {
   return (
@@ -52,6 +60,12 @@ export function AppRoutes() {
           {/* /submissions(분반 전체 제출 기록)는 P2 이연 - 채점 결과 중심 화면 (docs submission/design.md 결정 8) */}
           <Route path="cohorts" element={<MyCohortsPage />} />
           <Route path="cohorts/:cohortId" element={<CohortPage />} />
+          <Route path="cohorts/:cohortId/members" element={<CohortMembersPage />} />
+          <Route element={<RequireAdmin />}>
+            <Route path="admin/cohorts" element={<AdminCohortsPage />} />
+            <Route path="admin/cohorts/new" element={<CohortFormPage />} />
+            <Route path="admin/cohorts/:cohortId/edit" element={<CohortFormPage />} />
+          </Route>
           <Route path="cohorts/:cohortId/questions" element={<QuestionsPage />} />
           <Route path="cohorts/:cohortId/questions/new" element={<QuestionFormPage />} />
           <Route path="cohorts/:cohortId/questions/:questionId" element={<QuestionDetailPage />} />
