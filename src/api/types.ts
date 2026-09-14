@@ -141,6 +141,22 @@ export interface SubmissionResponse {
   submittedAt: string
   /** 지각 여부 - 서버 판정값. 마감이 수정되면 재조회 시 바뀔 수 있다 */
   late: boolean
+  /** 운영진 코멘트 - 없으면 null. 점수는 없다 (submission/design.md 결정 18) */
+  comment: SubmissionComment | null
+}
+
+/** 제출에 달린 운영진 코멘트 - 제출 1건에 1개, 덮어쓰기 */
+export interface SubmissionComment {
+  content: string
+  /** 마지막으로 남긴(수정한) 운영진 - title 은 서버 직책 문자열 그대로 */
+  author: UserSummary
+  /** 마지막 변경 시각(UTC) */
+  commentedAt: string
+}
+
+/** PUT .../submissions/{submissionId}/comment(#45) 본문 - 지우기는 DELETE(#46), 본문 없음 */
+export interface SubmissionCommentPayload {
+  content: string
 }
 
 /** GET .../submissions/my(#19) 행 - 코드 전문 제외(확인은 단건 #20) */
@@ -153,6 +169,8 @@ export interface SubmissionSummary {
   links: string[]
   submittedAt: string
   late: boolean
+  /** 운영진 코멘트가 달렸는가 - 행 배지용. 내용은 단건(#20) */
+  hasComment: boolean
 }
 
 /** GET .../status-board(#22) 행 - 현재 수강생 명단(이름순), 미제출자 포함 */
@@ -163,6 +181,8 @@ export interface StatusBoardRow {
   lastSubmittedAt: string | null
   /** 최신 제출 id - 상세(#20)·파일(#21) 진입용. 제출 없으면 null */
   latestSubmissionId: number | null
+  /** 최신 제출에 운영진 코멘트가 달렸는가 - 검토 안 한 제출을 한눈에. 제출 없으면 false */
+  latestCommented: boolean
 }
 
 /** GET·POST·PUT /api/cohorts/{cohortId}/questions - 목록·단건·등록·수정 응답이 전부 이 하나 (docs/qna/api.md 3절) */

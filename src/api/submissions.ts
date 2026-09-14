@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch, BASE_URL } from './client'
 import { assignmentKeys } from './assignments'
-import type { StatusBoardRow, SubmissionPayload, SubmissionResponse, SubmissionSummary } from './types'
+import type { StatusBoardRow, SubmissionCommentPayload, SubmissionPayload, SubmissionResponse, SubmissionSummary } from './types'
 
 export const submissionKeys = {
   my: (cohortId: number, assignmentId: number) =>
@@ -61,6 +61,29 @@ export function useCreateSubmission(cohortId: number, assignmentId: number) {
       if (file) form.append('file', file)
       return apiFetch<SubmissionResponse>(`${base(cohortId, assignmentId)}/submissions`, { method: 'POST', form })
     },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: assignmentKeys.list(cohortId) }),
+  })
+}
+
+/**
+ * [운영진] 제출 코멘트 남기기·덮어쓰기(#45) - 제출 1건에 1개, 점수 없음.
+ * 성공 시 이 분반의 과제 캐시 전체를 무효화 - 상세(comment)·내 이력(hasComment)·현황판(latestCommented)이 같은 접두사를 공유한다.
+ */
+export function useCommentSubmission(cohortId: number, assignmentId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ submissionId, payload }: { submissionId: number; payload: SubmissionCommentPayload }) =>
+      apiFetch<SubmissionResponse>(`${base(cohortId, assignmentId)}/submissions/${submissionId}/comment`, { method: 'PUT', json: payload }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: assignmentKeys.list(cohortId) }),
+  })
+}
+
+/** [운영진] 제출 코멘트 지우기(#46) - 멱등 204 */
+export function useClearSubmissionComment(cohortId: number, assignmentId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (submissionId: number) =>
+      apiFetch<void>(`${base(cohortId, assignmentId)}/submissions/${submissionId}/comment`, { method: 'DELETE' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: assignmentKeys.list(cohortId) }),
   })
 }

@@ -225,6 +225,8 @@ export interface MockSubmission {
   fileSize: number | null
   links: string[]
   submittedAt: string
+  /** 운영진 코멘트 - 제출 1건에 1개(덮어쓰기), 없으면 null. loginId = 마지막으로 남긴 운영진 */
+  comment: { content: string; loginId: string; commentedAt: string } | null
 }
 
 const sampleCode = `#include <stdio.h>
@@ -239,10 +241,12 @@ int main(void) {
 
 // BE LocalDataSeeder와 동일: 1차시(마감 -3일)에 상태 4종 재현 - student1 제출(CODE) / student2 제출(추가)(CODE→LINK) / student3 지각(LINK).
 // 2차시는 student1만 제출(나머지 미제출). FILE 제출은 시딩하지 않는다(파일 실체가 필요해 부적합).
+// student1 의 1차시 제출에 operator1 코멘트 1건 - 코멘트 상자·배지·현황판 표시를 바로 확인 (BE 시더 동일)
 export const submissions: MockSubmission[] = [
-  { id: 1, assignmentId: 1, loginId: 'student1', type: 'CODE', codeText: sampleCode, language: 'C', fileName: null, fileSize: null, links: [], submittedAt: days(-5) },
-  { id: 2, assignmentId: 1, loginId: 'student2', type: 'CODE', codeText: sampleCode, language: 'C', fileName: null, fileSize: null, links: [], submittedAt: days(-4) },
-  { id: 3, assignmentId: 1, loginId: 'student2', type: 'LINK', codeText: null, language: null, fileName: null, fileSize: null, links: ['https://github.com/example/aplusb', 'https://aplusb.example.dev'], submittedAt: days(-1) },
-  { id: 4, assignmentId: 1, loginId: 'student3', type: 'LINK', codeText: null, language: null, fileName: null, fileSize: null, links: ['https://github.com/example/late-submit'], submittedAt: days(-1) },
-  { id: 5, assignmentId: 2, loginId: 'student1', type: 'CODE', codeText: sampleCode, language: 'C', fileName: null, fileSize: null, links: [], submittedAt: hours(-1) },
+  { id: 1, assignmentId: 1, loginId: 'student1', type: 'CODE', codeText: sampleCode, language: 'C', fileName: null, fileSize: null, links: [], submittedAt: days(-5),
+    comment: { content: '입력 처리가 깔끔합니다. 변수명(a, b)만 조금 더 의미 있게 지어 보세요.', loginId: 'operator1', commentedAt: days(-4) } },
+  { id: 2, assignmentId: 1, loginId: 'student2', type: 'CODE', codeText: sampleCode, language: 'C', fileName: null, fileSize: null, links: [], submittedAt: days(-4), comment: null },
+  { id: 3, assignmentId: 1, loginId: 'student2', type: 'LINK', codeText: null, language: null, fileName: null, fileSize: null, links: ['https://github.com/example/aplusb', 'https://aplusb.example.dev'], submittedAt: days(-1), comment: null },
+  { id: 4, assignmentId: 1, loginId: 'student3', type: 'LINK', codeText: null, language: null, fileName: null, fileSize: null, links: ['https://github.com/example/late-submit'], submittedAt: days(-1), comment: null },
+  { id: 5, assignmentId: 2, loginId: 'student1', type: 'CODE', codeText: sampleCode, language: 'C', fileName: null, fileSize: null, links: [], submittedAt: hours(-1), comment: null },
 ]

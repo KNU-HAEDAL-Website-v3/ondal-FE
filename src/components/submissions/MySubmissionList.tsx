@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react'
-import { ChevronDown, Code, Download, FileArchive, Link2 } from 'lucide-react'
+import { ChevronDown, Code, Download, FileArchive, Link2, MessageSquare } from 'lucide-react'
 import { submissionFileUrl, useMySubmissions } from '@/api/submissions'
 import type { SubmissionSummary, SubmissionType } from '@/api/types'
 import { ApiErrorView } from '@/components/ApiErrorView'
@@ -16,7 +16,8 @@ const TYPE_LABEL: Record<SubmissionType, { label: string; Icon: typeof Code }> =
 
 /**
  * 내 제출 기록(#19) - 표: 순번 · 제출 형태 · 지각 · 제출 시각 (design.md 결정 15).
- * 채점 결과 열은 P2 자리 예약 - 자동 채점 도입 시 지각 열 뒤에 추가한다.
+ * 운영진 코멘트가 달린 행은 형태 칸에 "코멘트" 배지(hasComment) - 내용은 행을 펼치면 보인다 (design.md 결정 18).
+ * 채점 결과 열은 자동 채점(Judge0) 도입 시 지각 열 뒤에 추가한다.
  * 행을 펼치면 코드 전문(#20)을 가져온다.
  */
 export function MySubmissionList({ cohortId, assignmentId }: { cohortId: number; assignmentId: number }) {
@@ -93,6 +94,15 @@ function SubmissionRow({
             {label}
             {detail && <span className="text-xs text-muted-foreground">({detail})</span>}
             {latest && <span className="rounded-[2px] bg-secondary px-1.5 py-0.5 text-[11px] font-bold text-primary">최신</span>}
+            {submission.hasComment && (
+              <span
+                aria-label="운영진 코멘트 있음"
+                className="flex items-center gap-0.5 rounded-[2px] bg-[#e0f2fe] px-1.5 py-0.5 text-[11px] font-bold text-[#0369a1]"
+              >
+                <MessageSquare className="size-3" />
+                코멘트
+              </span>
+            )}
           </span>
         </td>
         <td className="py-2.5">
@@ -120,7 +130,7 @@ function SubmissionRow({
         <tr>
           <td colSpan={5} className="pb-2">
             <div className="rounded-[2px] border bg-muted/20">
-              <SubmissionDetailView cohortId={cohortId} assignmentId={assignmentId} submissionId={submission.id} />
+              <SubmissionDetailView cohortId={cohortId} assignmentId={assignmentId} submissionId={submission.id} canComment={false} />
             </div>
           </td>
         </tr>

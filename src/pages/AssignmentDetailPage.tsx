@@ -152,7 +152,7 @@ export default function AssignmentDetailPage() {
 
       <MySubmissionList cohortId={cohortId} assignmentId={assignment.id} />
 
-      {canSeeBoard && <StatusBoard cohortId={cohortId} assignmentId={assignment.id} />}
+      {canSeeBoard && <StatusBoard cohortId={cohortId} assignmentId={assignment.id} canComment={canManage && !archived} />}
     </div>
   )
 }

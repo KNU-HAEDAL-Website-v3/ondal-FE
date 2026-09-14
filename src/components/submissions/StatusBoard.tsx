@@ -7,10 +7,20 @@ import { SubmissionDetailView } from '@/components/submissions/SubmissionDetailV
 import { formatKst } from '@/lib/datetime'
 
 /**
- * [운영진] 제출 현황판 (#22) - 현재 수강생 명단(이름순) x 상태/횟수/최근 제출. 미제출자도 행으로 보인다.
- * "열람" = 최신 제출(대표)을 펼쳐 코드(#20)·파일(#21) 확인. 전체 이력 열람은 P2.
+ * [운영진] 제출 현황판 (#22) - 현재 수강생 명단(이름순) x 상태/횟수/최근 제출/코멘트. 미제출자도 행으로 보인다.
+ * "열람" = 최신 제출(대표)을 펼쳐 코드(#20)·파일(#21) 확인 + 코멘트 남기기(#45, canComment). 전체 이력 열람은 P2.
+ * "코멘트" 열 = 최신 제출에 코멘트가 달렸는가(latestCommented) - 아직 검토하지 않은 제출을 한눈에.
  */
-export function StatusBoard({ cohortId, assignmentId }: { cohortId: number; assignmentId: number }) {
+export function StatusBoard({
+  cohortId,
+  assignmentId,
+  canComment,
+}: {
+  cohortId: number
+  assignmentId: number
+  /** 코멘트 남기기·수정·지우기 가능 여부 - 운영진 + ACTIVE 분반. 표시는 서버 canManage 기준 */
+  canComment: boolean
+}) {
   const query = useStatusBoard(cohortId, assignmentId, true)
   const [openUserId, setOpenUserId] = useState<number | null>(null)
 
@@ -40,6 +50,7 @@ export function StatusBoard({ cohortId, assignmentId }: { cohortId: number; assi
                 <th className="px-2 py-2 text-center font-bold">상태</th>
                 <th className="px-2 py-2 text-center font-bold">제출 횟수</th>
                 <th className="px-2 py-2 text-center font-bold">최근 제출</th>
+                <th className="px-2 py-2 text-center font-bold">코멘트</th>
                 <th className="px-2 py-2 text-center font-bold">제출물</th>
               </tr>
             </thead>
@@ -54,6 +65,15 @@ export function StatusBoard({ cohortId, assignmentId }: { cohortId: number; assi
                     <td className="px-2 py-2.5 text-center font-mono">{row.submissionCount}</td>
                     <td className="px-2 py-2.5 text-center font-mono text-xs">
                       {row.lastSubmittedAt === null ? '-' : formatKst(row.lastSubmittedAt)}
+                    </td>
+                    <td className="px-2 py-2.5 text-center">
+                      {row.latestSubmissionId === null ? (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      ) : row.latestCommented ? (
+                        <span className="inline-block rounded-[2px] bg-[#e0f2fe] px-2 py-0.5 text-xs font-bold text-[#0369a1]">남김</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">아직</span>
+                      )}
                     </td>
                     <td className="px-2 py-2.5 text-center">
                       {row.latestSubmissionId === null ? (
@@ -73,8 +93,13 @@ export function StatusBoard({ cohortId, assignmentId }: { cohortId: number; assi
                   </tr>
                   {openUserId === row.user.id && row.latestSubmissionId !== null && (
                     <tr className="border-b bg-muted/20 last:border-0">
-                      <td colSpan={5}>
-                        <SubmissionDetailView cohortId={cohortId} assignmentId={assignmentId} submissionId={row.latestSubmissionId} />
+                      <td colSpan={6}>
+                        <SubmissionDetailView
+                          cohortId={cohortId}
+                          assignmentId={assignmentId}
+                          submissionId={row.latestSubmissionId}
+                          canComment={canComment}
+                        />
                       </td>
                     </tr>
                   )}
@@ -84,7 +109,9 @@ export function StatusBoard({ cohortId, assignmentId }: { cohortId: number; assi
           </table>
         </div>
       )}
-      <p className="mt-2 text-xs text-muted-foreground">열람은 최신 제출 기준이에요. 파일 다운로드는 펼친 제출물 안에서 할 수 있습니다.</p>
+      <p className="mt-2 text-xs text-muted-foreground">
+        열람은 최신 제출 기준이에요. 파일 다운로드와 코멘트 남기기는 펼친 제출물 안에서 할 수 있습니다.
+      </p>
     </section>
   )
 }

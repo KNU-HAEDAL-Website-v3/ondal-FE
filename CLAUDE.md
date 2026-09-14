@@ -12,6 +12,7 @@
 - 공지사항(P2, docs notice/): `/notices` 역할 통합 한 화면 - 목록은 서버 가시성(전체 + 소속 분반) 그대로, 작성은 관리자(전체·분반)·운영진(자기 반), 수정·삭제 버튼은 `canEdit`·`canDelete`. 견본 데이터 화면(Student/OperatorNoticesView)은 제거됨
 - 출석부(P2, docs attendance/): `/attendance` - 학생 뷰(내 출석·출석률 링, `GET /attendances/me`) / 운영진 뷰(분반 → 차시 선택·추가·수정·삭제 → 명부 셀렉트로 즉시 표시, 일괄 출석). 출석률·요약·상태는 서버 값, 미확인 = `status: null`, 요일만 FE 계산
 - 홈 대시보드는 전부 실데이터(2026-09-14): 학생 = 진행 중 과제·가까운 마감·제출 수·출석률 + 마감 임박 과제·공지 / 운영진 = 수강생 수·최근 차시 출석률·마감 임박·미제출 + 과제별 제출 현황판·빠른 이동·공지. **견본(SAMPLE_) 데이터 화면은 더 두지 않는다** - 문제 페이지(P3)는 "준비 중" 안내만
+- 제출 코멘트(P2, 2026-09-14, docs submission/design.md 결정 18): 제출 단건 펼침 뷰(`SubmissionDetailView`) 하단 `운영진 코멘트` 상자 - 운영진(`canManage`)만 남기기·수정·지우기(PUT/DELETE `.../submissions/{id}/comment`), 학생은 읽기 + 내 기록 행 배지(`hasComment`), 현황판 `코멘트` 열(`latestCommented`). **점수 없음** - 결과는 채점 엔진이 말한다
 - 기준본: docs 레포의 와이어프레임 v2.1
 - 용어: UI는 "분반"(내부 모델명 Cohort), "과제/문제"(내부 Assignment)
 
