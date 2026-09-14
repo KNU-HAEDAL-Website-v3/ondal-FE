@@ -12,6 +12,9 @@ import MyCohortsPage from '@/pages/MyCohortsPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 import NoticesPage from '@/pages/NoticesPage'
 import ProblemsPage from '@/pages/ProblemsPage'
+import QuestionDetailPage from '@/pages/QuestionDetailPage'
+import QuestionFormPage from '@/pages/QuestionFormPage'
+import QuestionsPage from '@/pages/QuestionsPage'
 
 /**
  * 라우트 한눈에 보기.
@@ -25,6 +28,10 @@ import ProblemsPage from '@/pages/ProblemsPage'
  *   /assignments/:assignmentId/edit - 과제 수정 (운영진)
  *   /cohorts                   - 내 수업 (분반 목록)
  *   /cohorts/:cohortId         - 분반 페이지 (비소속은 서버 403 → 홈)
+ *   /cohorts/:cohortId/questions                  - Q&A 질문 목록 (분반 소속 누구나)
+ *   /cohorts/:cohortId/questions/new              - 질문 등록
+ *   /cohorts/:cohortId/questions/:questionId      - 질문 상세 (수정·삭제 버튼은 서버 canEdit·canDelete)
+ *   /cohorts/:cohortId/questions/:questionId/edit - 질문 수정 (작성자)
  *   /notices                   - 공지사항 (역할별: 목록 / 관리)
  *   *                          - 404
  * 로그인 필요 화면은 RequireAuth(울타리) → AppShell(사이드바+상단 바) 아래에 둔다.
@@ -45,6 +52,10 @@ export function AppRoutes() {
           {/* /submissions(분반 전체 제출 기록)는 P2 이연 - 채점 결과 중심 화면 (docs submission/design.md 결정 8) */}
           <Route path="cohorts" element={<MyCohortsPage />} />
           <Route path="cohorts/:cohortId" element={<CohortPage />} />
+          <Route path="cohorts/:cohortId/questions" element={<QuestionsPage />} />
+          <Route path="cohorts/:cohortId/questions/new" element={<QuestionFormPage />} />
+          <Route path="cohorts/:cohortId/questions/:questionId" element={<QuestionDetailPage />} />
+          <Route path="cohorts/:cohortId/questions/:questionId/edit" element={<QuestionFormPage />} />
           <Route path="notices" element={<NoticesPage />} />
         </Route>
       </Route>

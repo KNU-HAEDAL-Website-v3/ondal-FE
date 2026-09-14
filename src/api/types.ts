@@ -138,6 +138,27 @@ export interface StatusBoardRow {
   latestSubmissionId: number | null
 }
 
+/** GET·POST·PUT /api/cohorts/{cohortId}/questions - 목록·단건·등록·수정 응답이 전부 이 하나 (docs/qna/api.md 3절) */
+export interface QuestionResponse {
+  id: number
+  title: string
+  content: string
+  /** 작성자 - loginId·globalRole 없음. title 은 서버가 정한 직책 문자열 그대로 배지 표시 */
+  author: UserSummary
+  /** 등록 시각(UTC) - 수정 시각 열은 없음 (qna/design.md 결정 6) */
+  createdAt: string
+  /** 작성자 본인 && 분반 ACTIVE - 프론트는 이 값만 보고 수정 버튼 분기 (loginId 비교·역할 판정 금지) */
+  canEdit: boolean
+  /** (작성자 본인 || 운영진 이상) && 분반 ACTIVE - 삭제 버튼 분기 */
+  canDelete: boolean
+}
+
+/** POST·PUT /api/cohorts/{cohortId}/questions 요청 본문 - 필드·검증 동일 (PUT 은 전체 교체). title 200자·content 10000자, 둘 다 필수 */
+export interface QuestionPayload {
+  title: string
+  content: string
+}
+
 /** 모든 에러 응답의 공통 모양 */
 export interface ErrorResponse {
   code: string
