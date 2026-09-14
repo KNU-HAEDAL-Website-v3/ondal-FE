@@ -7,6 +7,7 @@ import AssignmentDetailPage from '@/pages/AssignmentDetailPage'
 import AssignmentFormPage from '@/pages/AssignmentFormPage'
 import AssignmentsPage from '@/pages/AssignmentsPage'
 import AttendancePage from '@/pages/AttendancePage'
+import HelpPage from '@/pages/HelpPage'
 import CohortFormPage from '@/pages/CohortFormPage'
 import CohortMembersPage from '@/pages/CohortMembersPage'
 import CohortPage from '@/pages/CohortPage'
@@ -46,6 +47,7 @@ import QuestionsPage from '@/pages/QuestionsPage'
  *   /notices/new               - 공지 작성 (?cohort= 대상 프리셀렉트) - 전체 공지는 관리자, 분반 공지는 그 분반 운영진 이상
  *   /notices/:noticeId         - 공지 상세 (수정·삭제 버튼은 서버 canEdit·canDelete)
  *   /notices/:noticeId/edit    - 공지 수정 (대상 고정)
+ *   /help                      - 도움말 (역할별 할 수 있는 일·문제 보고 방법) - 사이드바·상단 아이콘에서 진입
  *   *                          - 404
  * 로그인 필요 화면은 RequireAuth(울타리) → AppShell(사이드바+상단 바) 아래에, 관리자 화면은 그 안의 RequireAdmin 아래에 둔다.
  */
@@ -57,6 +59,7 @@ export function AppRoutes() {
         <Route element={<AppShell />}>
           <Route index element={<HomePage />} />
           <Route path="attendance" element={<AttendancePage />} />
+          <Route path="help" element={<HelpPage />} />
           <Route path="problems" element={<ProblemsPage />} />
           <Route path="assignments" element={<AssignmentsPage />} />
           <Route path="assignments/new" element={<AssignmentFormPage />} />

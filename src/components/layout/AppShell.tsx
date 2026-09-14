@@ -1,6 +1,5 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import {
-  Bell,
   BookOpen,
   CircleHelp,
   Code,
@@ -9,14 +8,11 @@ import {
   LayoutGrid,
   LogOut,
   Megaphone,
-  Search,
-  Settings,
   Settings2,
   UserCheck,
 } from 'lucide-react'
 import { useLogout, useMe } from '@/api/auth'
 import { SiteFooter } from '@/components/SiteFooter'
-import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 /**
@@ -42,7 +38,11 @@ const navItemClass = (isActive: boolean) =>
       : 'border-transparent text-sidebar-foreground hover:bg-secondary',
   )
 
-/** 로그인 후 모든 화면의 공통 틀 - 좌측 사이드바 + 상단 바 + 본문 */
+/**
+ * 로그인 후 모든 화면의 공통 틀 - 좌측 사이드바 + 상단 바 + 본문.
+ * 피그마 원안의 검색창·알림·설정 버튼은 뒤에 기능이 없어 뺐다(2026-09-14 - 동작 없는 버튼은 테스터에게 버그로 보인다).
+ * 검색은 검색 API 가 생길 때, 알림은 P2 제외 확정(디스코드 알림 안 함), 설정은 설정할 항목이 생길 때 되살린다.
+ */
 export function AppShell() {
   const { data: me } = useMe()
   const navigate = useNavigate()
@@ -84,10 +84,10 @@ export function AppShell() {
         </nav>
 
         <div className="flex flex-col gap-1 border-t pt-4">
-          <button type="button" className={cn(navItemClass(false), 'w-full')}>
+          <NavLink to="/help" className={({ isActive }) => cn(navItemClass(isActive), 'w-full')}>
             <CircleHelp className="size-[18px] shrink-0" />
-            Support
-          </button>
+            도움말
+          </NavLink>
           <button
             type="button"
             onClick={handleLogout}
@@ -101,26 +101,21 @@ export function AppShell() {
       </aside>
 
       <div className="pl-60">
-        <header className="sticky top-0 z-10 flex h-12 items-center justify-between border-b bg-background px-4">
-          <div className="relative w-64">
-            <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search..." className="h-8 rounded-[6px] bg-muted pl-8 text-[13px]" />
-          </div>
+        <header className="sticky top-0 z-10 flex h-12 items-center justify-end border-b bg-background px-4">
           <div className="flex items-center gap-2">
-            <button type="button" aria-label="알림" className="flex size-8 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary">
-              <Bell className="size-5" />
-            </button>
-            <button type="button" aria-label="도움말" className="flex size-8 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary">
-              <CircleHelp className="size-5" />
-            </button>
-            <button type="button" aria-label="설정" className="flex size-8 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary">
-              <Settings className="size-5" />
-            </button>
-            <span
-              title={me?.name}
-              className="ml-2 flex size-8 items-center justify-center rounded-xl border bg-[#e3e1ec] text-xs font-semibold text-foreground"
+            <Link
+              to="/help"
+              aria-label="도움말"
+              className="flex size-8 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary"
             >
-              {me?.name?.charAt(0) ?? '?'}
+              <CircleHelp className="size-5" />
+            </Link>
+            {/* 누구로 로그인했는지 - 역할을 바꿔 가며 테스트할 때 헷갈리지 않도록 이름을 그대로 보여 준다 */}
+            <span className="ml-1 flex items-center gap-2" title={me?.globalRole === 'ADMIN' ? '해구르르(관리자)' : '부원'}>
+              <span className="flex size-8 items-center justify-center rounded-xl border bg-[#e3e1ec] text-xs font-semibold text-foreground">
+                {me?.name?.charAt(0) ?? '?'}
+              </span>
+              <span className="text-sm font-medium">{me?.name}</span>
             </span>
           </div>
         </header>
