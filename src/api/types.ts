@@ -216,6 +216,62 @@ export interface NoticePayload {
   pinned: boolean
 }
 
+/** 출석 판정 3종 - 서버 값. "미확인"은 상태가 아니라 기록 없음(null) (docs/attendance/design.md 결정 2). GET /api/cohorts/{id}/sessions… */
+export type AttendanceStatus = 'PRESENT' | 'LATE' | 'ABSENT'
+
+/** GET·POST·PUT /api/cohorts/{id}/sessions 응답 - 차시(수업 회차). heldOn 은 KST 달력일 yyyy-MM-dd */
+export interface SessionResponse {
+  id: number
+  sessionNo: number
+  title: string | null
+  heldOn: string
+  createdAt: string
+  /** 이 차시의 출석 기록 수 - 삭제 경고용 */
+  attendanceCount: number
+}
+
+/** POST·PUT 차시 요청 - 등록 때 sessionNo null 이면 자동 채번(최대 + 1). 번호 중복은 409 */
+export interface SessionPayload {
+  sessionNo: number | null
+  title: string | null
+  heldOn: string
+}
+
+/** 출석 집계 - 차시 요약·학생 누계 공용. rate = 출석 ÷ 판정된 차시 × 100(정수), 판정 0건이면 null. 프론트 재계산 금지 */
+export interface AttendanceStats {
+  present: number
+  late: number
+  absent: number
+  unchecked: number
+  rate: number | null
+}
+
+/** 차시 명부 행 (운영진) - user 는 loginId 포함(표시 요청에 필요), stats 는 이 학생의 분반 누계 */
+export interface AttendanceRow {
+  user: UserResponse
+  status: AttendanceStatus | null
+  checkedAt: string | null
+  stats: AttendanceStats
+}
+
+/** GET·PUT /api/cohorts/{id}/sessions/{sid}/attendances 응답 - 표시 응답도 이 모양(재조회 불필요) */
+export interface AttendanceRosterResponse {
+  session: SessionResponse
+  summary: AttendanceStats
+  rows: AttendanceRow[]
+}
+
+/** PUT 표시 요청 - 차시 단위 일괄 upsert. status null 은 기록 삭제(미확인으로) */
+export interface AttendanceMarkPayload {
+  records: { loginId: string; status: AttendanceStatus | null }[]
+}
+
+/** GET /api/cohorts/{id}/attendances/me 응답 - 누계 + 차시별 기록(최신 차시 먼저) */
+export interface MyAttendanceResponse {
+  summary: AttendanceStats
+  records: { session: SessionResponse; status: AttendanceStatus | null; checkedAt: string | null }[]
+}
+
 /** 모든 에러 응답의 공통 모양 */
 export interface ErrorResponse {
   code: string

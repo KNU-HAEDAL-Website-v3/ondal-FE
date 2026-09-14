@@ -2,7 +2,7 @@
 // 계정: admin(ADMIN) / operator1 / student1~3. 모르는 아이디로 로그인하면 MEMBER로 새로 만든다 (find-or-create).
 // 분반: "2026-2 C언어"(ACTIVE: operator1 + student1~3), "2026-1 파이썬"(ARCHIVED: student1)
 
-import type { CohortStatus, EnrollmentRole, GlobalRole } from '@/api/types'
+import type { AttendanceStatus, CohortStatus, EnrollmentRole, GlobalRole } from '@/api/types'
 
 export interface MockUser {
   id: number
@@ -157,6 +157,42 @@ export const notices: MockNotice[] = [
     pinned: false,
     createdAt: days(-4),
   },
+]
+
+export interface MockSession {
+  id: number
+  cohortId: number
+  sessionNo: number
+  title: string | null
+  /** KST 달력일 yyyy-MM-dd */
+  heldOn: string
+  createdAt: string
+}
+
+export interface MockAttendance {
+  sessionId: number
+  loginId: string
+  status: AttendanceStatus
+  checkedAt: string
+  checkedBy: string
+}
+
+/** 오늘 기준 n일 뒤의 KST 달력일 - 차시 날짜 시드용 */
+const kstDate = (n: number) => new Date(now + n * 86_400_000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })
+
+// BE LocalDataSeeder.seedAttendance 와 동일: 진행 중 분반에 차시 2개(10일 전·3일 전) + 기록 5건
+// 1차시 = student1 출석 · student2 지각 · student3 결석 / 2차시 = student1·student2 출석, student3 미확인(기록 없음)
+export const sessions: MockSession[] = [
+  { id: 1, cohortId: 1, sessionNo: 1, title: '입출력 연습', heldOn: kstDate(-10), createdAt: days(-10) },
+  { id: 2, cohortId: 1, sessionNo: 2, title: '조건문과 반복문', heldOn: kstDate(-3), createdAt: days(-3) },
+]
+
+export const attendances: MockAttendance[] = [
+  { sessionId: 1, loginId: 'student1', status: 'PRESENT', checkedAt: days(-10), checkedBy: 'operator1' },
+  { sessionId: 1, loginId: 'student2', status: 'LATE', checkedAt: days(-10), checkedBy: 'operator1' },
+  { sessionId: 1, loginId: 'student3', status: 'ABSENT', checkedAt: days(-10), checkedBy: 'operator1' },
+  { sessionId: 2, loginId: 'student1', status: 'PRESENT', checkedAt: days(-3), checkedBy: 'operator1' },
+  { sessionId: 2, loginId: 'student2', status: 'PRESENT', checkedAt: days(-3), checkedBy: 'operator1' },
 ]
 
 export interface MockSubmission {

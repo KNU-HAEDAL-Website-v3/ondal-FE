@@ -10,6 +10,7 @@
   - 분반 관리 구현 위치: 관리자 `/admin/cohorts`(목록·생성·수정·보관, `RequireAdmin`) + 운영진 이상 `/cohorts/:id/members`(명부·수강생 배정·제외, 관리자는 운영진 지정·해제까지). 아이디 명단 붙여넣기(`lib/loginIds`) = Keycloak username
 - Q&A(P1 편입, docs decisions/6): 분반 페이지 → 질문 목록·상세·작성·수정 - 소속 누구나 조회·등록, 수정은 작성자, 삭제는 작성자·운영진. 버튼 분기는 서버 `canEdit`·`canDelete` 값만
 - 공지사항(P2, docs notice/): `/notices` 역할 통합 한 화면 - 목록은 서버 가시성(전체 + 소속 분반) 그대로, 작성은 관리자(전체·분반)·운영진(자기 반), 수정·삭제 버튼은 `canEdit`·`canDelete`. 견본 데이터 화면(Student/OperatorNoticesView)은 제거됨
+- 출석부(P2, docs attendance/): `/attendance` - 학생 뷰(내 출석·출석률 링, `GET /attendances/me`) / 운영진 뷰(분반 → 차시 선택·추가·수정·삭제 → 명부 셀렉트로 즉시 표시, 일괄 출석). 출석률·요약·상태는 서버 값, 미확인 = `status: null`, 요일만 FE 계산
 - 기준본: docs 레포의 와이어프레임 v2.1
 - 용어: UI는 "분반"(내부 모델명 Cohort), "과제/문제"(내부 Assignment)
 
