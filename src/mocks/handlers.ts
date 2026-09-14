@@ -4,6 +4,7 @@ import type {
   AssignmentResponse,
   CohortResponse,
   ErrorResponse,
+  LogoutResponse,
   StatusBoardRow,
   SubmissionResponse,
   SubmissionStatus,
@@ -238,7 +239,8 @@ export const handlers = [
   http.post('/api/auth/logout', async () => {
     await delay(200)
     sessionStorage.removeItem(SESSION_KEY) // 세션이 없어도 조용히 성공
-    return new HttpResponse(null, { status: 200 })
+    const body: LogoutResponse = { logoutUrl: null } // 스텁 흐름 - 홈페이지(SSO) 로그아웃 주소 없음
+    return HttpResponse.json(body)
   }),
 
   http.get('/api/me/cohorts', async () => {

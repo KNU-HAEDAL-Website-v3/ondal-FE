@@ -19,6 +19,15 @@ export interface UserResponse {
   globalRole: GlobalRole
 }
 
+/** POST /api/auth/logout - 응답 시점에 Ondal 세션은 이미 끝난 상태 */
+export interface LogoutResponse {
+  /**
+   * 홈페이지(Keycloak) 세션까지 끝내는 주소 - 있으면 FE 가 이 주소로 브라우저 이동(fetch 아님), 끝나면 Keycloak 이 /login 으로 돌려보낸다.
+   * 스텁 모드·홈페이지가 주소를 안 주면 null → 그냥 /login 으로 이동
+   */
+  logoutUrl: string | null
+}
+
 /** 타인에게 공개되는 최소 정보 (분반 카드의 운영진 목록) - loginId·globalRole 없음 */
 export interface UserSummary {
   id: number

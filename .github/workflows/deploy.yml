@@ -5,8 +5,9 @@
 #   대신 이 워크플로가 빌드해서 wrangler로 Cloudflare에 밀어 넣으면 레포 시크릿 2개만으로 동작한다.
 #
 # 동작:
-#   - main push          → 프로덕션 https://haedal-online-judge-fe.pages.dev
-#   - PR(같은 레포 브랜치) → 미리보기 https://<브랜치명>.haedal-online-judge-fe.pages.dev + PR 코멘트
+#   - main push          → 프로덕션 https://haedal-online-judge-fe.pages.dev - 실 BE(ondal-api) + 홈페이지(Keycloak) 로그인 빌드.
+#                          사용자 진입 주소는 커스텀 도메인 https://ondal.haedal-sos-man-in-the-mirror.com (Cloudflare 에서 이 프로젝트의 main 배포에 연결)
+#   - PR(같은 레포 브랜치) → 미리보기 https://<브랜치명>.haedal-online-judge-fe.pages.dev + PR 코멘트 - mock(MSW) 빌드
 #
 # 필요한 레포 시크릿: CLOUDFLARE_API_TOKEN (Account · Cloudflare Pages · Edit), CLOUDFLARE_ACCOUNT_ID
 
@@ -48,10 +49,15 @@ jobs:
           cache: npm
 
       - run: npm ci
-      # 백엔드가 배포되기 전까지는 mock 모드로 빌드 - 미리보기에서 화면을 클릭해 볼 수 있게. BE 배포 후: VITE_API_MOCK 제거 + VITE_API_BASE_URL 추가
+      # main(프로덕션) 빌드는 실 BE(ondal-api) + 홈페이지 로그인(oidc), PR 미리보기는 mock(MSW) 유지
+      #   - 미리보기 오리진(*.pages.dev)은 BE 의 CORS·세션 쿠키(lax) 대상이 아니라 실 BE 에 붙을 수 없다
+      #   - 실 BE 주소·배포 구조: ondal-BE README "운영 배포" 절 / 로그인 방식·절대 주소 요건: .env.example
+      #   - `cond && 'a' || 'b'` 는 참 분기가 빈 문자열이면 'b' 로 새므로 참 분기에 항상 값이 있는 쪽으로 조건을 둔다
       - run: npm run build   # tsc -b && vite build → dist/
         env:
-          VITE_API_MOCK: 'true'
+          VITE_API_MOCK: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
+          VITE_API_BASE_URL: ${{ github.event_name == 'push' && 'https://ondal-api.haedal-sos-man-in-the-mirror.com' || '' }}
+          VITE_AUTH_MODE: ${{ github.event_name == 'push' && 'oidc' || 'stub' }}
 
       - name: Deploy to Cloudflare Pages
         id: deploy
