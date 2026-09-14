@@ -126,6 +126,39 @@ export const questions: MockQuestion[] = [
   },
 ]
 
+export interface MockNotice {
+  id: number
+  /** null = 전체 공지(관리자), 값 = 분반 공지(운영진 이상) */
+  cohortId: number | null
+  loginId: string
+  title: string
+  content: string
+  pinned: boolean
+  createdAt: string
+}
+
+// BE LocalDataSeeder.seedNotices 와 동일: 전체 공지(관리자, 필독) 1 + 진행 중 분반 공지(operator1) 1
+export const notices: MockNotice[] = [
+  {
+    id: 1,
+    cohortId: null,
+    loginId: 'admin',
+    title: '2026-2 부트캠프 운영 안내',
+    content: '과제는 마감 전까지 몇 번이든 다시 제출할 수 있습니다. 마감 후 제출은 지각으로 표시되며, 질문은 분반 Q&A 게시판을 이용해 주세요.',
+    pinned: true,
+    createdAt: days(-6),
+  },
+  {
+    id: 2,
+    cohortId: 1,
+    loginId: 'operator1',
+    title: '2026-2 C언어 첫 모임 안내',
+    content: '첫 모임은 개강 주 화요일 19:00 공대 4호관 실습실입니다. 노트북과 충전기를 가져오세요.',
+    pinned: false,
+    createdAt: days(-4),
+  },
+]
+
 export interface MockSubmission {
   id: number
   assignmentId: number

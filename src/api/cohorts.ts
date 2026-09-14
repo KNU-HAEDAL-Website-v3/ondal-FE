@@ -37,8 +37,9 @@ export function useCohort(cohortId: number) {
   })
 }
 
-export function useCohorts(status: CohortStatus) {
-  return useQuery({ queryKey: cohortKeys.list(status), queryFn: () => fetchCohorts(status) })
+/** [관리자] 상태별 전체 목록. enabled=false 면 호출하지 않는다 (비관리자 화면에서 분기용) */
+export function useCohorts(status: CohortStatus, enabled = true) {
+  return useQuery({ queryKey: cohortKeys.list(status), queryFn: () => fetchCohorts(status), enabled })
 }
 
 /**

@@ -7,6 +7,7 @@ import type {
   ErrorResponse,
   LogoutResponse,
   MemberResponse,
+  NoticeResponse,
   QuestionResponse,
   StatusBoardRow,
   SubmissionResponse,
@@ -19,12 +20,14 @@ import {
   assignments,
   cohorts,
   enrollments,
+  notices,
   questions,
   submissions,
   users,
   type MockAssignment,
   type MockCohort,
   type MockEnrollment,
+  type MockNotice,
   type MockQuestion,
   type MockSubmission,
   type MockUser,
@@ -229,6 +232,69 @@ function requireActiveCohort(cohortId: number): { cohort: MockCohort } | { fail:
   if (!cohort) return { fail: error(404, 'NOT_FOUND', '분반을 찾을 수 없습니다.') }
   if (cohort.status === 'ARCHIVED') return { fail: archivedError() }
   return { cohort }
+}
+
+// ---- 공지 헬퍼 ------------------------------------------------------------------------
+
+/** BE NoticeService.requireManage / Assembler canManage - 전체: 관리자 / 분반: ACTIVE && (관리자 || 그 분반 운영진) */
+function canManageNotice(n: MockNotice, viewer: MockUser): boolean {
+  if (n.cohortId === null) return viewer.globalRole === 'ADMIN'
+  const cohort = cohorts.find((c) => c.id === n.cohortId)
+  if (!cohort || cohort.status !== 'ACTIVE') return false
+  const mine = enrollments.find((e) => e.cohortId === n.cohortId && e.loginId === viewer.loginId)
+  return viewer.globalRole === 'ADMIN' || mine?.role === 'OPERATOR'
+}
+
+/** 가시성 - 전체 공지는 누구나, 분반 공지는 소속자·관리자 */
+function canViewNotice(n: MockNotice, viewer: MockUser): boolean {
+  if (n.cohortId === null || viewer.globalRole === 'ADMIN') return true
+  return enrollments.some((e) => e.cohortId === n.cohortId && e.loginId === viewer.loginId)
+}
+
+function toNoticeResponse(n: MockNotice, viewer: MockUser): NoticeResponse {
+  const cohort = n.cohortId === null ? null : (cohorts.find((c) => c.id === n.cohortId) ?? null)
+  const author = users.find((u) => u.loginId === n.loginId)!
+  const canManage = canManageNotice(n, viewer)
+  return {
+    id: n.id,
+    title: n.title,
+    content: n.content,
+    pinned: n.pinned,
+    cohort: cohort ? { id: cohort.id, name: cohort.name } : null,
+    // 전체 공지 작성자는 분반 역할 없이(관리자 → 해구르르), 분반 공지 작성자는 그 분반 역할 기준
+    author: { id: author.id, name: author.name, title: titleOf(author, n.cohortId ?? 0) },
+    createdAt: n.createdAt,
+    canEdit: canManage,
+    canDelete: canManage,
+  }
+}
+
+/** 필독 먼저 → 최신순 → id desc (notice/design.md 결정 6) */
+const byNoticeOrder = (a: MockNotice, b: MockNotice) =>
+  Number(b.pinned) - Number(a.pinned) || b.createdAt.localeCompare(a.createdAt) || b.id - a.id
+
+/** 등록·수정 공통 검증 - BE NoticeCreateRequest·NoticeUpdateRequest 미러 (pinned 생략 = false) */
+function parseNoticeBody(
+  raw: unknown,
+): { payload: { title: string; content: string; pinned: boolean } } | { fail: HttpResponse<ErrorResponse> } {
+  const body = (raw ?? {}) as { title?: unknown; content?: unknown; pinned?: unknown }
+  const title = typeof body.title === 'string' ? body.title.trim() : ''
+  const content = typeof body.content === 'string' ? body.content.trim() : ''
+  if (!title) return { fail: error(400, 'INVALID_INPUT', '공지 제목은 비어 있을 수 없습니다.') }
+  if (title.length > 200) return { fail: error(400, 'INVALID_INPUT', '공지 제목은 200자 이하여야 합니다.') }
+  if (!content) return { fail: error(400, 'INVALID_INPUT', '공지 내용은 비어 있을 수 없습니다.') }
+  if (content.length > 10000) return { fail: error(400, 'INVALID_INPUT', '공지 내용은 10000자 이하여야 합니다.') }
+  return { payload: { title, content, pinned: body.pinned === true } }
+}
+
+/** 수정·삭제 앞부분 - 404 → (분반 공지) 보관 409 → 관리 권한 403 */
+function requireManageableNotice(noticeId: number, user: MockUser): { notice: MockNotice; index: number } | { fail: HttpResponse<ErrorResponse> } {
+  const index = notices.findIndex((n) => n.id === noticeId)
+  if (index < 0) return { fail: error(404, 'NOT_FOUND', '공지를 찾을 수 없습니다.') }
+  const notice = notices[index]
+  if (notice.cohortId !== null && cohorts.find((c) => c.id === notice.cohortId)?.status === 'ARCHIVED') return { fail: archivedError() }
+  if (!canManageNotice(notice, user)) return { fail: error(403, 'FORBIDDEN', '권한이 없습니다.') }
+  return { notice, index }
 }
 
 // ---- Q&A 헬퍼 ------------------------------------------------------------------------
@@ -535,6 +601,86 @@ export const handlers = [
     const index = enrollments.findIndex((e) => e.cohortId === target.cohort.id && e.loginId === loginId && e.role === 'OPERATOR')
     if (index < 0) return error(404, 'NOT_FOUND', `해당 분반의 운영진이 아닙니다: ${loginId}`)
     enrollments.splice(index, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // ---- 공지사항 (#28~#33) ----------------------------------------------------------------
+
+  http.get('/api/notices', async () => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const list = notices.filter((n) => canViewNotice(n, user)).sort(byNoticeOrder)
+    return HttpResponse.json(list.map((n) => toNoticeResponse(n, user)))
+  }),
+
+  http.get('/api/notices/:noticeId', async ({ params }) => {
+    await delay(250)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const found = notices.find((n) => n.id === Number(params.noticeId))
+    if (!found) return error(404, 'NOT_FOUND', '공지를 찾을 수 없습니다.')
+    if (!canViewNotice(found, user)) return error(403, 'FORBIDDEN', '이 분반에 접근할 권한이 없습니다.')
+    return HttpResponse.json(toNoticeResponse(found, user))
+  }),
+
+  http.post('/api/notices', async ({ request }) => {
+    await delay(400)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    const parsed = parseNoticeBody(await request.json().catch(() => null))
+    if ('fail' in parsed) return parsed.fail
+    const created: MockNotice = {
+      id: Math.max(0, ...notices.map((n) => n.id)) + 1,
+      cohortId: null,
+      loginId: user.loginId,
+      createdAt: new Date().toISOString(),
+      ...parsed.payload,
+    }
+    notices.push(created)
+    return HttpResponse.json(toNoticeResponse(created, user), { status: 201, headers: { Location: `/api/notices/${created.id}` } })
+  }),
+
+  http.post('/api/cohorts/:cohortId/notices', async ({ params, request }) => {
+    await delay(400)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), true)
+    if ('fail' in guard) return guard.fail
+    const parsed = parseNoticeBody(await request.json().catch(() => null))
+    if ('fail' in parsed) return parsed.fail
+    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    const created: MockNotice = {
+      id: Math.max(0, ...notices.map((n) => n.id)) + 1,
+      cohortId: guard.cohort.id,
+      loginId: user.loginId,
+      createdAt: new Date().toISOString(),
+      ...parsed.payload,
+    }
+    notices.push(created)
+    return HttpResponse.json(toNoticeResponse(created, user), { status: 201, headers: { Location: `/api/notices/${created.id}` } })
+  }),
+
+  http.put('/api/notices/:noticeId', async ({ params, request }) => {
+    await delay(400)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const parsed = parseNoticeBody(await request.json().catch(() => null))
+    if ('fail' in parsed) return parsed.fail
+    const target = requireManageableNotice(Number(params.noticeId), user)
+    if ('fail' in target) return target.fail
+    Object.assign(target.notice, parsed.payload)
+    return HttpResponse.json(toNoticeResponse(target.notice, user))
+  }),
+
+  http.delete('/api/notices/:noticeId', async ({ params }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const target = requireManageableNotice(Number(params.noticeId), user)
+    if ('fail' in target) return target.fail
+    notices.splice(target.index, 1)
     return new HttpResponse(null, { status: 204 })
   }),
 

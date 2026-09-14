@@ -186,6 +186,36 @@ export interface QuestionPayload {
   content: string
 }
 
+/** 공지 대상 분반 요약 - 전체 공지면 응답의 cohort 가 null */
+export interface NoticeCohortSummary {
+  id: number
+  name: string
+}
+
+/** GET·POST·PUT /api/notices… 응답이 전부 이 하나 (docs/notice/api.md 3절). 목록은 서버가 가시성·정렬(필독 먼저)을 정한 그대로 */
+export interface NoticeResponse {
+  id: number
+  title: string
+  content: string
+  /** 필독 - 목록 최상단 고정 + "필독" 배지 */
+  pinned: boolean
+  /** 분반 공지면 대상 분반, 전체 공지면 null */
+  cohort: NoticeCohortSummary | null
+  author: UserSummary
+  createdAt: string
+  /** 전체 공지: 관리자 / 분반 공지: 분반 ACTIVE && 그 분반 운영진 이상 - 프론트는 이 값만 보고 수정 버튼 분기 */
+  canEdit: boolean
+  /** canEdit 과 같은 규칙 (공지는 관리 권한이 곧 수정·삭제 권한) */
+  canDelete: boolean
+}
+
+/** POST /api/notices(전체, 관리자) · POST /api/cohorts/{id}/notices(분반) · PUT /api/notices/{id} 요청 - 필드·검증 동일. title 200·content 10000 필수 */
+export interface NoticePayload {
+  title: string
+  content: string
+  pinned: boolean
+}
+
 /** 모든 에러 응답의 공통 모양 */
 export interface ErrorResponse {
   code: string
