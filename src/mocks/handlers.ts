@@ -9,6 +9,7 @@ import type {
   CohortResponse,
   CohortStatus,
   ErrorResponse,
+  JudgeRunResponse,
   LogoutResponse,
   MemberResponse,
   MyAttendanceResponse,
@@ -44,6 +45,22 @@ import {
   type MockSubmission,
   type MockUser,
 } from './data'
+import {
+  JUDGE_DEFAULTS,
+  JUDGE_LANGUAGES,
+  casesOf,
+  enqueueJudge,
+  fakeRun,
+  isJudged,
+  judgeResponseFor,
+  rejudgeAll,
+  removeJudgeDataOf,
+  replaceTestCases,
+  resultOf,
+  runVerdict,
+  toJudgeConfigResponse,
+  toSamplesResponse,
+} from './judge'
 
 const SESSION_KEY = 'ondal-mock-session' // 새로고침해도 로그인이 유지되도록 sessionStorage에 loginId 보관
 
@@ -136,6 +153,7 @@ function toAssignmentResponse(a: MockAssignment, viewer: MockUser): AssignmentRe
     createdAt: a.createdAt,
     myStatus: mine ? statusOf(a, viewer.loginId) : null,
     submissionCount: canSeeCount ? submissions.filter((s) => s.assignmentId === a.id).length : null,
+    judgeEnabled: isJudged(a.id),
   }
 }
 
@@ -465,6 +483,7 @@ function toSubmissionResponse(s: MockSubmission, a: MockAssignment, cohortId: nu
       s.comment === null
         ? null
         : { content: s.comment.content, author: toUserSummary(s.comment.loginId, cohortId), commentedAt: s.comment.commentedAt },
+    judge: judgeResponseFor(s.id),
   }
 }
 
@@ -479,6 +498,8 @@ function toSubmissionSummary(s: MockSubmission, a: MockAssignment): SubmissionSu
     submittedAt: s.submittedAt,
     late: s.submittedAt > a.dueAt,
     hasComment: s.comment !== null,
+    judgeStatus: resultOf(s.id)?.status ?? null,
+    verdict: resultOf(s.id)?.verdict ?? null,
   }
 }
 
@@ -1197,7 +1218,8 @@ export const handlers = [
     const index = assignments.findIndex((a) => a.id === Number(params.assignmentId) && a.cohortId === guard.cohort.id)
     if (index === -1) return error(404, 'NOT_FOUND', '과제를 찾을 수 없습니다.')
     const assignmentId = assignments[index].id
-    // BE 연쇄 삭제 - 파일 → 제출 이력 → 과제 순서 (schema.md 4절)
+    // BE 연쇄 삭제 - 채점 결과·테스트케이스 → 파일 → 제출 이력 → 과제 순서 (schema.md 4절, judge/design.md 결정 16)
+    removeJudgeDataOf(assignmentId)
     for (let i = submissions.length - 1; i >= 0; i--) {
       if (submissions[i].assignmentId === assignmentId) {
         fileBlobs.delete(submissions[i].id)
@@ -1267,6 +1289,11 @@ export const handlers = [
       if (linkUrls.some((u) => u === '')) return error(400, 'INVALID_INPUT', '빈 링크는 담을 수 없습니다.')
     }
 
+    // 자동 채점 문제의 CODE 는 지원 언어만 (judge/design.md 결정 7)
+    if (type === 'CODE' && isJudged(guard.assignment.id) && (language === null || !JUDGE_LANGUAGES.includes(language))) {
+      return error(400, 'INVALID_INPUT', `이 과제는 자동 채점 문제입니다. 지원 언어로 제출하세요: ${JUDGE_LANGUAGES.join(', ')}`)
+    }
+
     const created: MockSubmission = {
       id: Math.max(0, ...submissions.map((s) => s.id)) + 1,
       assignmentId: guard.assignment.id,
@@ -1282,6 +1309,8 @@ export const handlers = [
     }
     submissions.push(created)
     if (file) fileBlobs.set(created.id, file)
+    // CODE + 테스트케이스 있으면 PENDING → 1.5초 뒤 가짜 채점 (BE 비동기 워커 흉내)
+    if (created.type === 'CODE' && isJudged(guard.assignment.id)) enqueueJudge(created, guard.assignment)
     return HttpResponse.json(toSubmissionResponse(created, guard.assignment, guard.cohort.id), {
       status: 201,
       headers: { Location: `/api/cohorts/${guard.cohort.id}/assignments/${guard.assignment.id}/submissions/${created.id}` },
@@ -1354,6 +1383,119 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  // ---- 자동 채점 (#47~#51) - 순수 로직은 ./judge (BE judge 슬라이스 미러) ----------------------------
+
+  http.get('/api/cohorts/:cohortId/assignments/:assignmentId/judge', async ({ params }) => {
+    await delay(200)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = assignmentGuard(user, Number(params.cohortId), Number(params.assignmentId), true)
+    if ('fail' in guard) return guard.fail
+    return HttpResponse.json(toJudgeConfigResponse(guard.assignment, 0))
+  }),
+
+  http.put('/api/cohorts/:cohortId/assignments/:assignmentId/judge', async ({ params, request }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = assignmentGuard(user, Number(params.cohortId), Number(params.assignmentId), true)
+    if ('fail' in guard) return guard.fail
+    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    const body = (await request.json().catch(() => null)) as
+      | { timeLimitMs?: unknown; memoryLimitMb?: unknown; testCases?: unknown; rejudge?: unknown }
+      | null
+    if (!body || !Array.isArray(body.testCases)) return error(400, 'INVALID_INPUT', '테스트케이스 목록은 null 일 수 없습니다. 없으면 빈 배열로 보내세요.')
+    if (body.testCases.length > JUDGE_DEFAULTS.maxTestCases) {
+      return error(400, 'INVALID_INPUT', `테스트케이스는 최대 ${JUDGE_DEFAULTS.maxTestCases}개까지 저장할 수 있습니다.`)
+    }
+    const time = body.timeLimitMs === null || body.timeLimitMs === undefined ? null : Number(body.timeLimitMs)
+    const memory = body.memoryLimitMb === null || body.memoryLimitMb === undefined ? null : Number(body.memoryLimitMb)
+    if (time !== null && (!Number.isFinite(time) || time < JUDGE_DEFAULTS.minTimeLimitMs || time > JUDGE_DEFAULTS.maxTimeLimitMs)) {
+      return error(400, 'INVALID_INPUT', `시간 제한은 ${JUDGE_DEFAULTS.minTimeLimitMs}~${JUDGE_DEFAULTS.maxTimeLimitMs}ms 사이여야 합니다.`)
+    }
+    if (memory !== null && (!Number.isFinite(memory) || memory < JUDGE_DEFAULTS.minMemoryLimitMb || memory > JUDGE_DEFAULTS.maxMemoryLimitMb)) {
+      return error(400, 'INVALID_INPUT', `메모리 제한은 ${JUDGE_DEFAULTS.minMemoryLimitMb}~${JUDGE_DEFAULTS.maxMemoryLimitMb}MB 사이여야 합니다.`)
+    }
+    const cases: { input: string; expectedOutput: string; isPublic: boolean }[] = []
+    for (const raw of body.testCases as unknown[]) {
+      const tc = (raw ?? {}) as { input?: unknown; expectedOutput?: unknown; isPublic?: unknown }
+      if (typeof tc.input !== 'string' || typeof tc.expectedOutput !== 'string') {
+        return error(400, 'INVALID_INPUT', '입력·기대 출력은 문자열이어야 합니다. 없으면 빈 문자열로 보내세요.')
+      }
+      if (tc.input.length > 65536 || tc.expectedOutput.length > 65536) return error(400, 'INVALID_INPUT', '입력·기대 출력은 64KB 이하여야 합니다.')
+      cases.push({ input: tc.input, expectedOutput: tc.expectedOutput, isPublic: tc.isPublic === true })
+    }
+    guard.assignment.timeLimitMs = time
+    guard.assignment.memoryLimitMb = memory
+    replaceTestCases(guard.assignment, cases)
+    const queued = body.rejudge === true && cases.length > 0 ? rejudgeAll(guard.assignment) : 0
+    return HttpResponse.json(toJudgeConfigResponse(guard.assignment, queued))
+  }),
+
+  http.post('/api/cohorts/:cohortId/assignments/:assignmentId/judge/run', async ({ params, request }) => {
+    await delay(600)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = assignmentGuard(user, Number(params.cohortId), Number(params.assignmentId), true)
+    if ('fail' in guard) return guard.fail
+    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    const body = (await request.json().catch(() => null)) as
+      | { language?: unknown; sourceCode?: unknown; inputs?: unknown; expectedOutputs?: unknown; timeLimitMs?: unknown; memoryLimitMb?: unknown }
+      | null
+    const language = typeof body?.language === 'string' ? body.language : ''
+    const sourceCode = typeof body?.sourceCode === 'string' ? body.sourceCode : ''
+    const inputs = Array.isArray(body?.inputs) ? (body.inputs as unknown[]).map((i) => (typeof i === 'string' ? i : '')) : []
+    const expected = Array.isArray(body?.expectedOutputs) ? (body.expectedOutputs as unknown[]).map((i) => (typeof i === 'string' ? i : '')) : null
+    if (!language) return error(400, 'INVALID_INPUT', '언어는 비어 있을 수 없습니다.')
+    if (!sourceCode.trim()) return error(400, 'INVALID_INPUT', '코드는 비어 있을 수 없습니다.')
+    if (inputs.length < 1 || inputs.length > JUDGE_DEFAULTS.maxRunInputs) return error(400, 'INVALID_INPUT', `입력은 1~${JUDGE_DEFAULTS.maxRunInputs}개여야 합니다.`)
+    if (!JUDGE_LANGUAGES.includes(language)) {
+      return error(400, 'INVALID_INPUT', `이 언어는 자동 채점을 지원하지 않습니다: ${language} (지원: ${JUDGE_LANGUAGES.join(', ')})`)
+    }
+    if (expected !== null && expected.length !== inputs.length) return error(400, 'INVALID_INPUT', '기대 출력 개수는 입력 개수와 같아야 합니다.')
+    const limits = {
+      timeLimitMs: typeof body?.timeLimitMs === 'number' ? body.timeLimitMs : JUDGE_DEFAULTS.timeLimitMs,
+      memoryLimitMb: typeof body?.memoryLimitMb === 'number' ? body.memoryLimitMb : JUDGE_DEFAULTS.memoryLimitMb,
+    }
+    const outcome = fakeRun(sourceCode, inputs, limits)
+    if ('engineError' in outcome) return error(503, 'JUDGE_UNAVAILABLE', `채점 엔진 오류: ${outcome.engineError}`)
+    const response: JudgeRunResponse =
+      outcome.compileOutput !== null
+        ? { compileOutput: outcome.compileOutput, runs: [] }
+        : {
+            compileOutput: null,
+            runs: outcome.runs.map((run, index) => ({
+              index,
+              stdout: run.stdout,
+              stderr: run.stderr,
+              verdict: runVerdict(run, expected === null ? null : expected[index]),
+              timeMs: run.timeMs,
+              memoryKb: run.memoryKb,
+            })),
+          }
+    return HttpResponse.json(response)
+  }),
+
+  http.get('/api/cohorts/:cohortId/assignments/:assignmentId/judge/samples', async ({ params }) => {
+    await delay(200)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = assignmentGuard(user, Number(params.cohortId), Number(params.assignmentId), false)
+    if ('fail' in guard) return guard.fail
+    return HttpResponse.json(toSamplesResponse(guard.assignment))
+  }),
+
+  http.post('/api/cohorts/:cohortId/assignments/:assignmentId/judge/rejudge', async ({ params }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = assignmentGuard(user, Number(params.cohortId), Number(params.assignmentId), true)
+    if ('fail' in guard) return guard.fail
+    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    if (casesOf(guard.assignment.id).length === 0) return error(409, 'CONFLICT', '테스트케이스가 없는 과제는 재채점할 수 없습니다.')
+    return HttpResponse.json({ queued: rejudgeAll(guard.assignment) }, { status: 202 })
+  }),
+
   http.get('/api/cohorts/:cohortId/assignments/:assignmentId/status-board', async ({ params }) => {
     await delay(300)
     const user = currentUser()
@@ -1374,6 +1516,8 @@ export const handlers = [
           lastSubmittedAt: latest?.submittedAt ?? null,
           latestSubmissionId: latest?.id ?? null,
           latestCommented: latest !== null && latest.comment !== null,
+          latestJudgeStatus: latest === null ? null : (resultOf(latest.id)?.status ?? null),
+          latestVerdict: latest === null ? null : (resultOf(latest.id)?.verdict ?? null),
         }
       })
       .sort((a, b) => a.user.name.localeCompare(b.user.name))

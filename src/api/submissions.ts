@@ -1,7 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch, BASE_URL } from './client'
 import { assignmentKeys } from './assignments'
-import type { StatusBoardRow, SubmissionCommentPayload, SubmissionPayload, SubmissionResponse, SubmissionSummary } from './types'
+import type { JudgeStatus, StatusBoardRow, SubmissionCommentPayload, SubmissionPayload, SubmissionResponse, SubmissionSummary } from './types'
+
+/** 채점이 진행 중이면 2초마다 다시 읽는다 (judge/design.md 결정 5) - 탭이 숨겨지면 TanStack Query 기본값대로 멈춘다 */
+const judging = (status: JudgeStatus | null | undefined) => status === 'PENDING' || status === 'RUNNING'
+const POLL_MS = 2000
 
 export const submissionKeys = {
   my: (cohortId: number, assignmentId: number) =>
@@ -27,6 +31,7 @@ export function useMySubmissions(cohortId: number, assignmentId: number) {
     queryKey: submissionKeys.my(cohortId, assignmentId),
     queryFn: () => apiFetch<SubmissionSummary[]>(`${base(cohortId, assignmentId)}/submissions/my`),
     enabled: Number.isFinite(cohortId) && Number.isFinite(assignmentId),
+    refetchInterval: (query) => (query.state.data?.some((s) => judging(s.judgeStatus)) ? POLL_MS : false),
   })
 }
 
@@ -36,6 +41,7 @@ export function useSubmission(cohortId: number, assignmentId: number, submission
     queryKey: submissionKeys.detail(cohortId, assignmentId, submissionId ?? -1),
     queryFn: () => apiFetch<SubmissionResponse>(`${base(cohortId, assignmentId)}/submissions/${submissionId}`),
     enabled: submissionId !== null,
+    refetchInterval: (query) => (judging(query.state.data?.judge?.status) ? POLL_MS : false),
   })
 }
 
@@ -45,6 +51,7 @@ export function useStatusBoard(cohortId: number, assignmentId: number, enabled: 
     queryKey: submissionKeys.board(cohortId, assignmentId),
     queryFn: () => apiFetch<StatusBoardRow[]>(`${base(cohortId, assignmentId)}/status-board`),
     enabled: enabled && Number.isFinite(cohortId) && Number.isFinite(assignmentId),
+    refetchInterval: (query) => (query.state.data?.some((r) => judging(r.latestJudgeStatus)) ? POLL_MS : false),
   })
 }
 

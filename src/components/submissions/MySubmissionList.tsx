@@ -3,6 +3,7 @@ import { ChevronDown, Code, Download, FileArchive, Link2, MessageSquare } from '
 import { submissionFileUrl, useMySubmissions } from '@/api/submissions'
 import type { SubmissionSummary, SubmissionType } from '@/api/types'
 import { ApiErrorView } from '@/components/ApiErrorView'
+import { VerdictBadge } from '@/components/judge/VerdictBadge'
 import { LateBadge } from '@/components/submissions/SubmissionStatusBadge'
 import { SubmissionDetailView } from '@/components/submissions/SubmissionDetailView'
 import { formatKst } from '@/lib/datetime'
@@ -17,7 +18,7 @@ const TYPE_LABEL: Record<SubmissionType, { label: string; Icon: typeof Code }> =
 /**
  * 내 제출 기록(#19) - 표: 순번 · 제출 형태 · 지각 · 제출 시각 (design.md 결정 15).
  * 운영진 코멘트가 달린 행은 형태 칸에 "코멘트" 배지(hasComment) - 내용은 행을 펼치면 보인다 (design.md 결정 18).
- * 채점 결과 열은 자동 채점(Judge0) 도입 시 지각 열 뒤에 추가한다.
+ * 채점 결과 열(지각 열 뒤) = 서버 verdict 배지 - 채점 대상이 아닌 제출은 '-' (judge/fe.md 3절). 채점 중이면 목록이 2초마다 갱신된다.
  * 행을 펼치면 코드 전문(#20)을 가져온다.
  */
 export function MySubmissionList({ cohortId, assignmentId }: { cohortId: number; assignmentId: number }) {
@@ -40,6 +41,7 @@ export function MySubmissionList({ cohortId, assignmentId }: { cohortId: number;
               <th scope="col" className="w-12 py-2 font-semibold">순번</th>
               <th scope="col" className="py-2 font-semibold">제출 형태</th>
               <th scope="col" className="py-2 font-semibold">지각</th>
+              <th scope="col" className="py-2 font-semibold">채점 결과</th>
               <th scope="col" className="py-2 font-semibold">제출 시각</th>
               <th scope="col" className="w-16 py-2"><span className="sr-only">동작</span></th>
             </tr>
@@ -108,6 +110,13 @@ function SubmissionRow({
         <td className="py-2.5">
           <LateBadge late={submission.late} />
         </td>
+        <td className="py-2.5" data-judge-status={submission.judgeStatus ?? 'NONE'}>
+          {submission.judgeStatus === null ? (
+            <span className="text-xs text-muted-foreground">-</span>
+          ) : (
+            <VerdictBadge status={submission.judgeStatus} verdict={submission.verdict} />
+          )}
+        </td>
         <td className="py-2.5 font-mono text-xs">{formatKst(submission.submittedAt)}</td>
         <td className="py-2.5">
           <span className="flex items-center justify-end gap-2">
@@ -128,7 +137,7 @@ function SubmissionRow({
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={5} className="pb-2">
+          <td colSpan={6} className="pb-2">
             <div className="rounded-[2px] border bg-muted/20">
               <SubmissionDetailView cohortId={cohortId} assignmentId={assignmentId} submissionId={submission.id} canComment={false} />
             </div>

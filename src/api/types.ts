@@ -100,6 +100,8 @@ export interface AssignmentResponse {
   myStatus: SubmissionStatus | null
   /** 제출 이력 총 건수 - 운영진·관리자만 값, 수강생은 null. 삭제 확인 창의 "제출물 N건" 경고에 사용 */
   submissionCount: number | null
+  /** 자동 채점 문제인가 = 테스트케이스 1개 이상 (judge/design.md 결정 1) - 목록 배지·상세 예시 절 */
+  judgeEnabled: boolean
 }
 
 /** POST·PUT /api/cohorts/{cohortId}/assignments 요청 본문 - 필드·검증 동일 (PUT은 전체 교체) */
@@ -143,6 +145,8 @@ export interface SubmissionResponse {
   late: boolean
   /** 운영진 코멘트 - 없으면 null. 점수는 없다 (submission/design.md 결정 18) */
   comment: SubmissionComment | null
+  /** 자동 채점 결과 - CODE 제출이고 자동 채점 문제일 때만, 아니면 null. 제출 직후는 status PENDING (judge/api.md 2절) */
+  judge: JudgeResultResponse | null
 }
 
 /** 제출에 달린 운영진 코멘트 - 제출 1건에 1개, 덮어쓰기 */
@@ -171,6 +175,10 @@ export interface SubmissionSummary {
   late: boolean
   /** 운영진 코멘트가 달렸는가 - 행 배지용. 내용은 단건(#20) */
   hasComment: boolean
+  /** 채점 상태 - 채점 대상이 아니면 null */
+  judgeStatus: JudgeStatus | null
+  /** 판정 - DONE·ERROR 일 때만. 표의 채점 결과 열 */
+  verdict: Verdict | null
 }
 
 /** GET .../status-board(#22) 행 - 현재 수강생 명단(이름순), 미제출자 포함 */
@@ -183,6 +191,10 @@ export interface StatusBoardRow {
   latestSubmissionId: number | null
   /** 최신 제출에 운영진 코멘트가 달렸는가 - 검토 안 한 제출을 한눈에. 제출 없으면 false */
   latestCommented: boolean
+  /** 최신 제출의 채점 상태 - 채점 대상이 아니거나 제출 없음이면 null */
+  latestJudgeStatus: JudgeStatus | null
+  /** 최신 제출의 판정 - 현황판 판정 열 */
+  latestVerdict: Verdict | null
 }
 
 /** GET·POST·PUT /api/cohorts/{cohortId}/questions - 목록·단건·등록·수정 응답이 전부 이 하나 (docs/qna/api.md 3절) */
@@ -313,4 +325,120 @@ export interface MyAttendanceResponse {
 export interface ErrorResponse {
   code: string
   message: string
+}
+
+// ---- 자동 채점 (docs judge/api.md) ----------------------------------------------------------------
+
+/** 채점 진행 상태 - PENDING(대기) → RUNNING → DONE(판정 있음) / ERROR(엔진 장애 - verdict JUDGE_ERROR) */
+export type JudgeStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'ERROR'
+
+/** 판정 7종 (judge/design.md 결정 4) - 서버 값 그대로 표시, 재계산 금지 */
+export type Verdict = 'ACCEPTED' | 'WRONG_ANSWER' | 'TIME_LIMIT' | 'MEMORY_LIMIT' | 'RUNTIME_ERROR' | 'COMPILE_ERROR' | 'JUDGE_ERROR'
+
+/** 케이스 1개의 결과 - 공개 케이스만 입력·기대 출력·실제 출력이 실린다(운영진에게도 같은 규칙) */
+export interface JudgeCaseView {
+  position: number
+  verdict: Verdict
+  timeMs: number | null
+  memoryKb: number | null
+  isPublic: boolean
+  input: string | null
+  expectedOutput: string | null
+  /** 4KB 로 잘림(truncated) */
+  actualOutput: string | null
+  truncated: boolean
+}
+
+/** 제출 응답의 judge 필드 */
+export interface JudgeResultResponse {
+  status: JudgeStatus
+  verdict: Verdict | null
+  passedCases: number
+  totalCases: number
+  maxTimeMs: number | null
+  maxMemoryKb: number | null
+  /** 컴파일 에러 메시지(8KB) 또는 채점 오류 사유 */
+  compileOutput: string | null
+  cases: JudgeCaseView[]
+  judgedAt: string | null
+}
+
+export interface TestCaseResponse {
+  id: number
+  position: number
+  input: string
+  expectedOutput: string
+  isPublic: boolean
+}
+
+export interface TestCasePayload {
+  input: string
+  expectedOutput: string
+  isPublic: boolean
+}
+
+/** GET·PUT .../judge (#47·#48) - 설정 + 케이스 전체(비공개 포함) + 폼 안내용 기본값·상한·지원 언어 */
+export interface JudgeConfigResponse {
+  enabled: boolean
+  /** 엔진 연결 여부 - false 면 저장은 되지만 제출은 채점 대기, 실행(#49)은 503 */
+  engineAvailable: boolean
+  timeLimitMs: number
+  memoryLimitMb: number
+  defaultTimeLimitMs: number
+  defaultMemoryLimitMb: number
+  maxTimeLimitMs: number
+  maxMemoryLimitMb: number
+  maxTestCases: number
+  languages: string[]
+  testCases: TestCaseResponse[]
+  /** 이 과제의 코드 제출 건수 = 재채점 대상 */
+  affectedSubmissions: number
+  /** #48 에서 실제로 재채점 큐에 넣은 건수 */
+  rejudgeQueued: number
+}
+
+/** PUT .../judge 본문 - 통째 교체. testCases 빈 배열 = 자동 채점 해제. 제한 null = 서버 기본값 */
+export interface JudgeConfigPayload {
+  timeLimitMs: number | null
+  memoryLimitMb: number | null
+  testCases: TestCasePayload[]
+  rejudge: boolean
+}
+
+/** POST .../judge/run (#49) - 저장 없이 정답 코드 실행. expectedOutputs 가 있으면 판정까지 */
+export interface JudgeRunPayload {
+  language: string
+  sourceCode: string
+  inputs: string[]
+  expectedOutputs: string[] | null
+  timeLimitMs: number | null
+  memoryLimitMb: number | null
+}
+
+export interface JudgeRunResponse {
+  /** 컴파일 에러 메시지 - 성공이면 null */
+  compileOutput: string | null
+  runs: {
+    index: number
+    stdout: string
+    stderr: string
+    /** expectedOutputs 를 준 경우의 판정. 없어도 실행 실패(TLE 등)는 값 */
+    verdict: Verdict | null
+    timeMs: number | null
+    memoryKb: number | null
+  }[]
+}
+
+/** GET .../judge/samples (#50) - 공개 케이스(예시)·제한·지원 언어. 소속 누구나 */
+export interface JudgeSamplesResponse {
+  enabled: boolean
+  timeLimitMs: number
+  memoryLimitMb: number
+  languages: string[]
+  samples: { position: number; input: string; expectedOutput: string }[]
+}
+
+/** POST .../judge/rejudge (#51) - 202 */
+export interface RejudgeResponse {
+  queued: number
 }
