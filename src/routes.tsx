@@ -14,6 +14,8 @@ import HomePage from '@/pages/HomePage'
 import LoginPage from '@/pages/LoginPage'
 import MyCohortsPage from '@/pages/MyCohortsPage'
 import NotFoundPage from '@/pages/NotFoundPage'
+import NoticeDetailPage from '@/pages/NoticeDetailPage'
+import NoticeFormPage from '@/pages/NoticeFormPage'
 import NoticesPage from '@/pages/NoticesPage'
 import ProblemsPage from '@/pages/ProblemsPage'
 import QuestionDetailPage from '@/pages/QuestionDetailPage'
@@ -40,7 +42,10 @@ import QuestionsPage from '@/pages/QuestionsPage'
  *   /cohorts/:cohortId/questions/new              - 질문 등록
  *   /cohorts/:cohortId/questions/:questionId      - 질문 상세 (수정·삭제 버튼은 서버 canEdit·canDelete)
  *   /cohorts/:cohortId/questions/:questionId/edit - 질문 수정 (작성자)
- *   /notices                   - 공지사항 (역할별: 목록 / 관리)
+ *   /notices                   - 공지사항 목록 (서버 가시성: 전체 + 소속 분반, 관리자 전부). 작성 버튼은 관리자·운영진
+ *   /notices/new               - 공지 작성 (?cohort= 대상 프리셀렉트) - 전체 공지는 관리자, 분반 공지는 그 분반 운영진 이상
+ *   /notices/:noticeId         - 공지 상세 (수정·삭제 버튼은 서버 canEdit·canDelete)
+ *   /notices/:noticeId/edit    - 공지 수정 (대상 고정)
  *   *                          - 404
  * 로그인 필요 화면은 RequireAuth(울타리) → AppShell(사이드바+상단 바) 아래에, 관리자 화면은 그 안의 RequireAdmin 아래에 둔다.
  */
@@ -71,6 +76,9 @@ export function AppRoutes() {
           <Route path="cohorts/:cohortId/questions/:questionId" element={<QuestionDetailPage />} />
           <Route path="cohorts/:cohortId/questions/:questionId/edit" element={<QuestionFormPage />} />
           <Route path="notices" element={<NoticesPage />} />
+          <Route path="notices/new" element={<NoticeFormPage />} />
+          <Route path="notices/:noticeId" element={<NoticeDetailPage />} />
+          <Route path="notices/:noticeId/edit" element={<NoticeFormPage />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFoundPage />} />
