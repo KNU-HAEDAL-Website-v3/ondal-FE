@@ -178,11 +178,28 @@ export interface QuestionResponse {
   canEdit: boolean
   /** (작성자 본인 || 운영진 이상) && 분반 ACTIVE - 삭제 버튼 분기 */
   canDelete: boolean
+  /** 답변 수 - 목록 "답변 N" 표시 */
+  answerCount: number
 }
 
 /** POST·PUT /api/cohorts/{cohortId}/questions 요청 본문 - 필드·검증 동일 (PUT 은 전체 교체). title 200자·content 10000자, 둘 다 필수 */
 export interface QuestionPayload {
   title: string
+  content: string
+}
+
+/** GET·POST·PUT /api/cohorts/{id}/questions/{qid}/answers 응답 - 오래된 순(대화 흐름). canEdit·canDelete 는 질문과 같은 규칙 */
+export interface AnswerResponse {
+  id: number
+  content: string
+  author: UserSummary
+  createdAt: string
+  canEdit: boolean
+  canDelete: boolean
+}
+
+/** POST·PUT 답변 요청 - content 10000자 필수 */
+export interface AnswerPayload {
   content: string
 }
 

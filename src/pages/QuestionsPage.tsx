@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router'
-import { ArrowLeft, MessagesSquare, Plus } from 'lucide-react'
+import { ArrowLeft, MessageSquare, MessagesSquare, Plus } from 'lucide-react'
 import { ApiError } from '@/api/client'
 import { useCohort } from '@/api/cohorts'
 import { useQuestions } from '@/api/questions'
@@ -99,6 +99,13 @@ function QuestionRow({ question, cohortId }: { question: QuestionResponse; cohor
           <span className="block truncate text-xs text-muted-foreground">{question.content}</span>
         </span>
         <span className="ml-auto flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+          <span
+            className={`inline-flex items-center gap-1 rounded-[2px] px-1.5 py-0.5 font-semibold ${question.answerCount > 0 ? 'bg-secondary text-primary' : 'bg-muted'}`}
+            aria-label={`답변 ${question.answerCount}개`}
+          >
+            <MessageSquare className="size-3" />
+            {question.answerCount}
+          </span>
           <span className="font-medium text-foreground">{question.author.name}</span>
           <Badge variant="secondary">{question.author.title}</Badge>
           <span className="font-mono">{formatKst(question.createdAt)}</span>
