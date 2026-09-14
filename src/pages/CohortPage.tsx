@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router'
 import { Archive, ArrowLeft } from 'lucide-react'
+import { useMe } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import { useCohort } from '@/api/cohorts'
 import { Badge } from '@/components/ui/badge'
@@ -9,13 +10,14 @@ import { LoadingScreen } from '@/components/LoadingScreen'
 import { OperatorName } from '@/components/cohorts/OperatorName'
 
 /**
- * 분반 페이지 - 지금은 머리말(이름·상태·운영진)만. 차시 목록·과제는 다음 슬라이스(Assignment)에서 채운다.
+ * 분반 페이지 - 머리말(이름·상태·운영진) + 하위 화면 진입(과제·Q&A·명부).
  * 비소속 URL 직접 접근(403) → ApiErrorView가 홈으로 보낸다. 잘못된 id → 404 안내.
  */
 export default function CohortPage() {
   const { cohortId } = useParams()
   const id = Number(cohortId)
   const validId = Number.isInteger(id) && id > 0
+  const { data: me } = useMe()
   const { data: cohort, isPending, error, refetch } = useCohort(validId ? id : NaN)
 
   if (!validId) return <ApiErrorView error={new ApiError(404, 'NOT_FOUND', '존재하지 않는 분반 주소예요.')} />
@@ -23,6 +25,8 @@ export default function CohortPage() {
   if (error) return <ApiErrorView error={error} onRetry={() => void refetch()} />
 
   const archived = cohort.status === 'ARCHIVED'
+  // 명부 열람은 보관 분반에서도 유지 - canManage(ACTIVE 전용 쓰기 판정)가 아니라 역할로 판단 (현황판과 같은 규칙)
+  const canSeeRoster = me?.globalRole === 'ADMIN' || cohort.myRole === 'OPERATOR'
 
   return (
     <div className="space-y-6">
@@ -83,10 +87,21 @@ export default function CohortPage() {
         </Button>
       </section>
 
-      <section className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-        제출·현황판은 다음 단계(제출 슬라이스)에서 여기에 추가됩니다.
-        {cohort.canManage && <p className="mt-1">수강생 배정 화면도 함께 추가됩니다.</p>}
-      </section>
+      {canSeeRoster && (
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-6">
+          <div>
+            <h2 className="font-bold">명부 · 수강생 배정</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              운영진·수강생 명단 확인
+              {cohort.canManage && ', 아이디 명단 붙여넣기로 일괄 배정·제외'}
+              {archived && ' (보관됨 - 열람만)'}
+            </p>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/cohorts/${cohort.id}/members`}>명부 보기</Link>
+          </Button>
+        </section>
+      )}
     </div>
   )
 }

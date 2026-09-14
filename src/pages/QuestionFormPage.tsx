@@ -10,38 +10,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ApiErrorView } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { clearDraft, readDraft, writeDraft } from '@/lib/draft'
 import { parseId } from '@/lib/params'
 
 const TITLE_MAX = 200
 const CONTENT_MAX = 10000
 
-// 작성 중인 내용을 이 탭(sessionStorage)에 임시 저장 - 세션 만료(401)로 로그인 화면에 다녀와도 입력이 남는다 (CLAUDE.md 규칙 1).
+// 작성 중인 내용은 이 탭에 임시 저장(lib/draft) - 세션 만료(401)로 로그인 화면에 다녀와도 입력이 남는다 (CLAUDE.md 규칙 1).
 // 키는 분반·질문 단위: 등록 폼과 수정 폼, 서로 다른 글의 임시 저장본이 섞이지 않는다.
 const DRAFT_PREFIX = 'ondal-question-draft'
 const draftKey = (cohortId: number, questionId: number | null) => `${DRAFT_PREFIX}:${cohortId}:${questionId ?? 'new'}`
-
-function readDraft(key: string): QuestionPayload | null {
-  try {
-    const raw = sessionStorage.getItem(key)
-    return raw ? (JSON.parse(raw) as QuestionPayload) : null
-  } catch {
-    return null
-  }
-}
-function writeDraft(key: string, payload: QuestionPayload) {
-  try {
-    sessionStorage.setItem(key, JSON.stringify(payload))
-  } catch {
-    // 저장 불가(용량·비공개 모드)면 조용히 넘어간다 - 폼 동작에는 영향 없음
-  }
-}
-function clearDraft(key: string) {
-  try {
-    sessionStorage.removeItem(key)
-  } catch {
-    // 위와 동일
-  }
-}
 
 /**
  * 질문 등록(#25)·수정(#26) 폼 - /cohorts/:cohortId/questions/new · /cohorts/:cohortId/questions/:questionId/edit.
@@ -60,10 +38,10 @@ export default function QuestionFormPage() {
   const existingQuery = useQuestion(editing ? cohortId : NaN, questionId)
 
   const key = draftKey(cohortId, editing ? questionId : null)
-  const [title, setTitle] = useState(() => readDraft(key)?.title ?? '')
-  const [content, setContent] = useState(() => readDraft(key)?.content ?? '')
+  const [title, setTitle] = useState(() => readDraft<QuestionPayload>(key)?.title ?? '')
+  const [content, setContent] = useState(() => readDraft<QuestionPayload>(key)?.content ?? '')
   // 임시 저장본이 있으면 그것이 더 최신 - 서버 값으로 덮어쓰지 않는다
-  const [prefilled, setPrefilled] = useState(() => !editing || readDraft(key) !== null)
+  const [prefilled, setPrefilled] = useState(() => !editing || readDraft<QuestionPayload>(key) !== null)
 
   useEffect(() => {
     if (editing && existingQuery.data && !prefilled) {
@@ -76,7 +54,7 @@ export default function QuestionFormPage() {
   useEffect(() => {
     if (!prefilled) return // 수정 폼이 서버 값을 채우기 전의 빈 상태는 저장하지 않는다
     if (title === '' && content === '') clearDraft(key)
-    else writeDraft(key, { title, content })
+    else writeDraft<QuestionPayload>(key, { title, content })
   }, [key, title, content, prefilled])
 
   const createMutation = useCreateQuestion(cohortId)

@@ -53,6 +53,33 @@ export interface CohortResponse {
   canManage: boolean
 }
 
+/** POST /api/cohorts 요청 (관리자) - 생성과 동시에 운영진 지정 가능. 아직 로그인한 적 없는 loginId 도 선등록 */
+export interface CohortCreatePayload {
+  name: string
+  description: string | null
+  operatorLoginIds: string[]
+}
+
+/** PUT /api/cohorts/{id} 요청 (관리자) - 이름·설명 전체 교체. 운영진은 /operators API 로 따로 */
+export interface CohortUpdatePayload {
+  name: string
+  description: string | null
+}
+
+/** GET /api/cohorts/{id}/members 행 - 운영진 이상만 보는 응답이라 loginId 포함(UserResponse). 서버 정렬: 운영진 먼저 */
+export interface MemberResponse {
+  user: UserResponse
+  role: EnrollmentRole
+  title: RoleTitle
+  /** 소속 등록 시각(UTC) */
+  enrolledAt: string
+}
+
+/** POST /api/cohorts/{id}/students 요청 - 빈 목록 400, 중복은 한 번만, 이미 운영진인 loginId 는 409 CONFLICT */
+export interface StudentAssignPayload {
+  loginIds: string[]
+}
+
 /** 제출 상태 4종 - 서버 계산값. 프론트 재계산 금지, 배지 매핑만 한다 (CLAUDE.md 규칙 4) */
 export type SubmissionStatus = 'NOT_SUBMITTED' | 'SUBMITTED' | 'SUBMITTED_EXTRA' | 'LATE'
 
