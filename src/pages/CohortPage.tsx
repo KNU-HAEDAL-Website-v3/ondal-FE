@@ -71,6 +71,18 @@ export default function CohortPage() {
         </Button>
       </section>
 
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-6">
+        <div>
+          <h2 className="font-bold">Q&A</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            이 분반의 질문 게시판 - 소속이면 누구나 질문·열람{archived && ' (보관됨 - 열람만 가능)'}
+          </p>
+        </div>
+        <Button variant="outline" size="sm" asChild>
+          <Link to={`/cohorts/${cohort.id}/questions`}>질문 보기</Link>
+        </Button>
+      </section>
+
       <section className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
         제출·현황판은 다음 단계(제출 슬라이스)에서 여기에 추가됩니다.
         {cohort.canManage && <p className="mt-1">수강생 배정 화면도 함께 추가됩니다.</p>}

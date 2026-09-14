@@ -95,6 +95,35 @@ export const assignments: MockAssignment[] = [
   },
 ]
 
+export interface MockQuestion {
+  id: number
+  cohortId: number
+  loginId: string
+  title: string
+  content: string
+  createdAt: string
+}
+
+// BE LocalDataSeeder.seedQuestions 와 동일: 진행 중 분반에 student1·student2 질문 각 1건 (등록 순서 = student1 → student2, 목록은 최신순)
+export const questions: MockQuestion[] = [
+  {
+    id: 1,
+    cohortId: 1,
+    loginId: 'student1',
+    title: '1차시 과제 입력 형식 질문',
+    content: 'A와 B가 한 줄에 공백으로 들어온다고 했는데, 줄바꿈으로 나뉘어 들어오는 경우도 처리해야 하나요?',
+    createdAt: days(-2),
+  },
+  {
+    id: 2,
+    cohortId: 1,
+    loginId: 'student2',
+    title: '제출 후 코드를 수정하면 어떻게 되나요?',
+    content: '이미 제출한 과제의 코드를 고쳐 다시 제출하면 이전 제출은 사라지나요, 아니면 이력이 남나요?',
+    createdAt: days(-1),
+  },
+]
+
 export interface MockSubmission {
   id: number
   assignmentId: number

@@ -54,9 +54,9 @@ npm run lint       # 린트 (oxlint)
 
 ```
 src/
-  api/          서버 통신 - client.ts(fetch 래퍼·ApiError), types.ts(BE DTO 미러), auth.ts·cohorts.ts(요청 함수 + React Query 훅)
+  api/          서버 통신 - client.ts(fetch 래퍼·ApiError), types.ts(BE DTO 미러), auth.ts·cohorts.ts·assignments.ts·submissions.ts·questions.ts(요청 함수 + React Query 훅)
   components/   RequireAuth(로그인 울타리) · ApiErrorView(403→홈, 404 안내, 재시도) · layout/AppShell(상단 바) · cohorts/(분반 카드·섹션·운영진 팝업) · ui/(shadcn)
-  pages/        LoginPage · HomePage · CohortPage · NotFoundPage
+  pages/        LoginPage · HomePage · CohortPage · Assignments*(목록·상세·폼) · Questions*(Q&A 목록·상세·폼) · NotFoundPage
   routes.tsx    라우트 한눈에 보기
   mocks/        MSW 핸들러 + 시드 데이터 (BE LocalDataSeeder 와 동일하게 유지)
 ```

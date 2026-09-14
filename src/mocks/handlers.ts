@@ -5,6 +5,7 @@ import type {
   CohortResponse,
   ErrorResponse,
   LogoutResponse,
+  QuestionResponse,
   StatusBoardRow,
   SubmissionResponse,
   SubmissionStatus,
@@ -16,10 +17,12 @@ import {
   assignments,
   cohorts,
   enrollments,
+  questions,
   submissions,
   users,
   type MockAssignment,
   type MockCohort,
+  type MockQuestion,
   type MockSubmission,
   type MockUser,
 } from './data'
@@ -147,6 +150,39 @@ function parseAssignmentBody(
 const archivedError = () =>
   error(409, 'COHORT_ARCHIVED', '보관된 분반은 변경할 수 없습니다. 보관을 해제한 뒤 다시 시도하세요.')
 
+// ---- Q&A 헬퍼 ------------------------------------------------------------------------
+
+/** BE QuestionResponseAssembler - canEdit(작성자 && ACTIVE), canDelete(canEdit || 운영진 이상 && ACTIVE). 작성자 직책은 이 분반 역할 기준 */
+function toQuestionResponse(q: MockQuestion, cohort: MockCohort, viewer: MockUser): QuestionResponse {
+  const active = cohort.status === 'ACTIVE'
+  const mine = enrollments.find((e) => e.cohortId === cohort.id && e.loginId === viewer.loginId)
+  const canModerate = active && (viewer.globalRole === 'ADMIN' || mine?.role === 'OPERATOR')
+  const canEdit = active && q.loginId === viewer.loginId
+  return {
+    id: q.id,
+    title: q.title,
+    content: q.content,
+    author: toUserSummary(q.loginId, cohort.id),
+    createdAt: q.createdAt,
+    canEdit,
+    canDelete: canEdit || canModerate,
+  }
+}
+
+/** 등록·수정 공통 검증 - BE QuestionCreateRequest·QuestionUpdateRequest 미러 (title 200자·content 10000자, 둘 다 필수) */
+function parseQuestionBody(
+  raw: unknown,
+): { payload: { title: string; content: string } } | { fail: HttpResponse<ErrorResponse> } {
+  const body = (raw ?? {}) as { title?: unknown; content?: unknown }
+  const title = typeof body.title === 'string' ? body.title.trim() : ''
+  const content = typeof body.content === 'string' ? body.content.trim() : ''
+  if (!title) return { fail: error(400, 'INVALID_INPUT', '질문 제목은 비어 있을 수 없습니다.') }
+  if (title.length > 200) return { fail: error(400, 'INVALID_INPUT', '질문 제목은 200자 이하여야 합니다.') }
+  if (!content) return { fail: error(400, 'INVALID_INPUT', '질문 내용은 비어 있을 수 없습니다.') }
+  if (content.length > 10000) return { fail: error(400, 'INVALID_INPUT', '질문 내용은 10000자 이하여야 합니다.') }
+  return { payload: { title, content } }
+}
+
 // ---- 제출 헬퍼 ----------------------------------------------------------------------
 
 /** 업로드된 zip 실체 - 다운로드 응답용. 시드 제출에는 파일이 없다(브라우저 세션 안에서 올린 것만) */
@@ -265,6 +301,91 @@ export const handlers = [
     if (user.globalRole !== 'ADMIN' && !isMember) return error(403, 'FORBIDDEN', '이 분반에 접근할 권한이 없습니다.')
     if (!cohort) return error(404, 'NOT_FOUND', '분반을 찾을 수 없습니다.')
     return HttpResponse.json(toCohortResponse(cohort, user))
+  }),
+
+  // ---- Q&A (#23~#27) ----------------------------------------------------------------
+  // 권한 순서(BE): @CohortRole 소속 판정(403·404) → @Valid(400) → 서비스: 보관 409 → 질문 스코프 404 → 본인·운영진 403
+
+  http.get('/api/cohorts/:cohortId/questions', async ({ params }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), false)
+    if ('fail' in guard) return guard.fail
+    const list = questions
+      .filter((q) => q.cohortId === guard.cohort.id)
+      // 최신순, 같은 시각은 id 내림차순 (qna/design.md 결정 5)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id)
+    return HttpResponse.json(list.map((q) => toQuestionResponse(q, guard.cohort, user)))
+  }),
+
+  http.get('/api/cohorts/:cohortId/questions/:questionId', async ({ params }) => {
+    await delay(250)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), false)
+    if ('fail' in guard) return guard.fail
+    const found = questions.find((q) => q.id === Number(params.questionId) && q.cohortId === guard.cohort.id)
+    if (!found) return error(404, 'NOT_FOUND', '질문을 찾을 수 없습니다.')
+    return HttpResponse.json(toQuestionResponse(found, guard.cohort, user))
+  }),
+
+  http.post('/api/cohorts/:cohortId/questions', async ({ params, request }) => {
+    await delay(400)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), false)
+    if ('fail' in guard) return guard.fail
+    const parsed = parseQuestionBody(await request.json().catch(() => null))
+    if ('fail' in parsed) return parsed.fail
+    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    const created: MockQuestion = {
+      id: Math.max(0, ...questions.map((q) => q.id)) + 1,
+      cohortId: guard.cohort.id,
+      loginId: user.loginId, // 작성자는 요청자 본인으로 고정
+      createdAt: new Date().toISOString(),
+      ...parsed.payload,
+    }
+    questions.push(created)
+    return HttpResponse.json(toQuestionResponse(created, guard.cohort, user), {
+      status: 201,
+      headers: { Location: `/api/cohorts/${guard.cohort.id}/questions/${created.id}` },
+    })
+  }),
+
+  http.put('/api/cohorts/:cohortId/questions/:questionId', async ({ params, request }) => {
+    await delay(400)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), false)
+    if ('fail' in guard) return guard.fail
+    const parsed = parseQuestionBody(await request.json().catch(() => null))
+    if ('fail' in parsed) return parsed.fail
+    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    const found = questions.find((q) => q.id === Number(params.questionId) && q.cohortId === guard.cohort.id)
+    if (!found) return error(404, 'NOT_FOUND', '질문을 찾을 수 없습니다.')
+    // 운영진·관리자도 남의 글은 수정 불가 - 삭제만 가능 (qna/design.md 결정 2)
+    if (found.loginId !== user.loginId) return error(403, 'FORBIDDEN', '작성자만 수정할 수 있습니다.')
+    Object.assign(found, parsed.payload)
+    return HttpResponse.json(toQuestionResponse(found, guard.cohort, user))
+  }),
+
+  http.delete('/api/cohorts/:cohortId/questions/:questionId', async ({ params }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), false)
+    if ('fail' in guard) return guard.fail
+    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    const index = questions.findIndex((q) => q.id === Number(params.questionId) && q.cohortId === guard.cohort.id)
+    if (index < 0) return error(404, 'NOT_FOUND', '질문을 찾을 수 없습니다.')
+    const mine = enrollments.find((e) => e.cohortId === guard.cohort.id && e.loginId === user.loginId)
+    const isModerator = user.globalRole === 'ADMIN' || mine?.role === 'OPERATOR'
+    if (questions[index].loginId !== user.loginId && !isModerator) {
+      return error(403, 'FORBIDDEN', '작성자 또는 운영진만 삭제할 수 있습니다.')
+    }
+    questions.splice(index, 1)
+    return new HttpResponse(null, { status: 204 })
   }),
 
   // ---- 과제 (#13~#17) ---------------------------------------------------------------
