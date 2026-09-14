@@ -36,6 +36,24 @@ export function isOverdue(dueAtIso: string, now: Date = new Date()): boolean {
   return Date.parse(dueAtIso) < now.getTime()
 }
 
+/** 달력일 "2026-09-14"(KST, 시간대 변환 없음) → "2026.09.14" - 출석 차시 날짜 표시 */
+export function formatKstDate(isoDate: string): string {
+  return isoDate.replace(/-/g, '.')
+}
+
+const WEEKDAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']
+
+/** 달력일 "2026-09-14" → "월요일" - 브라우저 시간대와 무관하게 날짜 문자열 자체로 계산 */
+export function weekdayLabel(isoDate: string): string {
+  const [y, m, d] = isoDate.split('-').map(Number)
+  return WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+}
+
+/** 오늘(KST) → <input type="date"> 값 "2026-09-14" */
+export function todayKstInputValue(now: Date = new Date()): string {
+  return now.toLocaleDateString('sv-SE', { timeZone: KST })
+}
+
 /** UTC ISO → <input type="datetime-local"> 값 "2026-08-29T23:59" (KST 기준) */
 export function toKstInputValue(iso: string): string {
   return new Date(iso)

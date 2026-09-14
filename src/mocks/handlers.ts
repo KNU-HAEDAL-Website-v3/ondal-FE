@@ -2,13 +2,18 @@
 import { delay, http, HttpResponse } from 'msw'
 import type {
   AssignmentResponse,
+  AttendanceRosterResponse,
+  AttendanceStats,
+  AttendanceStatus,
   CohortResponse,
   CohortStatus,
   ErrorResponse,
   LogoutResponse,
   MemberResponse,
+  MyAttendanceResponse,
   NoticeResponse,
   QuestionResponse,
+  SessionResponse,
   StatusBoardRow,
   SubmissionResponse,
   SubmissionStatus,
@@ -18,17 +23,21 @@ import type {
 } from '@/api/types'
 import {
   assignments,
+  attendances,
   cohorts,
   enrollments,
   notices,
   questions,
+  sessions,
   submissions,
   users,
   type MockAssignment,
+  type MockAttendance,
   type MockCohort,
   type MockEnrollment,
   type MockNotice,
   type MockQuestion,
+  type MockSession,
   type MockSubmission,
   type MockUser,
 } from './data'
@@ -295,6 +304,70 @@ function requireManageableNotice(noticeId: number, user: MockUser): { notice: Mo
   if (notice.cohortId !== null && cohorts.find((c) => c.id === notice.cohortId)?.status === 'ARCHIVED') return { fail: archivedError() }
   if (!canManageNotice(notice, user)) return { fail: error(403, 'FORBIDDEN', '권한이 없습니다.') }
   return { notice, index }
+}
+
+// ---- 출석 헬퍼 ------------------------------------------------------------------------
+
+const ATTENDANCE_STATUSES: AttendanceStatus[] = ['PRESENT', 'LATE', 'ABSENT']
+
+/** BE AttendanceStats.of - rate = 출석 ÷ 판정 × 100 정수, 판정 0건 null. total 은 기준 개수(명단 수 또는 차시 수) */
+function attendanceStats(records: MockAttendance[], total: number): AttendanceStats {
+  const present = records.filter((a) => a.status === 'PRESENT').length
+  const late = records.filter((a) => a.status === 'LATE').length
+  const absent = records.filter((a) => a.status === 'ABSENT').length
+  const decided = present + late + absent
+  return { present, late, absent, unchecked: Math.max(0, total - decided), rate: decided === 0 ? null : Math.round((present * 100) / decided) }
+}
+
+function toSessionResponse(s: MockSession): SessionResponse {
+  return { ...s, attendanceCount: attendances.filter((a) => a.sessionId === s.id).length }
+}
+
+/** 날짜 → 번호 오름차순 (서버 정렬) */
+function cohortSessions(cohortId: number): MockSession[] {
+  return sessions.filter((s) => s.cohortId === cohortId).sort((a, b) => a.heldOn.localeCompare(b.heldOn) || a.sessionNo - b.sessionNo)
+}
+
+/** 명부 행 = 현재 STUDENT 명단, 이름순 (운영진 제외) */
+function studentsOf(cohortId: number): MockUser[] {
+  return enrollments
+    .filter((e) => e.cohortId === cohortId && e.role === 'STUDENT')
+    .map((e) => users.find((u) => u.loginId === e.loginId)!)
+    .sort((a, b) => a.name.localeCompare(b.name) || a.id - b.id)
+}
+
+function rosterOf(cohortId: number, session: MockSession): AttendanceRosterResponse {
+  const students = studentsOf(cohortId)
+  const sessionIds = new Set(cohortSessions(cohortId).map((s) => s.id))
+  const cohortRecords = attendances.filter((a) => sessionIds.has(a.sessionId))
+  const rows = students.map((u) => {
+    const mine = attendances.find((a) => a.sessionId === session.id && a.loginId === u.loginId)
+    return {
+      user: toUserResponse(u),
+      status: mine?.status ?? null,
+      checkedAt: mine?.checkedAt ?? null,
+      stats: attendanceStats(cohortRecords.filter((a) => a.loginId === u.loginId), sessionIds.size),
+    }
+  })
+  const onRoster = attendances.filter((a) => a.sessionId === session.id && students.some((u) => u.loginId === a.loginId))
+  return { session: toSessionResponse(session), summary: attendanceStats(onRoster, rows.length), rows }
+}
+
+/** 차시 등록·수정 검증 - BE SessionCreateRequest/UpdateRequest 미러 */
+function parseSessionBody(
+  raw: unknown,
+  requireNo: boolean,
+): { payload: { sessionNo: number | null; title: string | null; heldOn: string } } | { fail: HttpResponse<ErrorResponse> } {
+  const body = (raw ?? {}) as { sessionNo?: unknown; title?: unknown; heldOn?: unknown }
+  const sessionNo = body.sessionNo === null || body.sessionNo === undefined ? null : Number(body.sessionNo)
+  if (sessionNo === null && requireNo) return { fail: error(400, 'INVALID_INPUT', '차시 번호는 비어 있을 수 없습니다.') }
+  if (sessionNo !== null && (!Number.isInteger(sessionNo) || sessionNo < 1)) return { fail: error(400, 'INVALID_INPUT', '차시 번호는 1 이상이어야 합니다.') }
+  const title = typeof body.title === 'string' && body.title.trim() !== '' ? body.title.trim() : null
+  if (title !== null && title.length > 100) return { fail: error(400, 'INVALID_INPUT', '차시 제목은 100자 이하여야 합니다.') }
+  if (typeof body.heldOn !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(body.heldOn)) {
+    return { fail: error(400, 'INVALID_INPUT', '수업 날짜는 비어 있을 수 없습니다.') }
+  }
+  return { payload: { sessionNo, title, heldOn: body.heldOn } }
 }
 
 // ---- Q&A 헬퍼 ------------------------------------------------------------------------
@@ -682,6 +755,147 @@ export const handlers = [
     if ('fail' in target) return target.fail
     notices.splice(target.index, 1)
     return new HttpResponse(null, { status: 204 })
+  }),
+
+  // ---- 차시 (#34~#37, 목록 소속자 / 쓰기 운영진 이상) ----------------------------------------
+
+  http.get('/api/cohorts/:cohortId/sessions', async ({ params }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), false)
+    if ('fail' in guard) return guard.fail
+    return HttpResponse.json(cohortSessions(guard.cohort.id).map(toSessionResponse))
+  }),
+
+  http.post('/api/cohorts/:cohortId/sessions', async ({ params, request }) => {
+    await delay(400)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), true)
+    if ('fail' in guard) return guard.fail
+    const parsed = parseSessionBody(await request.json().catch(() => null), false)
+    if ('fail' in parsed) return parsed.fail
+    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    const existing = cohortSessions(guard.cohort.id)
+    const sessionNo = parsed.payload.sessionNo ?? Math.max(0, ...existing.map((s) => s.sessionNo)) + 1
+    if (existing.some((s) => s.sessionNo === sessionNo)) return error(409, 'CONFLICT', `이미 사용 중인 차시 번호입니다: ${sessionNo}`)
+    const created: MockSession = {
+      id: Math.max(0, ...sessions.map((s) => s.id)) + 1,
+      cohortId: guard.cohort.id,
+      sessionNo,
+      title: parsed.payload.title,
+      heldOn: parsed.payload.heldOn,
+      createdAt: new Date().toISOString(),
+    }
+    sessions.push(created)
+    return HttpResponse.json(toSessionResponse(created), {
+      status: 201,
+      headers: { Location: `/api/cohorts/${guard.cohort.id}/sessions/${created.id}` },
+    })
+  }),
+
+  http.put('/api/cohorts/:cohortId/sessions/:sessionId', async ({ params, request }) => {
+    await delay(400)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), true)
+    if ('fail' in guard) return guard.fail
+    const parsed = parseSessionBody(await request.json().catch(() => null), true)
+    if ('fail' in parsed) return parsed.fail
+    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    const found = sessions.find((s) => s.id === Number(params.sessionId) && s.cohortId === guard.cohort.id)
+    if (!found) return error(404, 'NOT_FOUND', '차시를 찾을 수 없습니다.')
+    const sessionNo = parsed.payload.sessionNo!
+    if (sessionNo !== found.sessionNo && cohortSessions(guard.cohort.id).some((s) => s.sessionNo === sessionNo)) {
+      return error(409, 'CONFLICT', `이미 사용 중인 차시 번호입니다: ${sessionNo}`)
+    }
+    Object.assign(found, { sessionNo, title: parsed.payload.title, heldOn: parsed.payload.heldOn })
+    return HttpResponse.json(toSessionResponse(found))
+  }),
+
+  http.delete('/api/cohorts/:cohortId/sessions/:sessionId', async ({ params }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), true)
+    if ('fail' in guard) return guard.fail
+    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    const index = sessions.findIndex((s) => s.id === Number(params.sessionId) && s.cohortId === guard.cohort.id)
+    if (index < 0) return error(404, 'NOT_FOUND', '차시를 찾을 수 없습니다.')
+    const sessionId = sessions[index].id
+    for (let i = attendances.length - 1; i >= 0; i--) if (attendances[i].sessionId === sessionId) attendances.splice(i, 1) // 기록 연쇄 삭제
+    sessions.splice(index, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // ---- 출석 (#38~#40, 명부·표시 운영진 이상 / 내 출석 소속자) ----------------------------------
+
+  http.get('/api/cohorts/:cohortId/sessions/:sessionId/attendances', async ({ params }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), true)
+    if ('fail' in guard) return guard.fail
+    const session = sessions.find((s) => s.id === Number(params.sessionId) && s.cohortId === guard.cohort.id)
+    if (!session) return error(404, 'NOT_FOUND', '차시를 찾을 수 없습니다.')
+    return HttpResponse.json(rosterOf(guard.cohort.id, session))
+  }),
+
+  http.put('/api/cohorts/:cohortId/sessions/:sessionId/attendances', async ({ params, request }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), true)
+    if ('fail' in guard) return guard.fail
+    const body = ((await request.json().catch(() => null)) ?? {}) as { records?: unknown }
+    if (!Array.isArray(body.records) || body.records.length === 0) return error(400, 'INVALID_INPUT', 'records는 비어 있을 수 없습니다.')
+    const last = new Map<string, AttendanceStatus | null>() // 같은 loginId 는 마지막 값
+    for (const item of body.records as { loginId?: unknown; status?: unknown }[]) {
+      const loginId = typeof item.loginId === 'string' ? item.loginId.trim() : ''
+      if (!loginId) return error(400, 'INVALID_INPUT', 'loginId는 비어 있을 수 없습니다.')
+      if (item.status !== null && item.status !== undefined && !ATTENDANCE_STATUSES.includes(item.status as AttendanceStatus)) {
+        return error(400, 'INVALID_INPUT', '요청 본문을 읽을 수 없습니다.')
+      }
+      last.set(loginId, (item.status ?? null) as AttendanceStatus | null)
+    }
+    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    const session = sessions.find((s) => s.id === Number(params.sessionId) && s.cohortId === guard.cohort.id)
+    if (!session) return error(404, 'NOT_FOUND', '차시를 찾을 수 없습니다.')
+    const students = studentsOf(guard.cohort.id)
+    for (const [loginId] of last) {
+      if (!students.some((u) => u.loginId === loginId)) return error(404, 'NOT_FOUND', `해당 분반의 수강생이 아닙니다: ${loginId}`)
+    }
+    const now = new Date().toISOString()
+    for (const [loginId, status] of last) {
+      const index = attendances.findIndex((a) => a.sessionId === session.id && a.loginId === loginId)
+      if (status === null) {
+        if (index >= 0) attendances.splice(index, 1)
+      } else if (index >= 0) {
+        Object.assign(attendances[index], { status, checkedAt: now, checkedBy: user.loginId })
+      } else {
+        attendances.push({ sessionId: session.id, loginId, status, checkedAt: now, checkedBy: user.loginId })
+      }
+    }
+    return HttpResponse.json(rosterOf(guard.cohort.id, session))
+  }),
+
+  http.get('/api/cohorts/:cohortId/attendances/me', async ({ params }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = cohortGuard(user, Number(params.cohortId), false)
+    if ('fail' in guard) return guard.fail
+    const list = cohortSessions(guard.cohort.id)
+    const mine = attendances.filter((a) => a.loginId === user.loginId && list.some((s) => s.id === a.sessionId))
+    const body: MyAttendanceResponse = {
+      summary: attendanceStats(mine, list.length),
+      records: [...list].reverse().map((s) => {
+        const record = mine.find((a) => a.sessionId === s.id)
+        return { session: toSessionResponse(s), status: record?.status ?? null, checkedAt: record?.checkedAt ?? null }
+      }),
+    }
+    return HttpResponse.json(body)
   }),
 
   // ---- Q&A (#23~#27) ----------------------------------------------------------------
