@@ -461,6 +461,10 @@ function toSubmissionResponse(s: MockSubmission, a: MockAssignment, cohortId: nu
     links: s.links,
     submittedAt: s.submittedAt,
     late: s.submittedAt > a.dueAt,
+    comment:
+      s.comment === null
+        ? null
+        : { content: s.comment.content, author: toUserSummary(s.comment.loginId, cohortId), commentedAt: s.comment.commentedAt },
   }
 }
 
@@ -474,7 +478,32 @@ function toSubmissionSummary(s: MockSubmission, a: MockAssignment): SubmissionSu
     links: s.links,
     submittedAt: s.submittedAt,
     late: s.submittedAt > a.dueAt,
+    hasComment: s.comment !== null,
   }
+}
+
+/** 코멘트 본문 검증 - BE SubmissionCommentRequest 미러 (필수, 5000자) */
+function parseCommentBody(raw: unknown): { content: string } | { fail: HttpResponse<ErrorResponse> } {
+  const body = (raw ?? {}) as { content?: unknown }
+  const content = typeof body.content === 'string' ? body.content.trim() : ''
+  if (!content) return { fail: error(400, 'INVALID_INPUT', '코멘트 내용은 비어 있을 수 없습니다.') }
+  if (content.length > 5000) return { fail: error(400, 'INVALID_INPUT', '코멘트 내용은 5000자 이하여야 합니다.') }
+  return { content }
+}
+
+/** 코멘트 쓰기 공통 가드 - 운영진 이상(403) → 보관 분반(409) → 과제 스코프 안의 제출(404) */
+function commentGuard(
+  user: MockUser,
+  cohortId: number,
+  assignmentId: number,
+  submissionId: number,
+): { cohort: MockCohort; assignment: MockAssignment; submission: MockSubmission } | { fail: HttpResponse<ErrorResponse> } {
+  const guard = assignmentGuard(user, cohortId, assignmentId, true)
+  if ('fail' in guard) return guard
+  if (guard.cohort.status === 'ARCHIVED') return { fail: archivedError() }
+  const submission = submissions.find((s) => s.id === submissionId && s.assignmentId === guard.assignment.id)
+  if (!submission) return { fail: error(404, 'NOT_FOUND', '제출물을 찾을 수 없습니다.') }
+  return { cohort: guard.cohort, assignment: guard.assignment, submission }
 }
 
 /** 스코프(과제) + 열람 권한(본인 또는 운영진·관리자)을 한 번에 - 불일치·타인 것은 null(404, 존재 비노출) */
@@ -1249,6 +1278,7 @@ export const handlers = [
       fileSize: type === 'FILE' ? (file?.size ?? null) : null,
       links: type === 'LINK' ? linkUrls : [],
       submittedAt: new Date().toISOString(), // 서버 수신 시각 기준 지각 판정
+      comment: null,
     }
     submissions.push(created)
     if (file) fileBlobs.set(created.id, file)
@@ -1300,6 +1330,30 @@ export const handlers = [
     })
   }),
 
+  // ---- 제출 코멘트 (#45~#46) - 운영진 이상, 제출 1건에 1개(덮어쓰기), 점수 없음 ----------------
+
+  http.put('/api/cohorts/:cohortId/assignments/:assignmentId/submissions/:submissionId/comment', async ({ params, request }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = commentGuard(user, Number(params.cohortId), Number(params.assignmentId), Number(params.submissionId))
+    if ('fail' in guard) return guard.fail
+    const parsed = parseCommentBody(await request.json().catch(() => null))
+    if ('fail' in parsed) return parsed.fail
+    guard.submission.comment = { content: parsed.content, loginId: user.loginId, commentedAt: new Date().toISOString() }
+    return HttpResponse.json(toSubmissionResponse(guard.submission, guard.assignment, guard.cohort.id))
+  }),
+
+  http.delete('/api/cohorts/:cohortId/assignments/:assignmentId/submissions/:submissionId/comment', async ({ params }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const guard = commentGuard(user, Number(params.cohortId), Number(params.assignmentId), Number(params.submissionId))
+    if ('fail' in guard) return guard.fail
+    guard.submission.comment = null // 없어도 204 (멱등)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   http.get('/api/cohorts/:cohortId/assignments/:assignmentId/status-board', async ({ params }) => {
     await delay(300)
     const user = currentUser()
@@ -1319,6 +1373,7 @@ export const handlers = [
           submissionCount: mine.length,
           lastSubmittedAt: latest?.submittedAt ?? null,
           latestSubmissionId: latest?.id ?? null,
+          latestCommented: latest !== null && latest.comment !== null,
         }
       })
       .sort((a, b) => a.user.name.localeCompare(b.user.name))
