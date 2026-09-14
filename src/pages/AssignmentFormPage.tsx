@@ -9,7 +9,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ApiErrorView } from '@/components/ApiErrorView'
-import { JudgeConfigSection, draftEquals, draftFromConfig, emptyDraft, toPayload, type JudgeDraft } from '@/components/judge/JudgeConfigSection'
+import {
+  JudgeConfigSection,
+  draftEquals,
+  draftFromConfig,
+  emptyDraft,
+  emptyExpectedCount,
+  toPayload,
+  type JudgeDraft,
+} from '@/components/judge/JudgeConfigSection'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { kstInputToIso, toKstInputValue } from '@/lib/datetime'
 
@@ -112,6 +120,16 @@ export default function AssignmentFormPage() {
     if (editing && judgeChanged && judgeInitial.enabled && !judgeDraft.enabled) {
       if (!window.confirm(`테스트케이스 ${judgeInitial.testCases.length}개를 지우고 자동 채점을 해제합니다. 계속할까요?`)) return
     }
+    // 기대 출력이 빈 케이스 = 채점 기준이 비었다는 뜻 - 그대로 두면 모든 제출이 틀렸습니다로 나온다 (2026-09-14 운영 피드백)
+    const empties = emptyExpectedCount(judgeDraft)
+    if (judgeNeedsSave && empties > 0) {
+      const warning =
+        `기대 출력이 비어 있는 테스트케이스가 ${empties}개 있어요.\n` +
+        '이대로 저장하면 그 케이스는 "아무것도 출력하지 않아야" 통과합니다. 대부분은 정답 출력을 빠뜨린 경우예요.\n\n' +
+        '그래도 저장할까요? (취소하면 폼으로 돌아가 정답 코드로 기대 출력을 채울 수 있어요)'
+      if (!window.confirm(warning)) return
+    }
+
     let rejudge = false
     const affected = judgeQuery.data?.affectedSubmissions ?? 0
     if (editing && judgeChanged && judgeDraft.enabled && affected > 0) {

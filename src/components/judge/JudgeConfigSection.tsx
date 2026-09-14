@@ -46,6 +46,11 @@ export function draftEquals(a: JudgeDraft, b: JudgeDraft): boolean {
 }
 
 /** 저장 본문 - 토글이 꺼져 있으면 케이스 0개(= 자동 채점 해제). 제한 빈 값은 null(서버 기본값) */
+/** 기대 출력이 빈 케이스 수 - 그대로 저장하면 "아무것도 출력하지 않아야 통과" 가 되므로 폼이 저장 전에 확인한다 */
+export function emptyExpectedCount(draft: JudgeDraft): number {
+  return draft.enabled ? draft.testCases.filter((c) => c.expectedOutput === '').length : 0
+}
+
 export function toPayload(draft: JudgeDraft, rejudge: boolean): JudgeConfigPayload {
   return {
     timeLimitMs: draft.timeLimitMs.trim() === '' ? null : Number(draft.timeLimitMs),
@@ -201,7 +206,7 @@ export function JudgeConfigSection({
         </label>
         <p className="text-xs text-muted-foreground">
           {draft.enabled
-            ? '테스트케이스가 1개 이상이면 코드 제출이 자동으로 채점돼요. 점수는 없고 판정만 나옵니다.'
+            ? '아래 테스트케이스가 곧 채점 기준이에요. 제출 코드를 입력마다 실행해 출력이 기대 출력과 같으면 맞았습니다. 점수는 없습니다.'
             : '켜면 테스트케이스 표가 열려요. 끄면 제출만 받는 과제로 저장됩니다.'}
         </p>
       </div>
@@ -252,16 +257,19 @@ export function JudgeConfigSection({
           <div>
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold tracking-[0.55px] text-muted-foreground">
-                테스트케이스 <span className="font-mono">{draft.testCases.length}/{maxCases}</span>
+                테스트케이스 (채점 기준) <span className="font-mono">{draft.testCases.length}/{maxCases}</span>
               </h3>
               <p className="text-xs text-muted-foreground">공개 케이스는 학생에게 예시로 보이고, 채점 결과에서 실제 출력까지 보여요.</p>
             </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              한 행이 채점 1회예요. 왼쪽 입력을 표준 입력으로 넣고 실행한 출력이 오른쪽 기대 출력과 같아야 통과합니다. 줄 끝 공백과 마지막 빈 줄은 무시해요.
+            </p>
             <table className="mt-2 w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-xs text-muted-foreground">
                   <th scope="col" className="w-10 py-1.5 font-semibold">#</th>
-                  <th scope="col" className="py-1.5 font-semibold">입력</th>
-                  <th scope="col" className="py-1.5 font-semibold">기대 출력</th>
+                  <th scope="col" className="py-1.5 font-semibold">입력 (표준 입력)</th>
+                  <th scope="col" className="py-1.5 font-semibold">기대 출력 (정답)</th>
                   <th scope="col" className="w-14 py-1.5 text-center font-semibold">공개</th>
                   <th scope="col" className="w-24 py-1.5 text-center font-semibold">검증</th>
                   <th scope="col" className="w-10 py-1.5"><span className="sr-only">삭제</span></th>
@@ -291,9 +299,14 @@ export function JudgeConfigSection({
                           rows={2}
                           disabled={disabled}
                           aria-label={`케이스 ${index + 1} 기대 출력`}
-                          placeholder="비워 두고 아래 정답 코드로 채울 수 있어요"
-                          className={TEXTAREA_CLASS}
+                          placeholder="이 출력과 같아야 통과 - 아래 정답 코드로 채울 수 있어요"
+                          className={cn(TEXTAREA_CLASS, c.expectedOutput === '' && 'border-[#f59e0b]')}
                         />
+                        {c.expectedOutput === '' && (
+                          <p className="mt-1 text-[11px] font-semibold text-[#b45309]" data-empty-expected={index}>
+                            비어 있음 - 지금 저장하면 아무것도 출력하지 않아야 통과해요
+                          </p>
+                        )}
                       </td>
                       <td className="py-2 text-center">
                         <input
