@@ -28,16 +28,17 @@ npm run lint       # 린트 (oxlint)
 - 로그아웃: `POST /api/auth/logout` 응답의 `logoutUrl` 이 있으면 그 주소(Keycloak)로 이동해 홈페이지 세션까지 종료 → Keycloak 이 `/login` 으로 되돌림. null 이면 `/login` 으로만 이동
 - mock 모드는 값과 무관하게 `stub` 폼 (MSW 가 스텁 흐름만 흉내 냄)
 
-## 배포 (Cloudflare Pages)
+## 배포 (Cloudflare)
 
-- **프로덕션**: https://ondal.haedal-sos-man-in-the-mirror.com - Pages 프로젝트 `haedal-online-judge-fe` 의 `main` 배포(`https://haedal-online-judge-fe.pages.dev`)에 커스텀 도메인을 연결해 사용. `main` 머지 시 자동 갱신, 실 BE(`https://ondal-api.haedal-sos-man-in-the-mirror.com`) + 홈페이지 로그인(`oidc`) 빌드
-  - 반드시 커스텀 도메인으로 접속 - pages.dev 주소는 BE 와 다른 사이트라 세션 쿠키(lax)·CORS 대상이 아니어서 로그인이 유지되지 않음
-- **PR 미리보기**: PR 생성 시 GitHub Actions가 빌드·배포 후 미리보기 URL을 PR 코멘트로 남김 (`https://<브랜치명>.haedal-online-judge-fe.pages.dev`)
-  - 리뷰어는 클론 없이 링크로 화면 확인 가능
-- 설정: [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) - 레포 시크릿 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` 필요
-- **PR 미리보기는 mock 모드**(`VITE_API_MOCK=true`, MSW) - 미리보기 오리진(*.pages.dev)은 실 BE 에 붙을 수 없기 때문
-  - 로그인·홈·분반 화면 클릭 가능 - 단, 데이터는 가짜(시드와 동일)
-  - `main` 빌드만 `VITE_API_MOCK=false` + `VITE_API_BASE_URL=<실 BE>` + `VITE_AUTH_MODE=oidc` (deploy.yml 의 `env`)
+| 무엇 | 주소 | 배포 경로 | 빌드 값 |
+|---|---|---|---|
+| **프로덕션** (사용자 진입) | https://ondal.haedal-sos-man-in-the-mirror.com | Cloudflare Worker `ondal-fe` - Git 연동(Workers Builds): `main` push 마다 `npm run build` → 정적 자산 배포. 설정은 Cloudflare 대시보드(레포에 wrangler 설정 없음) | [`.env.production`](.env.production) - 실 BE(`https://ondal-api.haedal-sos-man-in-the-mirror.com`) + 홈페이지 로그인(`oidc`) |
+| Pages `main` 배포 | https://haedal-online-judge-fe.pages.dev | GitHub Actions [`deploy.yml`](.github/workflows/deploy.yml) (wrangler Direct Upload) | `.env.production` 과 동일 - 단 pages.dev 는 BE 와 다른 사이트라 세션 쿠키(lax)·CORS 대상이 아니어서 **로그인 불가**. 반드시 커스텀 도메인으로 접속 |
+| **PR 미리보기** | `https://<브랜치명>.haedal-online-judge-fe.pages.dev` (PR 코멘트에 링크) | 같은 deploy.yml - PR 생성·갱신 시 | `VITE_API_MOCK=true`(MSW, 로그인은 stub 폼) - 화면 클릭 가능, 데이터는 가짜(시드와 동일) |
+
+- `.env.production` 은 비밀값 아님(공개 주소·모드 스위치)이라 커밋 - Workers Builds 와 Actions 가 같은 값으로 빌드되는 단일 출처. 값 변경은 이 파일 한 곳에서
+- Workers Builds 는 PR 브랜치도 빌드해 PR 체크 `Workers Builds: ondal-fe` 로 표시됨 - 미리보기는 pages.dev 링크를 쓰면 됨
+- deploy.yml 은 레포 시크릿 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` 필요
 
 ## 기술 스택
 
