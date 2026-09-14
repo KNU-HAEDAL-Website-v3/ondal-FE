@@ -28,4 +28,6 @@ lerna-debug.log*
 !.env.example
 # mock 모드 스위치 (비밀값 아님, npm run dev:mock)
 !.env.mock
+# 운영 빌드 공개 설정 (비밀값 아님 - 실 BE 주소·로그인 모드. Workers Builds·Actions 공통)
+!.env.production
 *.local

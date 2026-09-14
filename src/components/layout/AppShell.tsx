@@ -46,7 +46,14 @@ export function AppShell() {
   const logoutMutation = useLogout()
 
   const handleLogout = () => {
-    logoutMutation.mutate(undefined, { onSettled: () => navigate('/login', { replace: true }) })
+    logoutMutation.mutate(undefined, {
+      onSettled: (data) => {
+        // oidc: 홈페이지(Keycloak) 세션까지 끝내러 이동 - 끝나면 Keycloak 이 /login 으로 돌려보낸다 (공용 PC 의 SSO 자동 로그인 방지)
+        // stub·요청 실패(data 없음): 기존처럼 로그인 화면으로
+        if (data?.logoutUrl) window.location.assign(data.logoutUrl)
+        else navigate('/login', { replace: true })
+      },
+    })
   }
 
   return (

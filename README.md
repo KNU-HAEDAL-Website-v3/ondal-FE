@@ -14,17 +14,31 @@ npm run build      # 타입 체크 + 프로덕션 빌드
 npm run lint       # 린트 (oxlint)
 ```
 
-환경변수: [`.env.example`](.env.example) 참고 (`VITE_API_BASE_URL`, `VITE_API_MOCK`).
+환경변수: [`.env.example`](.env.example) 참고 (`VITE_API_BASE_URL`, `VITE_API_MOCK`, `VITE_AUTH_MODE`).
 
-## 배포 (Cloudflare Pages)
+## 로그인 방식 (`VITE_AUTH_MODE`)
 
-- **프로덕션**: https://haedal-online-judge-fe.pages.dev - `main` 머지 시 자동 갱신
-- **PR 미리보기**: PR 생성 시 GitHub Actions가 빌드·배포 후 미리보기 URL을 PR 코멘트로 남김 (`https://<브랜치명>.haedal-online-judge-fe.pages.dev`)
-  - 리뷰어는 클론 없이 링크로 화면 확인 가능
-- 설정: [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) - 레포 시크릿 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` 필요
-- **Pages 빌드는 mock 모드**(`VITE_API_MOCK=true`, MSW) - 백엔드 미배포 상태이기 때문
-  - 로그인·홈·분반 화면 클릭 가능 - 단, 데이터는 가짜(시드와 동일)
-  - 백엔드 배포 후: 워크플로에서 mock 해제 + `VITE_API_BASE_URL` 설정
+| 값 | 로그인 화면 | 짝이 되는 BE | 쓰는 곳 |
+|---|---|---|---|
+| `stub` (기본) | 아이디 폼 - 아이디만 입력하면 통과 | `ondal.auth.mode=stub` (local) / mock | `npm run dev`, `npm run dev:mock`, PR 미리보기 |
+| `oidc` | "홈페이지 계정으로 로그인" 버튼 → 해달 홈페이지(Keycloak) → 복귀 | `ondal.auth.mode=oidc` (prod) | `main` 프로덕션 빌드 |
+
+- `oidc` 는 `VITE_API_BASE_URL` **절대 주소 필수** - 로그인이 fetch 가 아니라 브라우저 이동(`GET /api/auth/login`)이라 vite 프록시(상대 경로)로는 동작하지 않음. 빌드가 검사해 막음 (`vite.config.ts`)
+- 실패 시 BE 가 `/login?error=<코드>` 로 돌려보냄 - 안내 문구 매핑은 `src/pages/LoginPage.tsx`, 코드 원본은 BE `OidcLoginError`(6종). "다시 로그인" 으로 처음부터 재시작
+- 로그아웃: `POST /api/auth/logout` 응답의 `logoutUrl` 이 있으면 그 주소(Keycloak)로 이동해 홈페이지 세션까지 종료 → Keycloak 이 `/login` 으로 되돌림. null 이면 `/login` 으로만 이동
+- mock 모드는 값과 무관하게 `stub` 폼 (MSW 가 스텁 흐름만 흉내 냄)
+
+## 배포 (Cloudflare)
+
+| 무엇 | 주소 | 배포 경로 | 빌드 값 |
+|---|---|---|---|
+| **프로덕션** (사용자 진입) | https://ondal.haedal-sos-man-in-the-mirror.com | Cloudflare Worker `ondal-fe` - Git 연동(Workers Builds): `main` push 마다 `npm run build` → 정적 자산 배포. 설정은 Cloudflare 대시보드(레포에 wrangler 설정 없음) | [`.env.production`](.env.production) - 실 BE(`https://ondal-api.haedal-sos-man-in-the-mirror.com`) + 홈페이지 로그인(`oidc`) |
+| Pages `main` 배포 | https://haedal-online-judge-fe.pages.dev | GitHub Actions [`deploy.yml`](.github/workflows/deploy.yml) (wrangler Direct Upload) | `.env.production` 과 동일 - 단 pages.dev 는 BE 와 다른 사이트라 세션 쿠키(lax)·CORS 대상이 아니어서 **로그인 불가**. 반드시 커스텀 도메인으로 접속 |
+| **PR 미리보기** | `https://<브랜치명>.haedal-online-judge-fe.pages.dev` (PR 코멘트에 링크) | 같은 deploy.yml - PR 생성·갱신 시 | `VITE_API_MOCK=true`(MSW, 로그인은 stub 폼) - 화면 클릭 가능, 데이터는 가짜(시드와 동일) |
+
+- `.env.production` 은 비밀값 아님(공개 주소·모드 스위치)이라 커밋 - Workers Builds 와 Actions 가 같은 값으로 빌드되는 단일 출처. 값 변경은 이 파일 한 곳에서
+- Workers Builds 는 PR 브랜치도 빌드해 PR 체크 `Workers Builds: ondal-fe` 로 표시됨 - 미리보기는 pages.dev 링크를 쓰면 됨
+- deploy.yml 은 레포 시크릿 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` 필요
 
 ## 기술 스택
 

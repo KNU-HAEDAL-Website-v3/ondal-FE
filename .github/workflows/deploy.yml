@@ -5,8 +5,10 @@
 #   대신 이 워크플로가 빌드해서 wrangler로 Cloudflare에 밀어 넣으면 레포 시크릿 2개만으로 동작한다.
 #
 # 동작:
-#   - main push          → 프로덕션 https://haedal-online-judge-fe.pages.dev
-#   - PR(같은 레포 브랜치) → 미리보기 https://<브랜치명>.haedal-online-judge-fe.pages.dev + PR 코멘트
+#   - main push          → https://haedal-online-judge-fe.pages.dev - 실 BE(ondal-api) + 홈페이지(Keycloak) 로그인 빌드(.env.production).
+#                          ※ 사용자 진입 주소(https://ondal.haedal-sos-man-in-the-mirror.com)는 이 워크플로가 아니라 Cloudflare Worker `ondal-fe`
+#                            (Git 연동 Workers Builds - main push 마다 `npm run build` 후 정적 자산 배포)가 서빙한다. README "배포" 절
+#   - PR(같은 레포 브랜치) → 미리보기 https://<브랜치명>.haedal-online-judge-fe.pages.dev + PR 코멘트 - mock(MSW) 빌드
 #
 # 필요한 레포 시크릿: CLOUDFLARE_API_TOKEN (Account · Cloudflare Pages · Edit), CLOUDFLARE_ACCOUNT_ID
 
@@ -48,10 +50,17 @@ jobs:
           cache: npm
 
       - run: npm ci
-      # 백엔드가 배포되기 전까지는 mock 모드로 빌드 - 미리보기에서 화면을 클릭해 볼 수 있게. BE 배포 후: VITE_API_MOCK 제거 + VITE_API_BASE_URL 추가
-      - run: npm run build   # tsc -b && vite build → dist/
+      # PR 미리보기: mock(MSW) 빌드 - process env 가 .env.production 보다 우선한다
+      #   - 미리보기 오리진(*.pages.dev)은 BE 의 CORS·세션 쿠키(lax) 대상이 아니라 실 BE 에 붙을 수 없다
+      #   - MSW 는 같은 origin 의 /api/* 만 가로채므로 BASE_URL 을 비워야 한다(.env.production 의 실 BE 주소 무효화). mock 이면 로그인 모드도 stub 고정(api/auth.ts)
+      - if: github.event_name == 'pull_request'
+        run: npm run build   # tsc -b && vite build → dist/
         env:
           VITE_API_MOCK: 'true'
+          VITE_API_BASE_URL: ''
+      # main(프로덕션): 값은 .env.production (실 BE ondal-api + 홈페이지 로그인 oidc) - Workers Builds(ondal-fe)와 같은 단일 출처
+      - if: github.event_name == 'push'
+        run: npm run build
 
       - name: Deploy to Cloudflare Pages
         id: deploy

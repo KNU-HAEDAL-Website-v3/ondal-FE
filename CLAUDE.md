@@ -33,9 +33,9 @@
 
 - 계약 기준: 백엔드 springdoc(OpenAPI) 문서
   - 화면에 필요한 필드 부재 시: 프론트에서 조합 금지 → 백엔드에 API 변경 요청
-- 백엔드 연동 전: 스텁 로그인 기준으로 개발
-  - 로컬: 실제 BE (`npm run dev`, /api 프록시)
-  - 백엔드 없이 볼 때·Pages 미리보기: mock (`npm run dev:mock`, MSW)
+- 로그인 방식은 빌드 변수 `VITE_AUTH_MODE` 로 고정 (README "로그인 방식" 절)
+  - 개발은 `stub`(아이디 폼) - 로컬: 실제 BE (`npm run dev`, /api 프록시) / 백엔드 없이 볼 때·Pages 미리보기: mock (`npm run dev:mock`, MSW)
+  - 운영(`main` 빌드)은 `oidc` - "홈페이지 계정으로 로그인" 버튼 → Keycloak → 복귀. `VITE_API_BASE_URL` 절대 주소 필수
   - **mock 데이터(`src/mocks/data.ts`)는 BE `LocalDataSeeder`와 같은 계정·분반 유지**, 응답 모양은 `src/api/types.ts`(BE DTO 미러) 준수
 - 공통 처리 위치: 401 → `api/client.ts` + `RequireAuth` / 403 → `ApiErrorView`가 홈으로 / 404 → `ApiErrorView` 안내
   - 페이지는 에러를 `ApiErrorView`에 전달만 담당
