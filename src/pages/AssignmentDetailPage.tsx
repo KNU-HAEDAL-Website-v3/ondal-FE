@@ -80,6 +80,17 @@ export default function AssignmentDetailPage() {
           <ChevronRight className="size-3.5" />
           <span>{assignment.sessionNo === null ? '기타' : `${assignment.sessionNo}차시`}</span>
         </nav>
+        {/* V7: 제목·본문·태그는 배정된 문제의 것 - HOJ 에서 같은 문제를 다시 볼 수 있게 링크를 둔다 */}
+        <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+          {assignment.tags.map((tag) => (
+            <span key={tag.id} className="rounded-[2px] bg-secondary px-1.5 py-0.5 font-semibold">
+              {tag.name}
+            </span>
+          ))}
+          <Link to={`/problems/${assignment.problemId}`} className="hover:text-primary hover:underline">
+            HOJ 에서 이 문제 보기
+          </Link>
+        </p>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight">
             <span className="font-mono text-primary">#{assignment.problemNo}</span>
@@ -146,7 +157,7 @@ export default function AssignmentDetailPage() {
         </section>
       </div>
 
-      {assignment.judgeEnabled && <JudgeSamplesSection cohortId={cohortId} assignmentId={assignment.id} />}
+      {assignment.judgeEnabled && <JudgeSamplesSection problemId={assignment.problemId} />}
 
       {archived ? (
         <p className="rounded-[2px] border bg-muted px-3 py-2 text-sm text-muted-foreground">

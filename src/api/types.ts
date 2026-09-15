@@ -83,16 +83,23 @@ export interface StudentAssignPayload {
 /** 제출 상태 4종 - 서버 계산값. 프론트 재계산 금지, 배지 매핑만 한다 (CLAUDE.md 규칙 4) */
 export type SubmissionStatus = 'NOT_SUBMITTED' | 'SUBMITTED' | 'SUBMITTED_EXTRA' | 'LATE'
 
-/** GET·POST·PUT /api/cohorts/{cohortId}/assignments - 목록·단건·등록·수정 응답이 전부 이 하나 */
+/**
+ * GET·POST·PUT /api/cohorts/{cohortId}/assignments - 목록·단건·등록·수정 응답이 전부 이 하나.
+ * V7 이후 과제는 "문제를 분반에 배정한 것" - 제목·본문·번호·태그는 배정된 문제(Problem)에서 온다(서버가 펴서 내려준다).
+ */
 export interface AssignmentResponse {
   id: number
+  /** 배정된 문제 id - 문제 상세(HOJ)·채점 설정으로 갈 때 쓴다 */
+  problemId: number
   /** 문제 번호 - 전역 유일, 1000부터. 표시는 #1000 형식 (schema.md 결정 9) */
   problemNo: number
   /** 차시 번호 - 차시에 속하지 않는 과제는 null. 목록은 차시 오름차순(null 마지막) → 등록순 (서버 정렬) */
   sessionNo: number | null
   title: string
-  /** 과제 내용 - 문제 링크를 포함한 자유 텍스트 (선택) */
+  /** 문제 본문 - 배정된 문제의 것 (선택) */
   description: string | null
+  /** 문제에 붙은 태그 - 이름순 */
+  tags: TagResponse[]
   /** 마감 시각(UTC) - KST 변환 표시는 프론트 몫. 지각 판정은 서버가 이 값으로 계산 */
   dueAt: string
   createdAt: string
@@ -104,14 +111,72 @@ export interface AssignmentResponse {
   judgeEnabled: boolean
 }
 
-/** POST·PUT /api/cohorts/{cohortId}/assignments 요청 본문 - 필드·검증 동일 (PUT은 전체 교체) */
+/**
+ * POST·PUT /api/cohorts/{cohortId}/assignments 요청 본문 - 필드·검증 동일 (PUT은 전체 교체).
+ * V7: 제목·본문·번호는 문제의 것이라 여기 없다 - 새 문제를 내려면 POST /api/problems 를 먼저 부른다.
+ */
 export interface AssignmentPayload {
-  /** 등록: 비우면(null) 자동 채번. 수정: 비우면 기존 번호 유지. 중복은 409 */
-  problemNo: number | null
+  /** 배정할 문제 id - 라이브러리에서 고르거나(가져오기) 방금 만든 문제의 id */
+  problemId: number
   sessionNo: number | null
+  dueAt: string
+}
+
+// ---- 문제 라이브러리 (HOJ) - V7 ------------------------------------------------------------
+
+/** 문제 태그 - 알고리즘·자료구조 분류. 만들고 고치는 건 관리자만 */
+export interface TagResponse {
+  id: number
+  name: string
+}
+
+/** POST·PUT /api/tags 요청 (관리자) */
+export interface TagPayload {
+  name: string
+}
+
+/** GET /api/problems 행 - 본문은 빼고 목록에 필요한 것만 */
+export interface ProblemSummary {
+  id: number
+  problemNo: number
+  title: string
+  tags: TagResponse[]
+  /** 자동 채점 문제인가 = 테스트케이스 1개 이상 */
+  judgeEnabled: boolean
+  /** 과제로 배정된 횟수 - 0이면 아직 한 번도 안 낸 문제 */
+  assignedCount: number
+  /** 요청자가 맞힌 적이 있는가 - 과제 제출·HOJ 연습 어느 쪽이든 */
+  solved: boolean
+}
+
+/** GET /api/problems/{id} - 목록 행 + 본문·제한·권한 판정값 */
+export interface ProblemResponse extends ProblemSummary {
+  description: string | null
+  /** 서버 기본값이 적용된 실제 값 */
+  timeLimitMs: number
+  memoryLimitMb: number
+  /** 출제자 이름 - V7 이전 문제는 알 수 없어 null */
+  createdBy: string | null
+  createdAt: string
+  updatedAt: string
+  /** 수정·삭제 버튼 분기 - 프론트는 이 값만 본다 */
+  canEdit: boolean
+}
+
+/** POST·PUT /api/problems 요청 (운영진 이상) - 테스트케이스·제한은 .../judge 에서 따로 */
+export interface ProblemPayload {
+  /** 등록: 비우면 자동 채번. 수정: 비우면 기존 번호 유지. 중복은 409 */
+  problemNo: number | null
   title: string
   description: string | null
-  dueAt: string
+  /** 통째 교체 - 빈 배열이면 태그 없음 */
+  tagIds: number[]
+}
+
+/** POST /api/problems/{id}/submissions 요청 - HOJ 연습 제출은 코드만 */
+export interface PracticeSubmitPayload {
+  codeText: string
+  language: string
 }
 
 /** 제출 형태 - 3종 택1 (docs/submission/design.md 결정 12) */

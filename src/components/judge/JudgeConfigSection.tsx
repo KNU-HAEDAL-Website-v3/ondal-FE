@@ -71,30 +71,29 @@ type RunMark = { verdict: Verdict | null; stdout: string; timeMs: number | null;
  * - 표 하나로 끝: 입력 · 기대 출력 · 공개 · 삭제. 행 추가는 버튼
  * - 정답 코드 상자: "기대 출력 채우기"(#49, expectedOutputs 없이 → stdout 을 빈 칸에) / "출제 검증"(#49, 기대 출력과 비교 → 행별 ✅/❌)
  * - 정답 코드는 저장하지 않는다(서버에 열 없음) - 세션 초안으로만 보존
- * - 새 과제(assignmentId null)는 실행 API 경로가 없어 두 버튼 비활성 - 등록 뒤 수정 화면에서 사용
+ * - 새 문제(problemId null)는 실행 API 경로가 없어 두 버튼 비활성 - 저장한 뒤 수정 화면에서 사용
  * - 값은 서버가 준 기본값·상한·지원 언어(config)를 그대로 표시, 없으면(새 과제) 최소 안내만
  */
 export function JudgeConfigSection({
-  cohortId,
-  assignmentId,
+  problemId,
   config,
   draft,
   onChange,
   disabled,
 }: {
-  cohortId: number
-  assignmentId: number | null
+  /** V7: 채점 기준은 문제의 것 - 새 문제(저장 전)는 null 이라 실행 버튼이 비활성 */
+  problemId: number | null
   config: JudgeConfigResponse | null
   draft: JudgeDraft
   onChange: (next: JudgeDraft) => void
   disabled: boolean
 }) {
-  const answerKey = `ondal-judge-answer-draft:${cohortId}:${assignmentId ?? 'new'}`
+  const answerKey = `ondal-judge-answer-draft:${problemId ?? 'new'}`
   const [answer, setAnswer] = useState(() => readDraft<{ language: string; code: string }>(answerKey) ?? { language: '', code: '' })
   const [marks, setMarks] = useState<Record<number, RunMark>>({})
   const [runNote, setRunNote] = useState<string | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
-  const runMutation = useRunJudge(cohortId, assignmentId ?? NaN)
+  const runMutation = useRunJudge(problemId ?? NaN)
 
   useEffect(() => {
     if (answer.code === '' && answer.language === '') clearDraft(answerKey)
@@ -103,7 +102,7 @@ export function JudgeConfigSection({
 
   const languages = config?.languages ?? LANGUAGE_FALLBACK
   const maxCases = config?.maxTestCases ?? 50
-  const canRun = assignmentId !== null && !disabled && answer.language !== '' && answer.code.trim() !== '' && draft.testCases.length > 0 && !runMutation.isPending
+  const canRun = problemId !== null && !disabled && answer.language !== '' && answer.code.trim() !== '' && draft.testCases.length > 0 && !runMutation.isPending
 
   const update = (patch: Partial<JudgeDraft>) => onChange({ ...draft, ...patch })
   const updateCase = (index: number, patch: Partial<TestCaseDraft>) =>
@@ -379,7 +378,7 @@ export function JudgeConfigSection({
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               정답 코드를 붙여 넣으면 입력마다 실행해 기대 출력을 채우거나, 표의 기대 출력과 맞는지 검증할 수 있어요. 정답 코드는 저장되지 않아요.
-              {assignmentId === null && ' 새 과제는 등록한 뒤 수정 화면에서 실행할 수 있어요.'}
+              {problemId === null && ' 새 문제는 저장한 뒤 수정 화면에서 실행할 수 있어요.'}
             </p>
             <div className="mt-2">
               <CodeEditor value={answer.code} onChange={(code) => setAnswer({ ...answer, code })} language={answer.language === '' ? null : answer.language} />

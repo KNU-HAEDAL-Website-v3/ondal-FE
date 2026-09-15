@@ -6,8 +6,8 @@ import { SampleCases } from '@/components/judge/SampleCases'
  * 학생 과제 상세의 자동 채점 절 (docs judge/fe.md 2절) - 제한 + 공개 케이스 예시(#50). judgeEnabled 인 과제에서만 그린다.
  * 조회 실패는 과제 상세를 막지 않는다 - 예시만 빠진다.
  */
-export function JudgeSamplesSection({ cohortId, assignmentId }: { cohortId: number; assignmentId: number }) {
-  const query = useJudgeSamples(cohortId, assignmentId, true)
+export function JudgeSamplesSection({ problemId }: { problemId: number }) {
+  const query = useJudgeSamples(problemId, true)
   if (query.isPending) return <p className="text-sm text-muted-foreground">예시를 불러오는 중...</p>
   if (query.error || !query.data.enabled) return null
   const data = query.data
