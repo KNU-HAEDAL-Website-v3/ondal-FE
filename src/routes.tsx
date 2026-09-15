@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router'
 import { RequireAdmin } from '@/components/RequireAdmin'
 import { RequireAuth } from '@/components/RequireAuth'
+import { RequireOperator } from '@/components/RequireOperator'
 import { AppShell } from '@/components/layout/AppShell'
 import AdminCohortsPage from '@/pages/AdminCohortsPage'
 import AdminTagsPage from '@/pages/AdminTagsPage'
@@ -33,9 +34,9 @@ import QuestionsPage from '@/pages/QuestionsPage'
  *   /                          - 홈 대시보드 (역할별: 수강자 / 교육운영진)
  *   /attendance                - 출석 (역할별: 출석 현황 / 출결 관리)
  *   /problems                  - HOJ 문제 목록 (로그인 누구나 - 분반 무관, 태그 필터)
- *   /problems/new              - 문제 출제 (운영진 이상)
- *   /problems/:problemId       - 문제 상세 - 본문·예시·풀이 제출·내 기록
- *   /problems/:problemId/edit  - 문제 수정 (운영진 이상)
+ *   /problems/:problemId       - 문제 상세 - 본문·예시·풀이 제출·내 기록 (로그인 누구나)
+ *   /problems/new              - 문제 출제 (RequireOperator)
+ *   /problems/:problemId/edit  - 문제 수정 (RequireOperator)
  *   /admin/tags                - [관리자] 문제 태그 관리
  *   /assignments               - 과제 목록 (?cohort= 분반 선택, 기본 내 첫 분반)
  *   /assignments/new           - 과제 등록 (운영진, ?cohort= 필수)
@@ -70,9 +71,12 @@ export function AppRoutes() {
           <Route path="attendance" element={<AttendancePage />} />
           <Route path="help" element={<HelpPage />} />
           <Route path="problems" element={<ProblemsPage />} />
-          <Route path="problems/new" element={<ProblemFormPage />} />
           <Route path="problems/:problemId" element={<ProblemDetailPage />} />
-          <Route path="problems/:problemId/edit" element={<ProblemFormPage />} />
+          {/* 출제·수정은 운영진 이상 - BE @OperatorAnywhere 와 같은 조건 (CLAUDE.md 규칙 3) */}
+          <Route element={<RequireOperator />}>
+            <Route path="problems/new" element={<ProblemFormPage />} />
+            <Route path="problems/:problemId/edit" element={<ProblemFormPage />} />
+          </Route>
           <Route path="assignments" element={<AssignmentsPage />} />
           <Route path="assignments/new" element={<AssignmentFormPage />} />
           <Route path="assignments/:assignmentId" element={<AssignmentDetailPage />} />
