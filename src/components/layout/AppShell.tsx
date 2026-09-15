@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import {
   BookOpen,
   CircleHelp,
@@ -21,20 +21,46 @@ import { cn } from '@/lib/utils'
  * 사이드바 메뉴 (피그마 28:368 계열 SideNavBar). 화면이 채워지면 to만 유지한 채 내용이 늘어난다.
  * "제출"(분반 전체 제출 기록)은 P2 이연으로 메뉴에서 뺐다 - 제출은 과제 상세 안에서 한다 (docs submission/design.md 결정 8).
  */
+/** Q&A 본체 경로 - /cohorts/:id/questions[/...]. 분반 스코프라 "내 수업"(/cohorts) 과 접두사가 겹친다 */
+const COHORT_QUESTIONS = /^\/cohorts\/[^/]+\/questions(\/|$)/
+
 const NAV_ITEMS = [
   { to: '/', label: '홈', icon: LayoutGrid, end: true },
   { to: '/attendance', label: '출석', icon: UserCheck },
   { to: '/assignments', label: '과제', icon: FileText },
-  { to: '/cohorts', label: '내 수업', icon: BookOpen },
+  // Q&A 를 보는 중에는 "내 수업"이 켜지면 안 된다 - 경로는 /cohorts 로 시작하지만 다른 메뉴다
+  { to: '/cohorts', label: '내 수업', icon: BookOpen, inactiveWhen: COHORT_QUESTIONS },
   // Q&A 는 분반 스코프(/cohorts/:id/questions)라 분반 페이지 안에만 있었는데, 그 링크 하나가 유일한 통로여서
-  // "Q&A 게시판이 없다"는 피드백이 나왔다 (2026-09-15) - 출결과 같은 "분반 먼저 고르기" 진입 화면을 둔다
-  { to: '/questions', label: 'Q&A', icon: MessagesSquare },
+  // "Q&A 게시판이 없다"는 피드백이 나왔다 (2026-09-15) - 출결과 같은 "분반 먼저 고르기" 진입 화면을 둔다.
+  // 분반이 하나면 /questions 가 곧바로 /cohorts/{id}/questions 로 넘어가므로 그 경로도 이 메뉴로 친다
+  { to: '/questions', label: 'Q&A', icon: MessagesSquare, activeWhen: COHORT_QUESTIONS },
   { to: '/notices', label: '공지사항', icon: Megaphone },
   // 관리자 전용 - 분반 생성·보관·운영진 지정 (UC-A1). 비관리자에게는 숨기고, 라우트는 RequireAdmin 이 지킨다
   { to: '/admin/cohorts', label: '분반 관리', icon: Settings2, adminOnly: true },
   // 태그 어휘는 관리자만 관리한다 - 자유 생성이면 표기가 갈라져 분류가 쓸모없어진다
   { to: '/admin/tags', label: '태그 관리', icon: Tags, adminOnly: true },
 ] as const
+
+interface NavMatch {
+  to: string
+  end?: boolean
+  /** 이 경로들도 이 메뉴로 친다 (다른 곳으로 넘어가는 진입 화면용) */
+  activeWhen?: RegExp
+  /** 접두사가 겹치지만 이 메뉴가 아닌 경로 */
+  inactiveWhen?: RegExp
+}
+
+/**
+ * 사이드바 하이라이트 판정 - NavLink 의 기본 접두사 매칭으로는 틀리는 자리가 있어 직접 계산한다.
+ * 2026-09-15 제보: Q&A 를 누르면 Q&A 가 아니라 바로 위 "내 수업"이 켜짐.
+ * 원인은 /questions 가 분반이 하나일 때 /cohorts/{id}/questions 로 넘어가는 것 - 접두사로만 보면 /cohorts 가 맞아 버린다.
+ */
+function isNavActive(item: NavMatch, pathname: string): boolean {
+  if (item.activeWhen?.test(pathname)) return true
+  if (item.inactiveWhen?.test(pathname)) return false
+  if (item.end) return pathname === item.to
+  return pathname === item.to || pathname.startsWith(`${item.to}/`)
+}
 
 const navItemClass = (isActive: boolean) =>
   cn(
@@ -52,6 +78,7 @@ const navItemClass = (isActive: boolean) =>
 export function AppShell() {
   const { data: me } = useMe()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const logoutMutation = useLogout()
 
   const handleLogout = () => {
@@ -81,24 +108,36 @@ export function AppShell() {
         </Link>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
-          {NAV_ITEMS.filter((item) => !('adminOnly' in item && item.adminOnly) || me?.globalRole === 'ADMIN').map((item) => (
-            <NavLink key={item.to} to={item.to} end={'end' in item && item.end} className={({ isActive }) => navItemClass(isActive)}>
-              <item.icon className="size-[18px] shrink-0" />
-              {item.label}
-            </NavLink>
-          ))}
+          {NAV_ITEMS.filter((item) => !('adminOnly' in item && item.adminOnly) || me?.globalRole === 'ADMIN').map((item) => {
+            const active = isNavActive(item, pathname)
+            return (
+              <Link key={item.to} to={item.to} aria-current={active ? 'page' : undefined} className={navItemClass(active)}>
+                <item.icon className="size-[18px] shrink-0" />
+                {item.label}
+              </Link>
+            )
+          })}
         </nav>
 
         <div className="flex flex-col gap-1 border-t pt-4">
           {/* HOJ 는 부트캠프 운영(분반·과제·출석)과 결이 달라 아래쪽에 따로 둔다 (2026-09-15 PM 지정 위치) */}
-          <NavLink to="/problems" className={({ isActive }) => cn(navItemClass(isActive), 'w-full')}>
-            <Code className="size-[18px] shrink-0" />
-            HOJ로 이동하기
-          </NavLink>
-          <NavLink to="/help" className={({ isActive }) => cn(navItemClass(isActive), 'w-full')}>
-            <CircleHelp className="size-[18px] shrink-0" />
-            도움말
-          </NavLink>
+          {[
+            { to: '/problems', label: 'HOJ로 이동하기', icon: Code },
+            { to: '/help', label: '도움말', icon: CircleHelp },
+          ].map((item) => {
+            const active = isNavActive(item, pathname)
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                aria-current={active ? 'page' : undefined}
+                className={cn(navItemClass(active), 'w-full')}
+              >
+                <item.icon className="size-[18px] shrink-0" />
+                {item.label}
+              </Link>
+            )
+          })}
           <button
             type="button"
             onClick={handleLogout}
