@@ -8,6 +8,7 @@ import {
   LayoutGrid,
   LogOut,
   Megaphone,
+  MessagesSquare,
   Settings2,
   UserCheck,
 } from 'lucide-react'
@@ -25,6 +26,9 @@ const NAV_ITEMS = [
   { to: '/problems', label: '문제', icon: Code },
   { to: '/assignments', label: '과제', icon: FileText },
   { to: '/cohorts', label: '내 수업', icon: BookOpen },
+  // Q&A 는 분반 스코프(/cohorts/:id/questions)라 분반 페이지 안에만 있었는데, 그 링크 하나가 유일한 통로여서
+  // "Q&A 게시판이 없다"는 피드백이 나왔다 (2026-09-15) - 출결과 같은 "분반 먼저 고르기" 진입 화면을 둔다
+  { to: '/questions', label: 'Q&A', icon: MessagesSquare },
   { to: '/notices', label: '공지사항', icon: Megaphone },
   // 관리자 전용 - 분반 생성·보관·운영진 지정 (UC-A1). 비관리자에게는 숨기고, 라우트는 RequireAdmin 이 지킨다
   { to: '/admin/cohorts', label: '분반 관리', icon: Settings2, adminOnly: true },
@@ -95,7 +99,7 @@ export function AppShell() {
             className={cn(navItemClass(false), 'w-full disabled:opacity-50')}
           >
             <LogOut className="size-[18px] shrink-0" />
-            Sign Out
+            로그아웃
           </button>
         </div>
       </aside>
