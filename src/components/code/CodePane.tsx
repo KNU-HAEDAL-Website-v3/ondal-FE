@@ -1,89 +1,43 @@
-import { useState } from 'react'
-import CodeMirror from '@uiw/react-codemirror'
-import type { Extension } from '@codemirror/state'
-import { cpp } from '@codemirror/lang-cpp'
-import { java } from '@codemirror/lang-java'
-import { javascript } from '@codemirror/lang-javascript'
-import { python } from '@codemirror/lang-python'
-import { Check, Copy } from 'lucide-react'
+import { Suspense, lazy } from 'react'
 
-/** 제출 언어 라벨 → CodeMirror 언어 확장. 매핑 없는 값은 하이라이팅 없이 표시 (submission/fe.md 2절) */
-function languageExtensions(language: string | null): Extension[] {
-  switch (language) {
-    case 'C':
-    case 'C++':
-      return [cpp()]
-    case 'Java':
-      return [java()]
-    case 'Python 3':
-      return [python()]
-    case 'JavaScript':
-      return [javascript()]
-    case 'TypeScript':
-      return [javascript({ typescript: true })]
-    default:
-      return []
-  }
-}
+/**
+ * 코드 편집기·열람 뷰의 지연 로딩 껍데기.
+ *
+ * CodeMirror 본체 + 언어 5종 + 테마 4종은 번들에서 가장 무거운 덩어리인데, 정작 쓰는 화면은
+ * 과제 상세·출제 폼뿐이다. 홈·출석·공지처럼 에디터가 없는 화면의 첫 로딩까지 그 값을 치르지 않도록
+ * 실제 구현(CodeMirrorPane)은 필요할 때 받아 온다.
+ *
+ * props 는 구현과 같은 모양을 유지한다 - 화면 코드는 이 파일만 알면 된다.
+ */
 
-/** 제출 폼 코드 탭의 편집기 - 줄번호·자동 들여쓰기·언어별 하이라이팅 (design.md 결정 17) */
-export function CodeEditor({
-  value,
-  onChange,
-  language,
-}: {
-  value: string
-  onChange: (value: string) => void
-  language: string | null
-}) {
+const CodeEditorImpl = lazy(() => import('./CodeMirrorPane').then((m) => ({ default: m.CodeEditorImpl })))
+const CodeViewerImpl = lazy(() => import('./CodeMirrorPane').then((m) => ({ default: m.CodeViewerImpl })))
+
+/** 받아 오는 동안 자리를 잡아 둔다 - 높이가 같아야 폼이 덜컹거리지 않는다 */
+function EditorSkeleton({ height, label }: { height: string; label: string }) {
   return (
-    <CodeMirror
-      value={value}
-      onChange={onChange}
-      extensions={languageExtensions(language)}
-      placeholder="코드를 붙여넣거나 작성하세요"
-      height="224px"
-      aria-label="제출 코드"
-      className="overflow-hidden rounded-[2px] border font-mono text-sm [&_.cm-editor]:h-full [&_.cm-editor.cm-focused]:outline-none"
-    />
+    <div
+      role="status"
+      style={{ height }}
+      className="flex items-center justify-center rounded-[2px] border bg-muted/40 text-sm text-muted-foreground"
+    >
+      {label}
+    </div>
   )
 }
 
-/** 코드 열람 - 같은 에디터의 read-only 모드(작성과 색 일관) + 복사 버튼 */
-export function CodeViewer({ value, language }: { value: string; language: string | null }) {
-  const [copied, setCopied] = useState(false)
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(value)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch {
-      // clipboard 권한이 없으면 조용히 무시 - 드래그 복사는 여전히 가능
-    }
-  }
-
+export function CodeEditor(props: { value: string; onChange: (value: string) => void; language: string | null }) {
   return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={copy}
-        aria-label="코드 복사"
-        className="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-[2px] border bg-card px-2 py-1 text-xs font-semibold text-muted-foreground shadow-xs hover:text-primary"
-      >
-        {copied ? <Check className="size-3.5 text-[#16a34a]" /> : <Copy className="size-3.5" />}
-        {copied ? '복사됨' : '복사'}
-      </button>
-      <CodeMirror
-        value={value}
-        readOnly
-        editable={false}
-        extensions={languageExtensions(language)}
-        maxHeight="320px"
-        aria-label="제출 코드 열람"
-        basicSetup={{ highlightActiveLine: false, highlightActiveLineGutter: false, foldGutter: false }}
-        className="overflow-hidden rounded-[2px] border font-mono text-xs [&_.cm-editor.cm-focused]:outline-none"
-      />
-    </div>
+    <Suspense fallback={<EditorSkeleton height="248px" label="편집기 불러오는 중..." />}>
+      <CodeEditorImpl {...props} />
+    </Suspense>
+  )
+}
+
+export function CodeViewer(props: { value: string; language: string | null }) {
+  return (
+    <Suspense fallback={<EditorSkeleton height="160px" label="코드 불러오는 중..." />}>
+      <CodeViewerImpl {...props} />
+    </Suspense>
   )
 }
