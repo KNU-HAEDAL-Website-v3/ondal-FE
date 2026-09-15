@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import {
   ArrowUpRight,
@@ -9,6 +10,7 @@ import {
   LayoutGrid,
   LogOut,
   Megaphone,
+  Menu,
   MessagesSquare,
   Tags,
   Settings2,
@@ -76,12 +78,21 @@ const navItemClass = (isActive: boolean) =>
  * 로그인 후 모든 화면의 공통 틀 - 좌측 사이드바 + 상단 바 + 본문.
  * 피그마 원안의 검색창·알림·설정 버튼은 뒤에 기능이 없어 뺐다(2026-09-14 - 동작 없는 버튼은 테스터에게 버그로 보인다).
  * 검색은 검색 API 가 생길 때, 알림은 P2 제외 확정(디스코드 알림 안 함), 설정은 설정할 항목이 생길 때 되살린다.
+ *
+ * 폭 md(768px) 미만에서는 사이드바를 서랍으로 접는다 (2026-09-16 전수조사).
+ * 그 전에는 240px 사이드바가 고정이라 390px 폰에서 본문 실사용 폭이 70px 뿐이었다 - 테스트 주간에 학생이 폰으로 열면 그대로 막힘.
  */
 export function AppShell() {
   const { data: me } = useMe()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const logoutMutation = useLogout()
+  const [navOpen, setNavOpen] = useState(false)
+
+  // 메뉴를 고르면 화면이 넘어가므로 서랍은 닫는다 - 안 닫으면 새 화면이 서랍에 가려진다
+  useEffect(() => {
+    setNavOpen(false)
+  }, [pathname])
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -96,7 +107,23 @@ export function AppShell() {
 
   return (
     <div className="min-h-svh bg-background">
-      <aside className="fixed inset-y-0 left-0 z-20 flex w-60 flex-col border-r bg-sidebar px-4 py-6">
+      {/* 서랍이 열렸을 때 본문을 덮는 막 - 눌러서 닫는다. md 이상에서는 사이드바가 늘 보이므로 없다 */}
+      {navOpen && (
+        <button
+          type="button"
+          aria-label="메뉴 닫기"
+          onClick={() => setNavOpen(false)}
+          className="fixed inset-0 z-20 bg-black/40 md:hidden"
+        />
+      )}
+
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r bg-sidebar px-4 py-6',
+          'transition-transform duration-200 md:translate-x-0',
+          navOpen ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
         <Link to="/" className="mb-6 flex items-center gap-2 px-2">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-[2px] bg-sidebar-primary">
             <GraduationCap className="size-5 text-white" />
@@ -166,9 +193,18 @@ export function AppShell() {
         </div>
       </aside>
 
-      <div className="pl-60">
-        <header className="sticky top-0 z-10 flex h-12 items-center justify-end border-b bg-background px-4">
-          <div className="flex items-center gap-2">
+      <div className="md:pl-60">
+        <header className="sticky top-0 z-10 flex h-12 items-center border-b bg-background px-4">
+          <button
+            type="button"
+            onClick={() => setNavOpen(true)}
+            aria-label="메뉴 열기"
+            aria-expanded={navOpen}
+            className="-ml-1 flex size-8 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary md:hidden"
+          >
+            <Menu className="size-5" />
+          </button>
+          <div className="ml-auto flex items-center gap-2">
             <Link
               to="/help"
               aria-label="도움말"
@@ -185,10 +221,10 @@ export function AppShell() {
             </span>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-[1280px] p-10">
+        <main className="mx-auto w-full max-w-[1280px] p-4 md:p-10">
           <Outlet />
         </main>
-        <SiteFooter className="mx-auto w-full max-w-[1280px] px-10 pb-6" />
+        <SiteFooter className="mx-auto w-full max-w-[1280px] px-4 pb-6 md:px-10" />
       </div>
     </div>
   )

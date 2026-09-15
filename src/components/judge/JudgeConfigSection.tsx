@@ -263,7 +263,8 @@ export function JudgeConfigSection({
             <p className="mt-1 text-xs text-muted-foreground">
               한 행이 채점 1회예요. 왼쪽 입력을 표준 입력으로 넣고 실행한 출력이 오른쪽 기대 출력과 같아야 통과합니다. 줄 끝 공백과 마지막 빈 줄은 무시해요.
             </p>
-            <table className="mt-2 w-full text-sm">
+            <div className="mt-2 overflow-x-auto">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-xs text-muted-foreground">
                   <th scope="col" className="w-10 py-1.5 font-semibold">#</th>
@@ -349,6 +350,7 @@ export function JudgeConfigSection({
                 })}
               </tbody>
             </table>
+            </div>
             <Button type="button" variant="outline" size="sm" className="mt-2 rounded-[2px]" onClick={addCase} disabled={disabled || draft.testCases.length >= maxCases}>
               <Plus data-icon="inline-start" />
               케이스 추가

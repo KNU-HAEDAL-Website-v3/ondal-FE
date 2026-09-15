@@ -35,7 +35,8 @@ export function MySubmissionList({ cohortId, assignmentId }: { cohortId: number;
       {submissions.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">아직 제출한 기록이 없어요.</p>
       ) : (
-        <table className="mt-3 w-full text-sm">
+        <div className="mt-3 overflow-x-auto">
+        <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs text-muted-foreground">
               <th scope="col" className="w-12 py-2 font-semibold">순번</th>
@@ -61,6 +62,7 @@ export function MySubmissionList({ cohortId, assignmentId }: { cohortId: number;
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </section>
   )
