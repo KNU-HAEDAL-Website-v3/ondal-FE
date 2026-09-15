@@ -20,6 +20,9 @@ import type {
   SubmissionResponse,
   SubmissionStatus,
   SubmissionSummary,
+  ProblemResponse,
+  ProblemSummary,
+  TagResponse,
   UserResponse,
   UserSummary,
 } from '@/api/types'
@@ -29,10 +32,13 @@ import {
   attendances,
   cohorts,
   enrollments,
+  judgeResults,
   notices,
+  problems,
   questions,
   sessions,
   submissions,
+  tags,
   users,
   type MockAnswer,
   type MockAssignment,
@@ -40,9 +46,11 @@ import {
   type MockCohort,
   type MockEnrollment,
   type MockNotice,
+  type MockProblem,
   type MockQuestion,
   type MockSession,
   type MockSubmission,
+  type MockTag,
   type MockUser,
 } from './data'
 import {
@@ -53,8 +61,12 @@ import {
   fakeRun,
   isJudged,
   judgeResponseFor,
-  rejudgeAll,
-  removeJudgeDataOf,
+  limitsOf,
+  rejudgeAssignment,
+  rejudgeAllOfProblem,
+  removeJudgeResultsOfAssignment,
+  removeJudgeDataOfProblem,
+  problemOfSubmission,
   replaceTestCases,
   resultOf,
   runVerdict,
@@ -139,35 +151,86 @@ function statusOf(assignment: MockAssignment, loginId: string): SubmissionStatus
   return 'NOT_SUBMITTED'
 }
 
-/** BE AssignmentResponseAssembler - myStatus는 소속자만, submissionCount는 운영진·관리자만 */
+/** V7: 배정된 문제 - 없으면 데이터 오류라 호출부에서 404 로 처리한다 */
+function problemOfAssignment(a: MockAssignment): MockProblem | undefined {
+  return problems.find((p) => p.id === a.problemId)
+}
+
+function tagsOf(p: MockProblem): TagResponse[] {
+  return p.tagIds
+    .map((id) => tags.find((t) => t.id === id))
+    .filter((t): t is MockTag => t !== undefined)
+    .sort((x, y) => x.name.localeCompare(y.name, 'ko'))
+    .map((t) => ({ id: t.id, name: t.name }))
+}
+
+/**
+ * BE AssignmentResponseAssembler - myStatus는 소속자만, submissionCount는 운영진·관리자만.
+ * V7: 제목·본문·번호·태그는 배정된 문제에서 펴서 내려준다.
+ */
 function toAssignmentResponse(a: MockAssignment, viewer: MockUser): AssignmentResponse {
   const mine = enrollments.find((e) => e.cohortId === a.cohortId && e.loginId === viewer.loginId)
   const canSeeCount = viewer.globalRole === 'ADMIN' || mine?.role === 'OPERATOR'
+  const problem = problemOfAssignment(a)
   return {
     id: a.id,
-    problemNo: a.problemNo,
+    problemId: a.problemId,
+    problemNo: problem?.problemNo ?? 0,
     sessionNo: a.sessionNo,
-    title: a.title,
-    description: a.description,
+    title: problem?.title ?? '(삭제된 문제)',
+    description: problem?.description ?? null,
+    tags: problem ? tagsOf(problem) : [],
     dueAt: a.dueAt,
     createdAt: a.createdAt,
     myStatus: mine ? statusOf(a, viewer.loginId) : null,
     submissionCount: canSeeCount ? submissions.filter((s) => s.assignmentId === a.id).length : null,
-    judgeEnabled: isJudged(a.id),
+    judgeEnabled: problem ? isJudged(problem.id) : false,
   }
 }
 
-/** BE 요청 검증 흉내 - title 필수·200자, description 10000자, dueAt 필수, sessionNo 1 이상·problemNo 1000 이상(선택) */
+/** BE ProblemService - 목록 행 */
+function toProblemSummary(p: MockProblem, viewer: MockUser): ProblemSummary {
+  return {
+    id: p.id,
+    problemNo: p.problemNo,
+    title: p.title,
+    tags: tagsOf(p),
+    judgeEnabled: isJudged(p.id),
+    assignedCount: assignments.filter((a) => a.problemId === p.id).length,
+    solved: judgeResults.some(
+      (r) =>
+        r.problemId === p.id &&
+        r.verdict === 'ACCEPTED' &&
+        submissions.find((sub) => sub.id === r.submissionId)?.loginId === viewer.loginId,
+    ),
+  }
+}
+
+/** 출제 권한 - BE @OperatorAnywhere: ADMIN 이거나 어느 분반에서든 운영진 */
+function isOperatorAnywhere(viewer: MockUser): boolean {
+  return viewer.globalRole === 'ADMIN' || enrollments.some((e) => e.loginId === viewer.loginId && e.role === 'OPERATOR')
+}
+
+function toProblemResponse(p: MockProblem, viewer: MockUser): ProblemResponse {
+  return {
+    ...toProblemSummary(p, viewer),
+    description: p.description,
+    ...limitsOf(p),
+    createdBy: p.createdBy,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+    canEdit: isOperatorAnywhere(viewer),
+  }
+}
+
+/** V7 배정 요청 검증 - problemId 필수, dueAt 필수, sessionNo 1 이상(선택). 제목·본문은 문제의 것이라 여기 없다 */
 function parseAssignmentBody(
   raw: unknown,
-): { payload: Omit<MockAssignment, 'id' | 'cohortId' | 'createdAt' | 'problemNo'> & { problemNo: number | null } } | { fail: HttpResponse<ErrorResponse> } {
+): { payload: { problemId: number; sessionNo: number | null; dueAt: string } } | { fail: HttpResponse<ErrorResponse> } {
   const body = (raw ?? {}) as Record<string, unknown>
-  const title = typeof body.title === 'string' ? body.title : ''
-  if (title.trim() === '') return { fail: error(400, 'INVALID_INPUT', '과제 제목은 비어 있을 수 없습니다.') }
-  if (title.length > 200) return { fail: error(400, 'INVALID_INPUT', '과제 제목은 200자 이하여야 합니다.') }
-  const description = typeof body.description === 'string' ? body.description : null
-  if (description !== null && description.length > 10000) {
-    return { fail: error(400, 'INVALID_INPUT', '과제 내용은 10000자 이하여야 합니다.') }
+  const problemId = body.problemId === null || body.problemId === undefined ? null : Number(body.problemId)
+  if (problemId === null || !Number.isInteger(problemId)) {
+    return { fail: error(400, 'INVALID_INPUT', '배정할 문제를 골라야 합니다.') }
   }
   if (typeof body.dueAt !== 'string' || Number.isNaN(Date.parse(body.dueAt))) {
     return { fail: error(400, 'INVALID_INPUT', '마감 시각은 비어 있을 수 없습니다.') }
@@ -176,11 +239,31 @@ function parseAssignmentBody(
   if (sessionNo !== null && (!Number.isInteger(sessionNo) || sessionNo < 1)) {
     return { fail: error(400, 'INVALID_INPUT', '차시 번호는 1 이상이어야 합니다.') }
   }
+  return { payload: { problemId, sessionNo, dueAt: new Date(body.dueAt).toISOString() } }
+}
+
+/** BE ProblemPayload 검증 - 제목 필수·200자, 본문 10000자, 번호 1000 이상(선택), 태그 존재 확인 */
+function parseProblemBody(
+  raw: unknown,
+): { payload: { problemNo: number | null; title: string; description: string | null; tagIds: number[] } } | { fail: HttpResponse<ErrorResponse> } {
+  const body = (raw ?? {}) as Record<string, unknown>
+  const title = typeof body.title === 'string' ? body.title : ''
+  if (title.trim() === '') return { fail: error(400, 'INVALID_INPUT', '문제 제목은 비어 있을 수 없습니다.') }
+  if (title.length > 200) return { fail: error(400, 'INVALID_INPUT', '문제 제목은 200자 이하여야 합니다.') }
+  const description = typeof body.description === 'string' ? body.description : null
+  if (description !== null && description.length > 10000) {
+    return { fail: error(400, 'INVALID_INPUT', '문제 본문은 10000자 이하여야 합니다.') }
+  }
   const problemNo = body.problemNo === null || body.problemNo === undefined ? null : Number(body.problemNo)
   if (problemNo !== null && (!Number.isInteger(problemNo) || problemNo < 1000)) {
     return { fail: error(400, 'INVALID_INPUT', '문제 번호는 1000 이상이어야 합니다.') }
   }
-  return { payload: { problemNo, sessionNo, title, description, dueAt: new Date(body.dueAt).toISOString() } }
+  const rawTags = Array.isArray(body.tagIds) ? body.tagIds.map(Number) : []
+  const tagIds = [...new Set(rawTags)]
+  if (tagIds.some((id) => !tags.some((t) => t.id === id))) {
+    return { fail: error(400, 'INVALID_INPUT', '없는 태그가 있습니다. 목록을 새로고침한 뒤 다시 선택해 주세요.') }
+  }
+  return { payload: { problemNo, title: title.trim(), description, tagIds } }
 }
 
 const archivedError = () =>
@@ -498,6 +581,43 @@ function toSubmissionSummary(s: MockSubmission, a: MockAssignment): SubmissionSu
     submittedAt: s.submittedAt,
     late: s.submittedAt > a.dueAt,
     hasComment: s.comment !== null,
+    judgeStatus: resultOf(s.id)?.status ?? null,
+    verdict: resultOf(s.id)?.verdict ?? null,
+  }
+}
+
+/**
+ * HOJ 연습 제출 - 마감이 없으니 지각도 없고(late=false), 운영진 코멘트도 달 수 없다 (V7).
+ * 과제 제출과 같은 테이블·같은 채점 파이프라인을 쓰되 대상만 문제라는 점이 다르다.
+ */
+function toPracticeResponse(s: MockSubmission, viewer: MockUser): SubmissionResponse {
+  return {
+    id: s.id,
+    user: { id: viewer.id, name: viewer.name, title: viewer.globalRole === 'ADMIN' ? '해구르르' : '일반 수강생' },
+    type: s.type,
+    codeText: s.codeText,
+    language: s.language,
+    fileName: null,
+    fileSize: null,
+    links: [],
+    submittedAt: s.submittedAt,
+    late: false,
+    comment: null,
+    judge: judgeResponseFor(s.id),
+  }
+}
+
+function toPracticeSummary(s: MockSubmission): SubmissionSummary {
+  return {
+    id: s.id,
+    type: s.type,
+    language: s.language,
+    fileName: null,
+    fileSize: null,
+    links: [],
+    submittedAt: s.submittedAt,
+    late: false,
+    hasComment: false,
     judgeStatus: resultOf(s.id)?.status ?? null,
     verdict: resultOf(s.id)?.verdict ?? null,
   }
@@ -1170,16 +1290,15 @@ export const handlers = [
     if (guard.cohort.status === 'ARCHIVED') return archivedError()
     const parsed = parseAssignmentBody(await request.json().catch(() => null))
     if ('fail' in parsed) return parsed.fail
-    // BE 채번 미러: 비우면 자동(최대+1, 1000 시작), 지정 시 전역 중복 409
-    if (parsed.payload.problemNo !== null && assignments.some((a) => a.problemNo === parsed.payload.problemNo)) {
-      return error(409, 'CONFLICT', `이미 사용 중인 문제 번호입니다: ${parsed.payload.problemNo}`)
+    // V7: 배정은 문제를 가리킨다 - 없는 문제면 404
+    if (!problems.some((pr) => pr.id === parsed.payload.problemId)) {
+      return error(404, 'NOT_FOUND', '문제를 찾을 수 없습니다.')
     }
     const created: MockAssignment = {
       id: Math.max(0, ...assignments.map((a) => a.id)) + 1,
       cohortId: guard.cohort.id,
       createdAt: new Date().toISOString(),
       ...parsed.payload,
-      problemNo: parsed.payload.problemNo ?? Math.max(999, ...assignments.map((a) => a.problemNo)) + 1,
     }
     assignments.push(created)
     return HttpResponse.json(toAssignmentResponse(created, user), {
@@ -1199,12 +1318,10 @@ export const handlers = [
     if (!found) return error(404, 'NOT_FOUND', '과제를 찾을 수 없습니다.')
     const parsed = parseAssignmentBody(await request.json().catch(() => null))
     if ('fail' in parsed) return parsed.fail
-    // BE 미러: 비우면 기존 번호 유지, 변경 시 중복 409(자기 자신 제외)
-    const requestedNo = parsed.payload.problemNo
-    if (requestedNo !== null && assignments.some((a) => a.problemNo === requestedNo && a.id !== found.id)) {
-      return error(409, 'CONFLICT', `이미 사용 중인 문제 번호입니다: ${requestedNo}`)
+    if (!problems.some((pr) => pr.id === parsed.payload.problemId)) {
+      return error(404, 'NOT_FOUND', '문제를 찾을 수 없습니다.')
     }
-    Object.assign(found, parsed.payload, { problemNo: requestedNo ?? found.problemNo })
+    Object.assign(found, parsed.payload)
     return HttpResponse.json(toAssignmentResponse(found, user))
   }),
 
@@ -1218,8 +1335,9 @@ export const handlers = [
     const index = assignments.findIndex((a) => a.id === Number(params.assignmentId) && a.cohortId === guard.cohort.id)
     if (index === -1) return error(404, 'NOT_FOUND', '과제를 찾을 수 없습니다.')
     const assignmentId = assignments[index].id
-    // BE 연쇄 삭제 - 채점 결과·테스트케이스 → 파일 → 제출 이력 → 과제 순서 (schema.md 4절, judge/design.md 결정 16)
-    removeJudgeDataOf(assignmentId)
+    // BE 연쇄 삭제 - 채점 결과 → 파일 → 제출 이력 → 과제 순서.
+    // V7: 테스트케이스는 문제의 것이라 지우지 않는다 (같은 문제를 쓰는 다른 분반의 기준이 사라지면 안 된다)
+    removeJudgeResultsOfAssignment(assignmentId)
     for (let i = submissions.length - 1; i >= 0; i--) {
       if (submissions[i].assignmentId === assignmentId) {
         fileBlobs.delete(submissions[i].id)
@@ -1310,7 +1428,8 @@ export const handlers = [
     submissions.push(created)
     if (file) fileBlobs.set(created.id, file)
     // CODE + 테스트케이스 있으면 PENDING → 1.5초 뒤 가짜 채점 (BE 비동기 워커 흉내)
-    if (created.type === 'CODE' && isJudged(guard.assignment.id)) enqueueJudge(created, guard.assignment)
+    const targetProblem = problemOfSubmission(created)
+    if (created.type === 'CODE' && targetProblem && isJudged(targetProblem.id)) enqueueJudge(created, targetProblem)
     return HttpResponse.json(toSubmissionResponse(created, guard.assignment, guard.cohort.id), {
       status: 201,
       headers: { Location: `/api/cohorts/${guard.cohort.id}/assignments/${guard.assignment.id}/submissions/${created.id}` },
@@ -1385,22 +1504,23 @@ export const handlers = [
 
   // ---- 자동 채점 (#47~#51) - 순수 로직은 ./judge (BE judge 슬라이스 미러) ----------------------------
 
-  http.get('/api/cohorts/:cohortId/assignments/:assignmentId/judge', async ({ params }) => {
+  http.get('/api/problems/:problemId/judge', async ({ params }) => {
     await delay(200)
     const user = currentUser()
     if (!user) return unauthenticated()
-    const guard = assignmentGuard(user, Number(params.cohortId), Number(params.assignmentId), true)
-    if ('fail' in guard) return guard.fail
-    return HttpResponse.json(toJudgeConfigResponse(guard.assignment, 0))
+    if (!isOperatorAnywhere(user)) return error(403, 'FORBIDDEN', '운영진만 사용할 수 있습니다.')
+    const problem = problems.find((pr) => pr.id === Number(params.problemId))
+    if (!problem) return error(404, 'NOT_FOUND', '문제를 찾을 수 없습니다.')
+    return HttpResponse.json(toJudgeConfigResponse(problem, 0))
   }),
 
-  http.put('/api/cohorts/:cohortId/assignments/:assignmentId/judge', async ({ params, request }) => {
+  http.put('/api/problems/:problemId/judge', async ({ params, request }) => {
     await delay(300)
     const user = currentUser()
     if (!user) return unauthenticated()
-    const guard = assignmentGuard(user, Number(params.cohortId), Number(params.assignmentId), true)
-    if ('fail' in guard) return guard.fail
-    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    if (!isOperatorAnywhere(user)) return error(403, 'FORBIDDEN', '운영진만 사용할 수 있습니다.')
+    const problem = problems.find((pr) => pr.id === Number(params.problemId))
+    if (!problem) return error(404, 'NOT_FOUND', '문제를 찾을 수 없습니다.')
     const body = (await request.json().catch(() => null)) as
       | { timeLimitMs?: unknown; memoryLimitMb?: unknown; testCases?: unknown; rejudge?: unknown }
       | null
@@ -1425,20 +1545,21 @@ export const handlers = [
       if (tc.input.length > 65536 || tc.expectedOutput.length > 65536) return error(400, 'INVALID_INPUT', '입력·기대 출력은 64KB 이하여야 합니다.')
       cases.push({ input: tc.input, expectedOutput: tc.expectedOutput, isPublic: tc.isPublic === true })
     }
-    guard.assignment.timeLimitMs = time
-    guard.assignment.memoryLimitMb = memory
-    replaceTestCases(guard.assignment, cases)
-    const queued = body.rejudge === true && cases.length > 0 ? rejudgeAll(guard.assignment) : 0
-    return HttpResponse.json(toJudgeConfigResponse(guard.assignment, queued))
+    problem.timeLimitMs = time
+    problem.memoryLimitMb = memory
+    problem.updatedAt = new Date().toISOString()
+    replaceTestCases(problem, cases)
+    // 기준이 바뀌면 이 문제로 채점된 제출 전부가 낡은 판정 - 여러 분반의 과제 제출 + HOJ 연습을 함께 다시 돌린다
+    const queued = body.rejudge === true && cases.length > 0 ? rejudgeAllOfProblem(problem) : 0
+    return HttpResponse.json(toJudgeConfigResponse(problem, queued))
   }),
 
-  http.post('/api/cohorts/:cohortId/assignments/:assignmentId/judge/run', async ({ params, request }) => {
+  http.post('/api/problems/:problemId/judge/run', async ({ params, request }) => {
     await delay(600)
     const user = currentUser()
     if (!user) return unauthenticated()
-    const guard = assignmentGuard(user, Number(params.cohortId), Number(params.assignmentId), true)
-    if ('fail' in guard) return guard.fail
-    if (guard.cohort.status === 'ARCHIVED') return archivedError()
+    if (!isOperatorAnywhere(user)) return error(403, 'FORBIDDEN', '운영진만 사용할 수 있습니다.')
+    if (!problems.some((pr) => pr.id === Number(params.problemId))) return error(404, 'NOT_FOUND', '문제를 찾을 수 없습니다.')
     const body = (await request.json().catch(() => null)) as
       | { language?: unknown; sourceCode?: unknown; inputs?: unknown; expectedOutputs?: unknown; timeLimitMs?: unknown; memoryLimitMb?: unknown }
       | null
@@ -1476,13 +1597,14 @@ export const handlers = [
     return HttpResponse.json(response)
   }),
 
-  http.get('/api/cohorts/:cohortId/assignments/:assignmentId/judge/samples', async ({ params }) => {
+  // V7: 예시는 문제 스코프 - 분반에 속하지 않은 부원도 HOJ 에서 문제를 보므로 로그인만 되면 열린다
+  http.get('/api/problems/:problemId/judge/samples', async ({ params }) => {
     await delay(200)
     const user = currentUser()
     if (!user) return unauthenticated()
-    const guard = assignmentGuard(user, Number(params.cohortId), Number(params.assignmentId), false)
-    if ('fail' in guard) return guard.fail
-    return HttpResponse.json(toSamplesResponse(guard.assignment))
+    const problem = problems.find((pr) => pr.id === Number(params.problemId))
+    if (!problem) return error(404, 'NOT_FOUND', '문제를 찾을 수 없습니다.')
+    return HttpResponse.json(toSamplesResponse(problem))
   }),
 
   http.post('/api/cohorts/:cohortId/assignments/:assignmentId/judge/rejudge', async ({ params }) => {
@@ -1492,8 +1614,222 @@ export const handlers = [
     const guard = assignmentGuard(user, Number(params.cohortId), Number(params.assignmentId), true)
     if ('fail' in guard) return guard.fail
     if (guard.cohort.status === 'ARCHIVED') return archivedError()
-    if (casesOf(guard.assignment.id).length === 0) return error(409, 'CONFLICT', '테스트케이스가 없는 과제는 재채점할 수 없습니다.')
-    return HttpResponse.json({ queued: rejudgeAll(guard.assignment) }, { status: 202 })
+    const problem = problemOfAssignment(guard.assignment)
+    if (!problem || casesOf(problem.id).length === 0) {
+      return error(409, 'CONFLICT', '테스트케이스가 없는 문제는 재채점할 수 없습니다.')
+    }
+    return HttpResponse.json({ queued: rejudgeAssignment(guard.assignment.id, problem) }, { status: 202 })
+  }),
+
+  // ---- 문제 라이브러리 (HOJ) · 태그 · 연습 제출 - V7 ------------------------------------------
+
+  http.get('/api/tags', async () => {
+    await delay(150)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    return HttpResponse.json(
+      [...tags].sort((a, b) => a.name.localeCompare(b.name, 'ko')).map((t): TagResponse => ({ id: t.id, name: t.name })),
+    )
+  }),
+
+  http.post('/api/tags', async ({ request }) => {
+    await delay(250)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    const body = (await request.json().catch(() => null)) as { name?: unknown } | null
+    const name = typeof body?.name === 'string' ? body.name.trim() : ''
+    if (name === '') return error(400, 'INVALID_INPUT', '태그 이름은 비어 있을 수 없습니다.')
+    if (name.length > 40) return error(400, 'INVALID_INPUT', '태그 이름은 40자 이하여야 합니다.')
+    if (tags.some((t) => t.name === name)) return error(409, 'CONFLICT', `이미 있는 태그입니다: ${name}`)
+    const created: MockTag = { id: Math.max(0, ...tags.map((t) => t.id)) + 1, name, createdAt: new Date().toISOString() }
+    tags.push(created)
+    return HttpResponse.json({ id: created.id, name: created.name }, { status: 201 })
+  }),
+
+  http.put('/api/tags/:tagId', async ({ params, request }) => {
+    await delay(250)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    const tag = tags.find((t) => t.id === Number(params.tagId))
+    if (!tag) return error(404, 'NOT_FOUND', '태그를 찾을 수 없습니다.')
+    const body = (await request.json().catch(() => null)) as { name?: unknown } | null
+    const name = typeof body?.name === 'string' ? body.name.trim() : ''
+    if (name === '') return error(400, 'INVALID_INPUT', '태그 이름은 비어 있을 수 없습니다.')
+    if (name.length > 40) return error(400, 'INVALID_INPUT', '태그 이름은 40자 이하여야 합니다.')
+    if (tags.some((t) => t.name === name && t.id !== tag.id)) return error(409, 'CONFLICT', `이미 있는 태그입니다: ${name}`)
+    tag.name = name
+    return HttpResponse.json({ id: tag.id, name: tag.name })
+  }),
+
+  http.delete('/api/tags/:tagId', async ({ params }) => {
+    await delay(250)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    const index = tags.findIndex((t) => t.id === Number(params.tagId))
+    if (index === -1) return error(404, 'NOT_FOUND', '태그를 찾을 수 없습니다.')
+    const used = problems.filter((pr) => pr.tagIds.includes(tags[index].id)).length
+    if (used > 0) return error(409, 'CONFLICT', `이 태그를 쓰는 문제가 ${used}개 있습니다. 먼저 문제에서 태그를 떼세요.`)
+    tags.splice(index, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.get('/api/problems', async ({ request }) => {
+    await delay(250)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const wanted = new URL(request.url).searchParams.getAll('tagIds').map(Number).filter(Number.isFinite)
+    const rows = [...problems]
+      .filter((pr) => wanted.every((tagId) => pr.tagIds.includes(tagId)))   // AND - 고른 태그를 모두 가진 문제
+      .sort((a, b) => a.problemNo - b.problemNo)
+      .map((pr) => toProblemSummary(pr, user))
+    return HttpResponse.json(rows)
+  }),
+
+  http.post('/api/problems', async ({ request }) => {
+    await delay(350)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (!isOperatorAnywhere(user)) return error(403, 'FORBIDDEN', '운영진만 사용할 수 있습니다.')
+    const parsed = parseProblemBody(await request.json().catch(() => null))
+    if ('fail' in parsed) return parsed.fail
+    if (parsed.payload.problemNo !== null && problems.some((pr) => pr.problemNo === parsed.payload.problemNo)) {
+      return error(409, 'CONFLICT', `이미 사용 중인 문제 번호입니다: ${parsed.payload.problemNo}`)
+    }
+    const stamp = new Date().toISOString()
+    const created: MockProblem = {
+      id: Math.max(0, ...problems.map((pr) => pr.id)) + 1,
+      problemNo: parsed.payload.problemNo ?? Math.max(999, ...problems.map((pr) => pr.problemNo)) + 1,
+      title: parsed.payload.title,
+      description: parsed.payload.description,
+      tagIds: parsed.payload.tagIds,
+      createdBy: user.name,
+      createdAt: stamp,
+      updatedAt: stamp,
+    }
+    problems.push(created)
+    return HttpResponse.json(toProblemResponse(created, user), {
+      status: 201,
+      headers: { Location: `/api/problems/${created.id}` },
+    })
+  }),
+
+  http.get('/api/problems/:problemId', async ({ params }) => {
+    await delay(200)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const problem = problems.find((pr) => pr.id === Number(params.problemId))
+    if (!problem) return error(404, 'NOT_FOUND', '문제를 찾을 수 없습니다.')
+    return HttpResponse.json(toProblemResponse(problem, user))
+  }),
+
+  http.put('/api/problems/:problemId', async ({ params, request }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (!isOperatorAnywhere(user)) return error(403, 'FORBIDDEN', '운영진만 사용할 수 있습니다.')
+    const problem = problems.find((pr) => pr.id === Number(params.problemId))
+    if (!problem) return error(404, 'NOT_FOUND', '문제를 찾을 수 없습니다.')
+    const parsed = parseProblemBody(await request.json().catch(() => null))
+    if ('fail' in parsed) return parsed.fail
+    const requestedNo = parsed.payload.problemNo
+    if (requestedNo !== null && problems.some((pr) => pr.problemNo === requestedNo && pr.id !== problem.id)) {
+      return error(409, 'CONFLICT', `이미 사용 중인 문제 번호입니다: ${requestedNo}`)
+    }
+    problem.problemNo = requestedNo ?? problem.problemNo
+    problem.title = parsed.payload.title
+    problem.description = parsed.payload.description
+    problem.tagIds = parsed.payload.tagIds
+    problem.updatedAt = new Date().toISOString()
+    return HttpResponse.json(toProblemResponse(problem, user))
+  }),
+
+  http.delete('/api/problems/:problemId', async ({ params }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (!isOperatorAnywhere(user)) return error(403, 'FORBIDDEN', '운영진만 사용할 수 있습니다.')
+    const index = problems.findIndex((pr) => pr.id === Number(params.problemId))
+    if (index === -1) return error(404, 'NOT_FOUND', '문제를 찾을 수 없습니다.')
+    const problem = problems[index]
+    if (assignments.some((a) => a.problemId === problem.id)) {
+      return error(409, 'CONFLICT', '이 문제가 배정된 과제가 있습니다. 과제를 먼저 지워야 문제를 삭제할 수 있습니다.')
+    }
+    if (submissions.some((sub) => sub.problemId === problem.id)) {
+      return error(409, 'CONFLICT', '이 문제에 연습 제출 기록이 있습니다. 기록이 남아 있는 문제는 삭제할 수 없습니다.')
+    }
+    removeJudgeDataOfProblem(problem.id)
+    problems.splice(index, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // 경로 매칭 순서 주의 - /submissions/my 를 /submissions/:submissionId 보다 먼저 등록한다
+  http.get('/api/problems/:problemId/submissions/my', async ({ params }) => {
+    await delay(250)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const problemId = Number(params.problemId)
+    if (!problems.some((pr) => pr.id === problemId)) return error(404, 'NOT_FOUND', '문제를 찾을 수 없습니다.')
+    const mine = submissions
+      .filter((sub) => sub.problemId === problemId && sub.loginId === user.loginId)
+      .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
+    return HttpResponse.json(mine.map(toPracticeSummary))
+  }),
+
+  http.get('/api/problems/:problemId/submissions/:submissionId', async ({ params }) => {
+    await delay(200)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    // 남의 연습 제출은 존재를 드러내지 않는다 - 본인 것만 찾는다
+    const found = submissions.find(
+      (sub) =>
+        sub.id === Number(params.submissionId) &&
+        sub.problemId === Number(params.problemId) &&
+        sub.loginId === user.loginId,
+    )
+    if (!found) return error(404, 'NOT_FOUND', '제출을 찾을 수 없습니다.')
+    return HttpResponse.json(toPracticeResponse(found, user))
+  }),
+
+  http.post('/api/problems/:problemId/submissions', async ({ params, request }) => {
+    await delay(400)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const problem = problems.find((pr) => pr.id === Number(params.problemId))
+    if (!problem) return error(404, 'NOT_FOUND', '문제를 찾을 수 없습니다.')
+    if (!isJudged(problem.id)) {
+      return error(409, 'CONFLICT', '아직 채점 기준(테스트케이스)이 없는 문제예요. 운영진이 등록한 뒤에 풀 수 있어요.')
+    }
+    const body = (await request.json().catch(() => null)) as { codeText?: unknown; language?: unknown } | null
+    const codeText = typeof body?.codeText === 'string' ? body.codeText : ''
+    const language = typeof body?.language === 'string' ? body.language.trim() : ''
+    if (codeText.trim() === '') return error(400, 'INVALID_INPUT', '코드는 비어 있을 수 없습니다.')
+    if (language === '') return error(400, 'INVALID_INPUT', '언어를 선택해야 합니다.')
+    if (!JUDGE_LANGUAGES.includes(language)) {
+      return error(400, 'INVALID_INPUT', `이 문제는 자동 채점 문제입니다. 지원 언어로 제출하세요: ${JUDGE_LANGUAGES.join(', ')}`)
+    }
+    const created: MockSubmission = {
+      id: Math.max(0, ...submissions.map((sub) => sub.id)) + 1,
+      assignmentId: null,
+      problemId: problem.id,
+      loginId: user.loginId,
+      type: 'CODE',
+      codeText,
+      language,
+      fileName: null,
+      fileSize: null,
+      links: [],
+      submittedAt: new Date().toISOString(),
+      comment: null,
+    }
+    submissions.push(created)
+    enqueueJudge(created, problem)
+    return HttpResponse.json(toPracticeResponse(created, user), {
+      status: 201,
+      headers: { Location: `/api/problems/${problem.id}/submissions/${created.id}` },
+    })
   }),
 
   http.get('/api/cohorts/:cohortId/assignments/:assignmentId/status-board', async ({ params }) => {

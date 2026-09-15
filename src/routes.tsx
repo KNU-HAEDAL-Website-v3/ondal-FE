@@ -3,6 +3,7 @@ import { RequireAdmin } from '@/components/RequireAdmin'
 import { RequireAuth } from '@/components/RequireAuth'
 import { AppShell } from '@/components/layout/AppShell'
 import AdminCohortsPage from '@/pages/AdminCohortsPage'
+import AdminTagsPage from '@/pages/AdminTagsPage'
 import AssignmentDetailPage from '@/pages/AssignmentDetailPage'
 import AssignmentFormPage from '@/pages/AssignmentFormPage'
 import AssignmentsPage from '@/pages/AssignmentsPage'
@@ -18,6 +19,8 @@ import NotFoundPage from '@/pages/NotFoundPage'
 import NoticeDetailPage from '@/pages/NoticeDetailPage'
 import NoticeFormPage from '@/pages/NoticeFormPage'
 import NoticesPage from '@/pages/NoticesPage'
+import ProblemDetailPage from '@/pages/ProblemDetailPage'
+import ProblemFormPage from '@/pages/ProblemFormPage'
 import ProblemsPage from '@/pages/ProblemsPage'
 import QuestionDetailPage from '@/pages/QuestionDetailPage'
 import QuestionFormPage from '@/pages/QuestionFormPage'
@@ -29,7 +32,11 @@ import QuestionsPage from '@/pages/QuestionsPage'
  *   /login                     - 공개
  *   /                          - 홈 대시보드 (역할별: 수강자 / 교육운영진)
  *   /attendance                - 출석 (역할별: 출석 현황 / 출결 관리)
- *   /problems                  - 문제 목록
+ *   /problems                  - HOJ 문제 목록 (로그인 누구나 - 분반 무관, 태그 필터)
+ *   /problems/new              - 문제 출제 (운영진 이상)
+ *   /problems/:problemId       - 문제 상세 - 본문·예시·풀이 제출·내 기록
+ *   /problems/:problemId/edit  - 문제 수정 (운영진 이상)
+ *   /admin/tags                - [관리자] 문제 태그 관리
  *   /assignments               - 과제 목록 (?cohort= 분반 선택, 기본 내 첫 분반)
  *   /assignments/new           - 과제 등록 (운영진, ?cohort= 필수)
  *   /assignments/:assignmentId - 과제 상세 (?cohort=) - 제출란·내 기록·현황판(운영진) 포함
@@ -63,6 +70,9 @@ export function AppRoutes() {
           <Route path="attendance" element={<AttendancePage />} />
           <Route path="help" element={<HelpPage />} />
           <Route path="problems" element={<ProblemsPage />} />
+          <Route path="problems/new" element={<ProblemFormPage />} />
+          <Route path="problems/:problemId" element={<ProblemDetailPage />} />
+          <Route path="problems/:problemId/edit" element={<ProblemFormPage />} />
           <Route path="assignments" element={<AssignmentsPage />} />
           <Route path="assignments/new" element={<AssignmentFormPage />} />
           <Route path="assignments/:assignmentId" element={<AssignmentDetailPage />} />
@@ -75,6 +85,7 @@ export function AppRoutes() {
             <Route path="admin/cohorts" element={<AdminCohortsPage />} />
             <Route path="admin/cohorts/new" element={<CohortFormPage />} />
             <Route path="admin/cohorts/:cohortId/edit" element={<CohortFormPage />} />
+            <Route path="admin/tags" element={<AdminTagsPage />} />
           </Route>
           <Route path="questions" element={<QuestionsEntryPage />} />
           <Route path="cohorts/:cohortId/questions" element={<QuestionsPage />} />

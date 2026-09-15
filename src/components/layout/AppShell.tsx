@@ -9,6 +9,7 @@ import {
   LogOut,
   Megaphone,
   MessagesSquare,
+  Tags,
   Settings2,
   UserCheck,
 } from 'lucide-react'
@@ -23,7 +24,6 @@ import { cn } from '@/lib/utils'
 const NAV_ITEMS = [
   { to: '/', label: '홈', icon: LayoutGrid, end: true },
   { to: '/attendance', label: '출석', icon: UserCheck },
-  { to: '/problems', label: '문제', icon: Code },
   { to: '/assignments', label: '과제', icon: FileText },
   { to: '/cohorts', label: '내 수업', icon: BookOpen },
   // Q&A 는 분반 스코프(/cohorts/:id/questions)라 분반 페이지 안에만 있었는데, 그 링크 하나가 유일한 통로여서
@@ -32,6 +32,8 @@ const NAV_ITEMS = [
   { to: '/notices', label: '공지사항', icon: Megaphone },
   // 관리자 전용 - 분반 생성·보관·운영진 지정 (UC-A1). 비관리자에게는 숨기고, 라우트는 RequireAdmin 이 지킨다
   { to: '/admin/cohorts', label: '분반 관리', icon: Settings2, adminOnly: true },
+  // 태그 어휘는 관리자만 관리한다 - 자유 생성이면 표기가 갈라져 분류가 쓸모없어진다
+  { to: '/admin/tags', label: '태그 관리', icon: Tags, adminOnly: true },
 ] as const
 
 const navItemClass = (isActive: boolean) =>
@@ -88,6 +90,11 @@ export function AppShell() {
         </nav>
 
         <div className="flex flex-col gap-1 border-t pt-4">
+          {/* HOJ 는 부트캠프 운영(분반·과제·출석)과 결이 달라 아래쪽에 따로 둔다 (2026-09-15 PM 지정 위치) */}
+          <NavLink to="/problems" className={({ isActive }) => cn(navItemClass(isActive), 'w-full')}>
+            <Code className="size-[18px] shrink-0" />
+            HOJ로 이동하기
+          </NavLink>
           <NavLink to="/help" className={({ isActive }) => cn(navItemClass(isActive), 'w-full')}>
             <CircleHelp className="size-[18px] shrink-0" />
             도움말

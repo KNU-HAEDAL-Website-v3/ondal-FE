@@ -48,56 +48,85 @@ export const enrollments: MockEnrollment[] = [
   { cohortId: 2, loginId: 'student1', role: 'STUDENT' },
 ]
 
-export interface MockAssignment {
+/** V7: 문제 = 분반 무관 라이브러리 항목. 제목·본문·번호·제한·테스트케이스가 여기 있다 */
+export interface MockProblem {
   id: number
-  cohortId: number
   problemNo: number
-  sessionNo: number | null
   title: string
   description: string | null
-  dueAt: string
-  createdAt: string
+  tagIds: number[]
   /** 자동 채점 제한 - 없으면(undefined/null) 서버 기본값. PUT .../judge 로만 바뀐다 */
   timeLimitMs?: number | null
   memoryLimitMb?: number | null
+  createdBy: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface MockTag {
+  id: number
+  name: string
+  createdAt: string
+}
+
+/** V7: 과제 = 배정("이 문제를 이 분반에 이 마감으로") */
+export interface MockAssignment {
+  id: number
+  cohortId: number
+  problemId: number
+  sessionNo: number | null
+  dueAt: string
+  createdAt: string
 }
 
 const now = Date.now()
 const days = (n: number) => new Date(now + n * 86_400_000).toISOString()
 const hours = (n: number) => new Date(now + n * 3_600_000).toISOString()
 
-// BE LocalDataSeeder와 동일: 진행 중 분반에 1차시(마감 지남) · 2차시(마감 전) · 차시 없음
-export const assignments: MockAssignment[] = [
+// BE LocalDataSeeder와 동일: 태그 3개 + 문제 3개, 진행 중 분반에 1차시(마감 지남) · 2차시(마감 전) · 차시 없음으로 배정
+export const tags: MockTag[] = [
+  { id: 1, name: '구현', createdAt: days(-20) },
+  { id: 2, name: '다이나믹 프로그래밍', createdAt: days(-20) },
+  { id: 3, name: '사칙연산', createdAt: days(-20) },
+]
+
+export const problems: MockProblem[] = [
   {
     id: 1,
-    cohortId: 1,
     problemNo: 1000,
-    sessionNo: 1,
-    title: '1차시 - 입출력 연습',
+    title: '두 수의 합',
     description: '두 정수 A와 B를 한 줄에 공백으로 구분해 입력받아 A+B를 출력하는 프로그램을 작성해 제출하세요.',
-    dueAt: days(-3),
+    tagIds: [1, 3],
+    createdBy: '관리자',
     createdAt: days(-10),
+    updatedAt: days(-10),
   },
   {
     id: 2,
-    cohortId: 1,
     problemNo: 1001,
-    sessionNo: 2,
-    title: '2차시 - 조건문과 반복문',
+    title: '조건문과 반복문',
     description: '정수 N을 입력받아 N단 구구단을 출력하는 문제와, 점수를 입력받아 등급(A~F)을 출력하는 문제를 풀어 제출하세요.',
-    dueAt: days(7),
+    tagIds: [1],
+    createdBy: '관리자',
     createdAt: days(-9),
+    updatedAt: days(-9),
   },
   {
     id: 3,
-    cohortId: 1,
     problemNo: 1002,
-    sessionNo: null,
     title: '설문 - 스터디 시간 조사',
     description: '차시와 무관한 공지형 과제입니다. 설문 링크를 확인하세요.',
-    dueAt: days(14),
+    tagIds: [],
+    createdBy: null,
     createdAt: days(-8),
+    updatedAt: days(-8),
   },
+]
+
+export const assignments: MockAssignment[] = [
+  { id: 1, cohortId: 1, problemId: 1, sessionNo: 1, dueAt: days(-3), createdAt: days(-10) },
+  { id: 2, cohortId: 1, problemId: 2, sessionNo: 2, dueAt: days(7), createdAt: days(-9) },
+  { id: 3, cohortId: 1, problemId: 3, sessionNo: null, dueAt: days(14), createdAt: days(-8) },
 ]
 
 export interface MockQuestion {
@@ -219,7 +248,10 @@ export const attendances: MockAttendance[] = [
 
 export interface MockSubmission {
   id: number
-  assignmentId: number
+  /** 과제 제출이면 값, HOJ 연습 제출이면 null (V7) */
+  assignmentId: number | null
+  /** HOJ 연습 제출이면 값 */
+  problemId?: number | null
   loginId: string
   type: 'CODE' | 'FILE' | 'LINK'
   codeText: string | null
@@ -258,7 +290,7 @@ export const submissions: MockSubmission[] = [
 // 가짜 엔진(mocks/judge.ts)은 BE FakeJudgeEngine 과 같이 지시 주석 없으면 입력을 echo 한다 - 이 과제(기대 출력 = 합)에 새로 제출하면 틀렸습니다가 정상. 맞았습니다를 보려면 기대 출력 = 입력인 문제를 출제하거나 `// judge: AC` 대신 echo 규칙을 따른다
 export interface MockTestCase {
   id: number
-  assignmentId: number
+  problemId: number
   position: number
   input: string
   expectedOutput: string
@@ -276,7 +308,7 @@ export interface MockJudgeCase {
 
 export interface MockJudgeResult {
   submissionId: number
-  assignmentId: number
+  problemId: number
   status: JudgeStatus
   verdict: Verdict | null
   passedCases: number
@@ -289,14 +321,14 @@ export interface MockJudgeResult {
 }
 
 export const testCases: MockTestCase[] = [
-  { id: 1, assignmentId: 1, position: 0, input: '1 2\n', expectedOutput: '3\n', isPublic: true },
-  { id: 2, assignmentId: 1, position: 1, input: '10 20\n', expectedOutput: '30\n', isPublic: false },
-  { id: 3, assignmentId: 1, position: 2, input: '-5 5\n', expectedOutput: '0\n', isPublic: false },
+  { id: 1, problemId: 1, position: 0, input: '1 2\n', expectedOutput: '3\n', isPublic: true },
+  { id: 2, problemId: 1, position: 1, input: '10 20\n', expectedOutput: '30\n', isPublic: false },
+  { id: 3, problemId: 1, position: 2, input: '-5 5\n', expectedOutput: '0\n', isPublic: false },
 ]
 
 export const judgeResults: MockJudgeResult[] = [
   {
-    submissionId: 1, assignmentId: 1, status: 'DONE', verdict: 'ACCEPTED', passedCases: 3, totalCases: 3, maxTimeMs: 3, maxMemoryKb: 1600, compileOutput: null, judgedAt: days(-5),
+    submissionId: 1, problemId: 1, status: 'DONE', verdict: 'ACCEPTED', passedCases: 3, totalCases: 3, maxTimeMs: 3, maxMemoryKb: 1600, compileOutput: null, judgedAt: days(-5),
     cases: [
       { position: 0, verdict: 'ACCEPTED', timeMs: 2, memoryKb: 1536, actualOutput: '3\n', truncated: false },
       { position: 1, verdict: 'ACCEPTED', timeMs: 2, memoryKb: 1536, actualOutput: '30\n', truncated: false },
@@ -304,7 +336,7 @@ export const judgeResults: MockJudgeResult[] = [
     ],
   },
   {
-    submissionId: 2, assignmentId: 1, status: 'DONE', verdict: 'WRONG_ANSWER', passedCases: 2, totalCases: 3, maxTimeMs: 3, maxMemoryKb: 1600, compileOutput: null, judgedAt: days(-4),
+    submissionId: 2, problemId: 1, status: 'DONE', verdict: 'WRONG_ANSWER', passedCases: 2, totalCases: 3, maxTimeMs: 3, maxMemoryKb: 1600, compileOutput: null, judgedAt: days(-4),
     cases: [
       { position: 0, verdict: 'ACCEPTED', timeMs: 2, memoryKb: 1536, actualOutput: '3\n', truncated: false },
       { position: 1, verdict: 'ACCEPTED', timeMs: 2, memoryKb: 1536, actualOutput: '30\n', truncated: false },
