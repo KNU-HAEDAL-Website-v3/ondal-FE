@@ -12,8 +12,13 @@ export default defineConfig(({ mode }) => {
     throw new Error('VITE_AUTH_MODE=oidc 에는 VITE_API_BASE_URL 절대 주소(https://...)가 필요합니다 - .env.example 참고')
   }
 
+  // 같은 코드베이스에서 두 앱이 나온다 (src/lib/apps.ts) - 배포 대상이 다르므로 산출 폴더도 나눈다.
+  // Cloudflare Worker 는 각자 자기 dist 만 보면 되고, SPA fallback(index.html)도 각자 것을 쓴다
+  const isHoj = (process.env.VITE_APP ?? env.VITE_APP) === 'hoj'
+
   return {
     plugins: [react(), tailwindcss()],
+    build: { outDir: isHoj ? 'dist-hoj' : 'dist' },
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
