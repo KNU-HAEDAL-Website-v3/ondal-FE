@@ -1,15 +1,29 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Code, FileArchive, Link2, Plus, Send, X } from 'lucide-react'
 import { useCreateSubmission } from '@/api/submissions'
 import type { SubmissionType } from '@/api/types'
 import { CodeEditor } from '@/components/code/CodePane'
 import { Button } from '@/components/ui/button'
 import { isOverdue } from '@/lib/datetime'
+import { clearDraft, readDraft, writeDraft } from '@/lib/draft'
 import { cn } from '@/lib/utils'
 
 const LANGUAGES = ['C', 'C++', 'Java', 'Python 3', 'JavaScript', 'TypeScript'] as const
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 서버 제한(10MB)의 선반영 - 최종 판정은 서버
 const MAX_LINKS = 5
+
+// 작성 중인 제출 내용은 이 탭에 임시 저장(lib/draft) - 세션 만료(401)로 로그인 화면에 다녀와도 코드가 남는다 (CLAUDE.md 규칙 1).
+// 키는 과제 단위: 과제마다 따로 남고, 제출에 성공하면 지운다.
+// 파일(zip)은 직렬화할 수 없어 저장 대상이 아니다 - 브라우저가 파일 입력을 비우므로 다시 고르면 된다.
+const DRAFT_PREFIX = 'ondal-submission-draft'
+const draftKey = (cohortId: number, assignmentId: number) => `${DRAFT_PREFIX}:${cohortId}:${assignmentId}`
+
+interface SubmissionDraft {
+  tab: SubmissionType
+  codeText: string
+  language: string
+  linkUrls: string[]
+}
 
 /**
  * 제출 폼 (#18) - 3종 택1(type): 코드(언어 필수) / zip 파일(10MB) / 링크(1~5개, + 버튼).
@@ -29,15 +43,22 @@ export function SubmissionForm({
   /** 자동 채점 문제 - 코드 제출은 바로 채점된다는 안내 (judge/fe.md 2절) */
   judgeEnabled?: boolean
 }) {
-  const [tab, setTab] = useState<SubmissionType>('CODE')
-  const [codeText, setCodeText] = useState('')
-  const [language, setLanguage] = useState('')
-  const [linkUrls, setLinkUrls] = useState<string[]>([''])
+  const key = draftKey(cohortId, assignmentId)
+  const [tab, setTab] = useState<SubmissionType>(() => readDraft<SubmissionDraft>(key)?.tab ?? 'CODE')
+  const [codeText, setCodeText] = useState(() => readDraft<SubmissionDraft>(key)?.codeText ?? '')
+  const [language, setLanguage] = useState(() => readDraft<SubmissionDraft>(key)?.language ?? '')
+  const [linkUrls, setLinkUrls] = useState<string[]>(() => readDraft<SubmissionDraft>(key)?.linkUrls ?? [''])
   const [file, setFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const mutation = useCreateSubmission(cohortId, assignmentId)
+
+  useEffect(() => {
+    const empty = codeText === '' && language === '' && linkUrls.every((url) => url.trim() === '')
+    if (empty) clearDraft(key)
+    else writeDraft<SubmissionDraft>(key, { tab, codeText, language, linkUrls })
+  }, [key, tab, codeText, language, linkUrls])
 
   const filledLinks = linkUrls.map((url) => url.trim()).filter((url) => url !== '')
   const canSubmit =
@@ -90,6 +111,7 @@ export function SubmissionForm({
       {
         onSuccess: () => {
           // 성공했을 때만 비운다 - 실패 시 입력 보존 (CLAUDE.md 규칙 1)
+          clearDraft(key)
           setCodeText('')
           setLanguage('')
           setLinkUrls([''])
