@@ -21,6 +21,7 @@ import NoticesPage from '@/pages/NoticesPage'
 import ProblemsPage from '@/pages/ProblemsPage'
 import QuestionDetailPage from '@/pages/QuestionDetailPage'
 import QuestionFormPage from '@/pages/QuestionFormPage'
+import QuestionsEntryPage from '@/pages/QuestionsEntryPage'
 import QuestionsPage from '@/pages/QuestionsPage'
 
 /**
@@ -39,6 +40,7 @@ import QuestionsPage from '@/pages/QuestionsPage'
  *   /admin/cohorts             - [관리자] 분반 관리 - 목록·보관 (?status=ARCHIVED 보관함)
  *   /admin/cohorts/new         - [관리자] 분반 만들기 (+운영진 지정)
  *   /admin/cohorts/:cohortId/edit - [관리자] 분반 수정 (이름·설명)
+ *   /questions                 - Q&A 진입 (사이드바) - 분반 고르기, 분반이 하나면 바로 그 분반 목록으로
  *   /cohorts/:cohortId/questions                  - Q&A 질문 목록 (분반 소속 누구나)
  *   /cohorts/:cohortId/questions/new              - 질문 등록
  *   /cohorts/:cohortId/questions/:questionId      - 질문 상세 (수정·삭제 버튼은 서버 canEdit·canDelete)
@@ -74,6 +76,7 @@ export function AppRoutes() {
             <Route path="admin/cohorts/new" element={<CohortFormPage />} />
             <Route path="admin/cohorts/:cohortId/edit" element={<CohortFormPage />} />
           </Route>
+          <Route path="questions" element={<QuestionsEntryPage />} />
           <Route path="cohorts/:cohortId/questions" element={<QuestionsPage />} />
           <Route path="cohorts/:cohortId/questions/new" element={<QuestionFormPage />} />
           <Route path="cohorts/:cohortId/questions/:questionId" element={<QuestionDetailPage />} />
