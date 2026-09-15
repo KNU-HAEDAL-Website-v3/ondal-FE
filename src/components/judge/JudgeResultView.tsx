@@ -48,7 +48,8 @@ export function JudgeResultView({ judge }: { judge: JudgeResultResponse }) {
       )}
 
       {judge.cases.length > 0 && (
-        <table className="mt-2 w-full text-sm">
+        <div className="mt-2 overflow-x-auto">
+        <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs text-muted-foreground">
               <th scope="col" className="w-10 py-1.5 font-semibold">#</th>
@@ -64,6 +65,7 @@ export function JudgeResultView({ judge }: { judge: JudgeResultResponse }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </section>
   )
