@@ -30,4 +30,8 @@ lerna-debug.log*
 !.env.mock
 # 운영 빌드 공개 설정 (비밀값 아님 - 실 BE 주소·로그인 모드. Workers Builds·Actions 공통)
 !.env.production
+# HOJ 앱(문제 은행) 빌드 값 - Ondal 과 같은 이유로 커밋한다(공개 주소·모드 스위치, 비밀값 아님)
+!.env.hoj
+!.env.hoj-mock
 *.local
+dist-hoj

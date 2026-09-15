@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite",
     "dev:mock": "vite --mode mock",
+    "dev:hoj": "vite --mode hoj-mock --port 5175",
     "build": "tsc -b && vite build",
     "build:mock": "tsc -b && vite build --mode mock",
+    "build:hoj": "tsc -b && vite build --mode hoj",
     "lint": "oxlint",
     "preview": "vite preview"
   },

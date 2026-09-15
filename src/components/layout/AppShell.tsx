@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import {
+  ArrowUpRight,
   BookOpen,
   CircleHelp,
   Code,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useLogout, useMe } from '@/api/auth'
 import { SiteFooter } from '@/components/SiteFooter'
+import { crossAppLinkProps, HOJ_IS_SEPARATE, hojHref } from '@/lib/apps'
 import { cn } from '@/lib/utils'
 
 /**
@@ -120,24 +122,38 @@ export function AppShell() {
         </nav>
 
         <div className="flex flex-col gap-1 border-t pt-4">
-          {/* HOJ 는 부트캠프 운영(분반·과제·출석)과 결이 달라 아래쪽에 따로 둔다 (2026-09-15 PM 지정 위치) */}
-          {[
-            { to: '/problems', label: 'HOJ로 이동하기', icon: Code },
-            { to: '/help', label: '도움말', icon: CircleHelp },
-          ].map((item) => {
-            const active = isNavActive(item, pathname)
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                aria-current={active ? 'page' : undefined}
-                className={cn(navItemClass(active), 'w-full')}
-              >
-                <item.icon className="size-[18px] shrink-0" />
-                {item.label}
-              </Link>
-            )
-          })}
+          {/*
+            HOJ 는 부트캠프 운영(분반·과제·출석)과 결이 달라 아래쪽에 따로 둔다 (2026-09-15 PM 지정 위치).
+            따로 배포돼 있으면 새 탭으로 - 과제를 하다 문제를 보러 가도 과제 화면이 남아 있게 (lib/apps.ts)
+          */}
+          {HOJ_IS_SEPARATE ? (
+            <a
+              href={hojHref()}
+              {...crossAppLinkProps(true)}
+              className={cn(navItemClass(false), 'w-full')}
+            >
+              <Code className="size-[18px] shrink-0" />
+              HOJ로 이동하기
+              <ArrowUpRight className="ml-auto size-3.5 shrink-0 opacity-60" aria-hidden />
+            </a>
+          ) : (
+            <Link
+              to="/problems"
+              aria-current={isNavActive({ to: '/problems' }, pathname) ? 'page' : undefined}
+              className={cn(navItemClass(isNavActive({ to: '/problems' }, pathname)), 'w-full')}
+            >
+              <Code className="size-[18px] shrink-0" />
+              HOJ로 이동하기
+            </Link>
+          )}
+          <Link
+            to="/help"
+            aria-current={isNavActive({ to: '/help' }, pathname) ? 'page' : undefined}
+            className={cn(navItemClass(isNavActive({ to: '/help' }, pathname)), 'w-full')}
+          >
+            <CircleHelp className="size-[18px] shrink-0" />
+            도움말
+          </Link>
           <button
             type="button"
             onClick={handleLogout}

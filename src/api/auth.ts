@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { IS_HOJ } from '@/lib/apps'
 import { ApiError, apiFetch, BASE_URL } from './client'
 import type { LogoutResponse, UserResponse } from './types'
 
@@ -34,7 +35,10 @@ export function login(loginId: string) {
  * BASE_URL 이 절대 주소여야 한다 - 상대 경로면 SPA 호스트의 index.html 로 떨어진다 (vite.config.ts 가 빌드 때 검사).
  */
 export function oidcLoginUrl(returnTo: string) {
-  return `${BASE_URL}/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`
+  // app: 어느 FE 로 돌아올지 - BE 는 **키만** 받고 실제 오리진은 서버 설정에서 고른다(오픈 리다이렉트 차단).
+  // Ondal 은 기본값이라 보내지 않는다 - 분리 배포 전 BE 와도 그대로 호환된다
+  const app = IS_HOJ ? '&app=hoj' : ''
+  return `${BASE_URL}/api/auth/login?returnTo=${encodeURIComponent(returnTo)}${app}`
 }
 
 /**
