@@ -1,8 +1,10 @@
 import { Route, Routes } from 'react-router'
+import { HojRedirect } from '@/components/HojRedirect'
 import { RequireAdmin } from '@/components/RequireAdmin'
 import { RequireAuth } from '@/components/RequireAuth'
 import { RequireOperator } from '@/components/RequireOperator'
 import { AppShell } from '@/components/layout/AppShell'
+import { HOJ_IS_SEPARATE } from '@/lib/apps'
 import AdminCohortsPage from '@/pages/AdminCohortsPage'
 import AdminTagsPage from '@/pages/AdminTagsPage'
 import AssignmentDetailPage from '@/pages/AssignmentDetailPage'
@@ -70,13 +72,24 @@ export function AppRoutes() {
           <Route index element={<HomePage />} />
           <Route path="attendance" element={<AttendancePage />} />
           <Route path="help" element={<HelpPage />} />
-          <Route path="problems" element={<ProblemsPage />} />
-          <Route path="problems/:problemId" element={<ProblemDetailPage />} />
-          {/* 출제·수정은 운영진 이상 - BE @OperatorAnywhere 와 같은 조건 (CLAUDE.md 규칙 3) */}
-          <Route element={<RequireOperator />}>
-            <Route path="problems/new" element={<ProblemFormPage />} />
-            <Route path="problems/:problemId/edit" element={<ProblemFormPage />} />
-          </Route>
+          {/*
+            HOJ 가 따로 배포되면(VITE_HOJ_URL 존재) 문제 화면은 Ondal 에 두지 않는다 - 두 앱의 성격이 달라 나눈 것이므로.
+            다만 라우트를 지우는 대신 HOJ 로 넘긴다: 그동안 공유된 `/problems/12` 링크와 북마크가 404 가 되면 안 된다.
+            분리 전(로컬·mock)에는 예전처럼 Ondal 안에서 그대로 보인다 - 개발할 때 앱을 두 개 띄우지 않아도 되게.
+          */}
+          {HOJ_IS_SEPARATE ? (
+            <Route path="problems/*" element={<HojRedirect />} />
+          ) : (
+            <>
+              <Route path="problems" element={<ProblemsPage />} />
+              <Route path="problems/:problemId" element={<ProblemDetailPage />} />
+              {/* 출제·수정은 운영진 이상 - BE @OperatorAnywhere 와 같은 조건 (CLAUDE.md 규칙 3) */}
+              <Route element={<RequireOperator />}>
+                <Route path="problems/new" element={<ProblemFormPage />} />
+                <Route path="problems/:problemId/edit" element={<ProblemFormPage />} />
+              </Route>
+            </>
+          )}
           <Route path="assignments" element={<AssignmentsPage />} />
           <Route path="assignments/new" element={<AssignmentFormPage />} />
           <Route path="assignments/:assignmentId" element={<AssignmentDetailPage />} />
@@ -85,11 +98,13 @@ export function AppRoutes() {
           <Route path="cohorts" element={<MyCohortsPage />} />
           <Route path="cohorts/:cohortId" element={<CohortPage />} />
           <Route path="cohorts/:cohortId/members" element={<CohortMembersPage />} />
+          {/* 태그는 문제의 것이라 HOJ 로 간다. 울타리 밖에 두는 이유: 관리자가 아니어도 403 대신 HOJ 로 넘겨주는 편이 낫다 */}
+          {HOJ_IS_SEPARATE && <Route path="admin/tags" element={<HojRedirect />} />}
           <Route element={<RequireAdmin />}>
             <Route path="admin/cohorts" element={<AdminCohortsPage />} />
             <Route path="admin/cohorts/new" element={<CohortFormPage />} />
             <Route path="admin/cohorts/:cohortId/edit" element={<CohortFormPage />} />
-            <Route path="admin/tags" element={<AdminTagsPage />} />
+            {!HOJ_IS_SEPARATE && <Route path="admin/tags" element={<AdminTagsPage />} />}
           </Route>
           <Route path="questions" element={<QuestionsEntryPage />} />
           <Route path="cohorts/:cohortId/questions" element={<QuestionsPage />} />

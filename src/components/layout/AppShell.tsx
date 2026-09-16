@@ -41,8 +41,9 @@ const NAV_ITEMS = [
   { to: '/notices', label: '공지사항', icon: Megaphone },
   // 관리자 전용 - 분반 생성·보관·운영진 지정 (UC-A1). 비관리자에게는 숨기고, 라우트는 RequireAdmin 이 지킨다
   { to: '/admin/cohorts', label: '분반 관리', icon: Settings2, adminOnly: true },
-  // 태그 어휘는 관리자만 관리한다 - 자유 생성이면 표기가 갈라져 분류가 쓸모없어진다
-  { to: '/admin/tags', label: '태그 관리', icon: Tags, adminOnly: true },
+  // 태그 어휘는 관리자만 관리한다 - 자유 생성이면 표기가 갈라져 분류가 쓸모없어진다.
+  // HOJ 가 따로 배포되면 태그는 그쪽 메뉴에 있으므로 여기서는 뺀다 (경로로 들어와도 routes.tsx 가 HOJ 로 넘김)
+  { to: '/admin/tags', label: '태그 관리', icon: Tags, adminOnly: true, hideWhenHojSeparate: true },
 ] as const
 
 interface NavMatch {
@@ -137,7 +138,11 @@ export function AppShell() {
         </Link>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
-          {NAV_ITEMS.filter((item) => !('adminOnly' in item && item.adminOnly) || me?.globalRole === 'ADMIN').map((item) => {
+          {NAV_ITEMS.filter(
+            (item) =>
+              (!('adminOnly' in item && item.adminOnly) || me?.globalRole === 'ADMIN') &&
+              !('hideWhenHojSeparate' in item && item.hideWhenHojSeparate && HOJ_IS_SEPARATE),
+          ).map((item) => {
             const active = isNavActive(item, pathname)
             return (
               <Link key={item.to} to={item.to} aria-current={active ? 'page' : undefined} className={navItemClass(active)}>
