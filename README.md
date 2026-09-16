@@ -33,7 +33,7 @@ npm run lint       # 린트 (oxlint)
 | 무엇 | 주소 | 배포 경로 | 빌드 값 |
 |---|---|---|---|
 | **프로덕션 - Ondal** (사용자 진입) | https://ondal.haedal-sos-man-in-the-mirror.com | Cloudflare Worker `ondal-fe` - Git 연동(Workers Builds): `main` push 마다 `npm run build` → 정적 자산 배포. 설정은 Cloudflare 대시보드(레포에 wrangler 설정 없음) | [`.env.production`](.env.production) - 실 BE(`https://ondal-api.haedal-sos-man-in-the-mirror.com`) + 홈페이지 로그인(`oidc`) |
-| **프로덕션 - HOJ** (문제 은행) | https://hoj.haedal-sos-man-in-the-mirror.com | ⬜ **미생성** - Worker `ondal-hoj` 를 같은 방식으로 만들어야 함: 같은 레포·`main`, 빌드 `npm run build:hoj`, 산출 `dist-hoj`. SPA 폴백(`/problems/12` 직접 진입 시 index.html) 필요 | [`.env.hoj`](.env.hoj) - `VITE_APP=hoj`, 나머지는 Ondal 과 같은 BE |
+| **프로덕션 - HOJ** (문제 은행) | https://hoj.haedal-sos-man-in-the-mirror.com | GitHub Actions [`deploy.yml`](.github/workflows/deploy.yml) 의 `deploy-hoj` 잡 - `main` push 마다 `npm run build:hoj` → Pages 프로젝트 `haedal-hoj-fe`. **커스텀 도메인 연결은 대시보드에서 1회** | [`.env.hoj`](.env.hoj) - `VITE_APP=hoj`, 나머지는 Ondal 과 같은 BE |
 | Pages `main` 배포 | https://haedal-online-judge-fe.pages.dev | GitHub Actions [`deploy.yml`](.github/workflows/deploy.yml) (wrangler Direct Upload) | `.env.production` 과 동일 - 단 pages.dev 는 BE 와 다른 사이트라 세션 쿠키(lax)·CORS 대상이 아니어서 **로그인 불가**. 반드시 커스텀 도메인으로 접속 |
 | **PR 미리보기** | `https://<브랜치명>.haedal-online-judge-fe.pages.dev` (PR 코멘트에 링크) | 같은 deploy.yml - PR 생성·갱신 시 | `VITE_API_MOCK=true`(MSW, 로그인은 stub 폼) - 화면 클릭 가능, 데이터는 가짜(시드와 동일) |
 
@@ -44,6 +44,8 @@ npm run lint       # 린트 (oxlint)
   - ※ 순서를 뒤집으면(Worker 없이 값부터) `/problems` 가 없는 주소로 넘어감
 - Workers Builds 는 PR 브랜치도 빌드해 PR 체크 `Workers Builds: ondal-fe` 로 표시됨 - 미리보기는 pages.dev 링크를 쓰면 됨
 - deploy.yml 은 레포 시크릿 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` 필요
+- [`public/_redirects`](public/_redirects) = Pages SPA 폴백. 없으면 `/problems/12` 를 주소창에 직접 치거나 새로고침할 때 404 (라우팅이 브라우저에서 일어나므로)
+- **Ondal 은 Workers Builds(Git 연동), HOJ 는 Actions** 로 서로 다른 경로를 쓴다 - Git 연동은 org 에 GitHub App 설치가 필요하고 그건 org owner 만 할 수 있어서(`This action must be performed by an organization owner`). owner 승인을 받으면 HOJ 도 Workers Builds 로 옮기고 `deploy-hoj` 잡을 지우면 됨
 
 ## 기술 스택
 
