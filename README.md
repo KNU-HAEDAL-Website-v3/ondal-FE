@@ -32,11 +32,16 @@ npm run lint       # 린트 (oxlint)
 
 | 무엇 | 주소 | 배포 경로 | 빌드 값 |
 |---|---|---|---|
-| **프로덕션** (사용자 진입) | https://ondal.haedal-sos-man-in-the-mirror.com | Cloudflare Worker `ondal-fe` - Git 연동(Workers Builds): `main` push 마다 `npm run build` → 정적 자산 배포. 설정은 Cloudflare 대시보드(레포에 wrangler 설정 없음) | [`.env.production`](.env.production) - 실 BE(`https://ondal-api.haedal-sos-man-in-the-mirror.com`) + 홈페이지 로그인(`oidc`) |
+| **프로덕션 - Ondal** (사용자 진입) | https://ondal.haedal-sos-man-in-the-mirror.com | Cloudflare Worker `ondal-fe` - Git 연동(Workers Builds): `main` push 마다 `npm run build` → 정적 자산 배포. 설정은 Cloudflare 대시보드(레포에 wrangler 설정 없음) | [`.env.production`](.env.production) - 실 BE(`https://ondal-api.haedal-sos-man-in-the-mirror.com`) + 홈페이지 로그인(`oidc`) |
+| **프로덕션 - HOJ** (문제 은행) | https://hoj.haedal-sos-man-in-the-mirror.com | ⬜ **미생성** - Worker `ondal-hoj` 를 같은 방식으로 만들어야 함: 같은 레포·`main`, 빌드 `npm run build:hoj`, 산출 `dist-hoj`. SPA 폴백(`/problems/12` 직접 진입 시 index.html) 필요 | [`.env.hoj`](.env.hoj) - `VITE_APP=hoj`, 나머지는 Ondal 과 같은 BE |
 | Pages `main` 배포 | https://haedal-online-judge-fe.pages.dev | GitHub Actions [`deploy.yml`](.github/workflows/deploy.yml) (wrangler Direct Upload) | `.env.production` 과 동일 - 단 pages.dev 는 BE 와 다른 사이트라 세션 쿠키(lax)·CORS 대상이 아니어서 **로그인 불가**. 반드시 커스텀 도메인으로 접속 |
 | **PR 미리보기** | `https://<브랜치명>.haedal-online-judge-fe.pages.dev` (PR 코멘트에 링크) | 같은 deploy.yml - PR 생성·갱신 시 | `VITE_API_MOCK=true`(MSW, 로그인은 stub 폼) - 화면 클릭 가능, 데이터는 가짜(시드와 동일) |
 
 - `.env.production` 은 비밀값 아님(공개 주소·모드 스위치)이라 커밋 - Workers Builds 와 Actions 가 같은 값으로 빌드되는 단일 출처. 값 변경은 이 파일 한 곳에서
+- **HOJ 분리 스위치는 `.env.production` 의 `VITE_HOJ_URL` 하나** ([결정 8](https://github.com/KNU-HAEDAL-Website-v3/ondal-docs/blob/main/docs/decisions/8-hoj-%EB%B3%84%EB%8F%84-%EC%95%B1-%EB%B6%84%EB%A6%AC.md))
+  - 지금은 **비어 있음** → 문제·태그 화면이 Ondal 안에 그대로. 운영 동작은 분리 전과 같음
+  - `ondal-hoj` Worker 를 만든 **뒤에** `VITE_HOJ_URL=https://hoj.haedal-sos-man-in-the-mirror.com` 추가 → Ondal 의 `/problems/*`·`/admin/tags` 가 HOJ 로 넘어가고, 사이드바 태그 관리 메뉴가 빠지고, HOJ 링크가 새 탭으로 열림
+  - ※ 순서를 뒤집으면(Worker 없이 값부터) `/problems` 가 없는 주소로 넘어감
 - Workers Builds 는 PR 브랜치도 빌드해 PR 체크 `Workers Builds: ondal-fe` 로 표시됨 - 미리보기는 pages.dev 링크를 쓰면 됨
 - deploy.yml 은 레포 시크릿 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` 필요
 
