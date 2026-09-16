@@ -69,9 +69,11 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          # 프로젝트가 아직 없으면 생성 (최초 1회만 실제로 실행됨)
+          # 프로젝트가 없으면 생성 - 최초 1회, 그리고 프로젝트가 사라졌을 때의 자기 복구용
+          # `--yes` 가 필요한 이유: 없으면 npx 가 "canceled due to missing packages and no YES option" 으로
+          #   조용히 죽어서 이 가드가 통째로 무력화된다 (2026-09-16 에 실제로 그래서 복구가 안 됐음)
           preCommands: |
-            wrangler pages project list | grep -q "${{ env.PROJECT_NAME }}" || npx wrangler pages project create "${{ env.PROJECT_NAME }}" --production-branch main
+            npx --yes wrangler pages project list | grep -q "${{ env.PROJECT_NAME }}" || npx --yes wrangler pages project create "${{ env.PROJECT_NAME }}" --production-branch main
           # --branch: main이면 프로덕션, 그 외는 미리보기. PR에서는 checkout이 merge 커밋이라 브랜치명을 직접 넘긴다.
           command: >-
             pages deploy dist
