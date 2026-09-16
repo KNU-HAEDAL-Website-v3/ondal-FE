@@ -72,6 +72,17 @@ export default function AssignmentFormPage() {
     return <ApiErrorView error={existingQuery.error} onRetry={() => void existingQuery.refetch()} />
   }
 
+  // 권한 울타리 (CLAUDE.md 규칙 3) - 이 검사가 없으면 수강생이 주소를 직접 쳐서 폼을 다 채운 뒤
+  // 저장 버튼을 눌러야 403 을 만난다. 문제 출제(/problems/new)는 RequireOperator 로 막았는데 여기만 빠져 있었다 (2026-09-16).
+  // RequireOperator 가 아니라 이 분반의 canManage 를 보는 이유: "아무 분반 운영진"이면 남의 분반 과제 폼이 열린다 - 배정 대상은 ?cohort= 한 분반이다
+  if (cohortQuery.isPending) return <LoadingScreen />
+  if (cohortQuery.error) {
+    return <ApiErrorView error={cohortQuery.error} onRetry={() => void cohortQuery.refetch()} />
+  }
+  if (cohortQuery.data && !cohortQuery.data.canManage) {
+    return <ApiErrorView error={new ApiError(403, 'FORBIDDEN', '이 분반에 과제를 등록·수정할 권한이 없어요.')} />
+  }
+
   const cohort = cohortQuery.data
   const archived = cohort?.status === 'ARCHIVED'
   const saving = mutation.isPending
