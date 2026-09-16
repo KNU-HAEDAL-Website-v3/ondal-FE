@@ -16,8 +16,21 @@ export default defineConfig(({ mode }) => {
   // Cloudflare Worker 는 각자 자기 dist 만 보면 되고, SPA fallback(index.html)도 각자 것을 쓴다
   const isHoj = (process.env.VITE_APP ?? env.VITE_APP) === 'hoj'
 
+  // index.html 은 두 앱이 공유하므로 탭 제목만 빌드 때 갈아 끼운다.
+  // 런타임(document.title)로 바꾸면 잠깐 반대 앱 이름이 보였다가 바뀐다 - 두 앱을 동시에 열어 두는 화면이라 헷갈린다
+  const title = isHoj ? 'HOJ - 해달 온라인 저지' : 'Ondal - 해달 부트캠프 과제 플랫폼'
+
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      {
+        name: 'ondal-app-title',
+        transformIndexHtml(html: string) {
+          return html.replace(/<title>[\s\S]*?<\/title>/, `<title>${title}</title>`)
+        },
+      },
+    ],
     build: { outDir: isHoj ? 'dist-hoj' : 'dist' },
     resolve: {
       alias: {
