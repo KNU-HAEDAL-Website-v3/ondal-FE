@@ -32,7 +32,6 @@ concurrency:
 
 env:
   PROJECT_NAME: haedal-online-judge-fe   # Pages 프로젝트명 = URL 서브도메인 (소문자만 허용)
-  HOJ_PROJECT_NAME: haedal-hoj-fe        # HOJ 앱용 별도 Pages 프로젝트 - 커스텀 도메인 hoj.… 를 여기에 붙인다
 
 jobs:
   deploy:
@@ -126,17 +125,11 @@ jobs:
       # .env.hoj 를 읽는다 (VITE_APP=hoj + Ondal 과 같은 BE) → dist-hoj/
       - run: npm run build:hoj
 
-      - name: Deploy HOJ to Cloudflare Pages
+      # Pages 가 아니라 Worker 로 올린다 - `wrangler pages project create` 가 먹지 않아 Pages 경로는 막혔다
+      # (기존 Ondal Pages 잡도 같은 이유로 "project does not exist" 실패 중). 설정은 wrangler.hoj.jsonc
+      - name: Deploy HOJ Worker
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          preCommands: |
-            wrangler pages project list | grep -q "${{ env.HOJ_PROJECT_NAME }}" || npx wrangler pages project create "${{ env.HOJ_PROJECT_NAME }}" --production-branch main
-          command: >-
-            pages deploy dist-hoj
-            --project-name=${{ env.HOJ_PROJECT_NAME }}
-            --branch=main
-            --commit-hash=${{ github.sha }}
-            --commit-dirty=true
+          command: deploy --config wrangler.hoj.jsonc
