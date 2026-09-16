@@ -59,15 +59,15 @@ export function StudentDashboard({ cohorts }: { cohorts: CohortResponse[] }) {
           value={loaded && nearest ? ddayLabel(nearest.dueAt) : '-'}
           valueClassName={nearest ? 'text-destructive' : undefined}
           icon={CalendarClock}
-          iconClassName="bg-[#ffdad6] text-destructive"
+          iconClassName="bg-danger-bg text-destructive"
         />
         <StatCard
           label="제출한 과제"
           value={loaded ? String(submitted) : '-'}
           unit={loaded ? `/ ${assignments.length}개` : undefined}
-          valueClassName="text-[#16a34a]"
+          valueClassName="text-success"
           icon={CircleCheckBig}
-          iconClassName="bg-[#dcfce7] text-[#16a34a]"
+          iconClassName="bg-success-bg text-success"
         />
         <StatCard
           label="전체 출석률"
@@ -108,7 +108,7 @@ export function StudentDashboard({ cohorts }: { cohorts: CohortResponse[] }) {
                     <span className="font-semibold">{a.title}</span>
                     {a.myStatus !== null && <SubmissionStatusBadge status={a.myStatus} />}
                     <span className="ml-auto flex items-center gap-2 font-mono text-xs text-muted-foreground">
-                      <span className="rounded-[2px] bg-[#dcfce7] px-1.5 py-0.5 font-semibold text-[#16a34a]">{ddayLabel(a.dueAt)}</span>
+                      <span className="rounded-[2px] bg-success-bg px-1.5 py-0.5 font-semibold text-success">{ddayLabel(a.dueAt)}</span>
                       {formatKst(a.dueAt)}
                     </span>
                   </Link>
@@ -134,10 +134,10 @@ export function StudentDashboard({ cohorts }: { cohorts: CohortResponse[] }) {
               {notices.map((n) => (
                 <li key={n.id}>
                   <Link to={`/notices/${n.id}`} className="flex items-start gap-2 rounded-md border p-3 text-sm hover:bg-secondary/40">
-                    <Megaphone className={`mt-0.5 size-4 shrink-0 ${n.pinned ? 'text-[#ba1a1a]' : 'text-primary'}`} />
+                    <Megaphone className={`mt-0.5 size-4 shrink-0 ${n.pinned ? 'text-danger' : 'text-primary'}`} />
                     <span className="min-w-0">
                       <span className="flex items-center gap-1.5">
-                        {n.pinned && <span className="rounded-[2px] bg-[#ffdad6] px-1.5 py-0.5 text-[11px] font-bold text-[#ba1a1a]">필독</span>}
+                        {n.pinned && <span className="rounded-[2px] bg-danger-bg px-1.5 py-0.5 text-[11px] font-bold text-danger">필독</span>}
                         <span className="truncate font-semibold">{n.title}</span>
                       </span>
                       <span className="mt-0.5 block text-xs text-muted-foreground">{n.cohort?.name ?? '전체 공지'} · {n.author.name}</span>

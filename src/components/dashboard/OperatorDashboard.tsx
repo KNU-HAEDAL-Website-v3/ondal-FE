@@ -128,7 +128,7 @@ function CohortOverview({ cohort }: { cohort: CohortResponse }) {
           unit="개"
           valueClassName={dueSoon.length > 0 ? 'text-destructive' : undefined}
           icon={CalendarClock}
-          iconClassName="bg-[#ffdad6] text-destructive"
+          iconClassName="bg-danger-bg text-destructive"
           className={dueSoon.length > 0 ? 'border-destructive/40' : undefined}
         />
         <StatCard
@@ -136,7 +136,7 @@ function CohortOverview({ cohort }: { cohort: CohortResponse }) {
           value={boardTarget === undefined ? '-' : boardQuery.isPending ? '-' : String(notSubmitted)}
           unit={boardTarget ? `/ ${rows.length}명` : undefined}
           icon={ClipboardList}
-          iconClassName="bg-[#fef3c7] text-[#854d0e]"
+          iconClassName="bg-warning-bg text-warning"
         />
       </div>
 
@@ -262,7 +262,7 @@ function CohortOverview({ cohort }: { cohort: CohortResponse }) {
                 {notices.map((n) => (
                   <li key={n.id}>
                     <Link to={`/notices/${n.id}`} className="flex items-start gap-2 rounded-md border p-2.5 text-sm hover:bg-secondary/40">
-                      <Megaphone className={`mt-0.5 size-4 shrink-0 ${n.pinned ? 'text-[#ba1a1a]' : 'text-primary'}`} />
+                      <Megaphone className={`mt-0.5 size-4 shrink-0 ${n.pinned ? 'text-danger' : 'text-primary'}`} />
                       <span className="min-w-0 truncate font-semibold">{n.title}</span>
                     </Link>
                   </li>

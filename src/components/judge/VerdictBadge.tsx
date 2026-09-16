@@ -4,11 +4,11 @@ import { cn } from '@/lib/utils'
 
 /** 판정 표시 규칙 (docs judge/fe.md 3절) - 서버 verdict 를 그대로 매핑, 재계산 금지 */
 export const VERDICT_META: Record<Verdict, { label: string; className: string }> = {
-  ACCEPTED: { label: '맞았습니다', className: 'bg-[#dcfce7] text-[#16a34a]' },
-  WRONG_ANSWER: { label: '틀렸습니다', className: 'bg-[#fee2e2] text-[#dc2626]' },
-  TIME_LIMIT: { label: '시간 초과', className: 'bg-[#ffedd5] text-[#ea580c]' },
-  MEMORY_LIMIT: { label: '메모리 초과', className: 'bg-[#ffedd5] text-[#ea580c]' },
-  RUNTIME_ERROR: { label: '런타임 에러', className: 'bg-[#fee2e2] text-[#dc2626]' },
+  ACCEPTED: { label: '맞았습니다', className: 'bg-success-bg text-success' },
+  WRONG_ANSWER: { label: '틀렸습니다', className: 'bg-danger-bg text-danger' },
+  TIME_LIMIT: { label: '시간 초과', className: 'bg-caution-bg text-caution' },
+  MEMORY_LIMIT: { label: '메모리 초과', className: 'bg-caution-bg text-caution' },
+  RUNTIME_ERROR: { label: '런타임 에러', className: 'bg-danger-bg text-danger' },
   COMPILE_ERROR: { label: '컴파일 에러', className: 'bg-muted text-muted-foreground' },
   JUDGE_ERROR: { label: '채점 오류', className: 'border border-dashed bg-muted text-muted-foreground' },
 }

@@ -87,7 +87,7 @@ export function StatusBoard({
                       {row.latestSubmissionId === null ? (
                         <span className="text-xs text-muted-foreground">-</span>
                       ) : row.latestCommented ? (
-                        <span className="inline-block rounded-[2px] bg-[#e0f2fe] px-2 py-0.5 text-xs font-bold text-[#0369a1]">남김</span>
+                        <span className="inline-block rounded-[2px] bg-info-bg px-2 py-0.5 text-xs font-bold text-info">남김</span>
                       ) : (
                         <span className="text-xs text-muted-foreground">아직</span>
                       )}

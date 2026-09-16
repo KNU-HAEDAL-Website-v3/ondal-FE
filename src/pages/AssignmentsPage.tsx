@@ -197,7 +197,7 @@ function AssignmentCard({ assignment, cohortId }: { assignment: AssignmentRespon
         <span
           className={cn(
             'inline-block rounded-[2px] px-2 py-0.5 text-xs font-semibold',
-            overdue ? 'bg-muted text-muted-foreground' : 'bg-[#dcfce7] text-[#16a34a]',
+            overdue ? 'bg-muted text-muted-foreground' : 'bg-success-bg text-success',
           )}
         >
           {ddayLabel(assignment.dueAt)}
@@ -233,7 +233,7 @@ function AssignmentRow({ assignment, cohortId }: { assignment: AssignmentRespons
         <span
           className={cn(
             'rounded-[2px] px-1.5 py-0.5 text-[11px] font-semibold',
-            overdue ? 'bg-muted text-muted-foreground' : 'bg-[#dcfce7] text-[#16a34a]',
+            overdue ? 'bg-muted text-muted-foreground' : 'bg-success-bg text-success',
           )}
         >
           {ddayLabel(assignment.dueAt)}

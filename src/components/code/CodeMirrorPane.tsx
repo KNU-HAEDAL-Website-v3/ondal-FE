@@ -144,7 +144,7 @@ export function CodeViewerImpl({ value, language }: { value: string; language: s
         aria-label="코드 복사"
         className="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-[2px] border bg-card px-2 py-1 text-xs font-semibold text-muted-foreground shadow-xs hover:text-primary"
       >
-        {copied ? <Check className="size-3.5 text-[#16a34a]" /> : <Copy className="size-3.5" />}
+        {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
         {copied ? '복사됨' : '복사'}
       </button>
       <CodeMirror

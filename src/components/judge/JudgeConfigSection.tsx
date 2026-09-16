@@ -300,10 +300,10 @@ export function JudgeConfigSection({
                           disabled={disabled}
                           aria-label={`케이스 ${index + 1} 기대 출력`}
                           placeholder="이 출력과 같아야 통과 - 아래 정답 코드로 채울 수 있어요"
-                          className={cn(TEXTAREA_CLASS, c.expectedOutput === '' && 'border-[#f59e0b]')}
+                          className={cn(TEXTAREA_CLASS, c.expectedOutput === '' && 'border-warning')}
                         />
                         {c.expectedOutput === '' && (
-                          <p className="mt-1 text-[11px] font-semibold text-[#b45309]" data-empty-expected={index}>
+                          <p className="mt-1 text-[11px] font-semibold text-warning" data-empty-expected={index}>
                             비어 있음 - 지금 저장하면 아무것도 출력하지 않아야 통과해요
                           </p>
                         )}
@@ -323,7 +323,7 @@ export function JudgeConfigSection({
                           <span
                             className={cn(
                               'inline-flex items-center gap-1 rounded-[2px] px-1.5 py-0.5 font-bold',
-                              mark.verdict === 'ACCEPTED' ? 'bg-[#dcfce7] text-[#16a34a]' : 'bg-[#fee2e2] text-[#dc2626]',
+                              mark.verdict === 'ACCEPTED' ? 'bg-success-bg text-success' : 'bg-danger-bg text-danger',
                             )}
                             aria-label={`케이스 ${index + 1} 검증 ${VERDICT_META[mark.verdict].label}`}
                           >

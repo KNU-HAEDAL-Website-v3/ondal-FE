@@ -65,7 +65,7 @@ export function StudentAttendanceView({ cohorts }: { cohorts: CohortResponse[] }
           <h2 className="text-base font-bold">나의 전체 출석률</h2>
           <div className="relative">
             <svg viewBox="0 0 120 120" className="size-32 -rotate-90">
-              <circle cx="60" cy="60" r={RING_RADIUS} fill="none" strokeWidth="12" className="stroke-[#e3e1ec]" />
+              <circle cx="60" cy="60" r={RING_RADIUS} fill="none" strokeWidth="12" className="stroke-neutral-bg" />
               <circle
                 cx="60"
                 cy="60"
@@ -88,9 +88,9 @@ export function StudentAttendanceView({ cohorts }: { cohorts: CohortResponse[] }
           </p>
         </div>
 
-        <AttendanceStatCard label="출석" value={String(summary.present)} icon={CircleCheckBig} className="border-[#dcfce7] bg-[#f0fdf4] text-[#16a34a]" />
-        <AttendanceStatCard label="지각" value={String(summary.late)} icon={Clock} className="border-[#fef08a] bg-[#fefce8] text-[#b45309]" />
-        <AttendanceStatCard label="결석" value={String(summary.absent)} icon={CircleX} className="border-[#fecaca] bg-[#fef2f2] text-[#ba1a1a]" />
+        <AttendanceStatCard label="출석" value={String(summary.present)} icon={CircleCheckBig} className="border-success-bg bg-success-soft text-success" />
+        <AttendanceStatCard label="지각" value={String(summary.late)} icon={Clock} className="border-warning-bg bg-warning-soft text-warning" />
+        <AttendanceStatCard label="결석" value={String(summary.absent)} icon={CircleX} className="border-danger-border bg-danger-soft text-danger" />
       </div>
 
       <section className="overflow-hidden rounded-lg border bg-card">

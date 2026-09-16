@@ -101,7 +101,7 @@ function SubmissionRow({
             {submission.hasComment && (
               <span
                 aria-label="운영진 코멘트 있음"
-                className="flex items-center gap-0.5 rounded-[2px] bg-[#e0f2fe] px-1.5 py-0.5 text-[11px] font-bold text-[#0369a1]"
+                className="flex items-center gap-0.5 rounded-[2px] bg-info-bg px-1.5 py-0.5 text-[11px] font-bold text-info"
               >
                 <MessageSquare className="size-3" />
                 코멘트
