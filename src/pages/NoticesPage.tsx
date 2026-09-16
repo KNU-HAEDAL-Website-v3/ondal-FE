@@ -105,7 +105,7 @@ function NoticeRow({ notice }: { notice: NoticeResponse }) {
         <span
           className={cn(
             'flex size-9 shrink-0 items-center justify-center rounded-xl',
-            notice.pinned ? 'bg-[#ffdad6] text-[#ba1a1a]' : 'bg-secondary text-primary',
+            notice.pinned ? 'bg-danger-bg text-danger' : 'bg-secondary text-primary',
           )}
         >
           <Megaphone className="size-4.5" />
@@ -113,7 +113,7 @@ function NoticeRow({ notice }: { notice: NoticeResponse }) {
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
             {notice.pinned && (
-              <span className="shrink-0 rounded-[2px] bg-[#ffdad6] px-2 py-0.5 text-xs font-bold text-[#ba1a1a]">필독</span>
+              <span className="shrink-0 rounded-[2px] bg-danger-bg px-2 py-0.5 text-xs font-bold text-danger">필독</span>
             )}
             <span className="truncate font-semibold">{notice.title}</span>
           </span>

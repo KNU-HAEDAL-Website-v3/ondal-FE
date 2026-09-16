@@ -170,7 +170,7 @@ function ProblemRow({ problem }: { problem: ProblemSummary }) {
       </td>
       <td className="px-4 py-3 text-center">
         {problem.solved ? (
-          <span className="inline-flex items-center gap-1 rounded-[2px] bg-[#dcfce7] px-2 py-0.5 text-xs font-bold text-[#16a34a]">
+          <span className="inline-flex items-center gap-1 rounded-[2px] bg-success-bg px-2 py-0.5 text-xs font-bold text-success">
             <Check className="size-3" />
             해결
           </span>

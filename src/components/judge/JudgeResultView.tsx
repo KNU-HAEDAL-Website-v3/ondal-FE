@@ -122,7 +122,7 @@ function IoBlock({ label, value, highlight }: { label: string; value: string; hi
       <pre
         className={cn(
           'mt-0.5 max-h-40 min-h-8 overflow-auto rounded-[2px] border bg-muted/40 p-2 font-mono text-xs leading-5 whitespace-pre-wrap',
-          highlight && 'border-[#fca5a5] bg-[#fef2f2]',
+          highlight && 'border-danger-border bg-danger-soft',
         )}
       >
         {value === '' ? <span className="text-muted-foreground">(없음)</span> : value}

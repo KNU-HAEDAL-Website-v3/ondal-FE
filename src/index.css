@@ -45,6 +45,23 @@
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
+    /* 상태색 - 화면에서 hex 를 직접 쓰지 말고 이 토큰을 쓴다 (2026-09-16 통일) */
+    --color-success: var(--success);
+    --color-success-bg: var(--success-bg);
+    --color-success-soft: var(--success-soft);
+    --color-warning: var(--warning);
+    --color-warning-bg: var(--warning-bg);
+    --color-warning-soft: var(--warning-soft);
+    --color-caution: var(--caution);
+    --color-caution-bg: var(--caution-bg);
+    --color-danger: var(--danger);
+    --color-danger-bg: var(--danger-bg);
+    --color-danger-soft: var(--danger-soft);
+    --color-danger-border: var(--danger-border);
+    --color-info: var(--info);
+    --color-info-bg: var(--info-bg);
+    --color-neutral: var(--neutral);
+    --color-neutral-bg: var(--neutral-bg);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -88,6 +105,31 @@
     --sidebar-accent-foreground: #dad7ff;
     --sidebar-border: #c7c4d8;
     --sidebar-ring: #4f46e5;
+
+    /*
+     * 상태색 - 의미 하나에 값 하나 (2026-09-16 통일, docs/audit-2026-09-16.md).
+     * 그 전에는 같은 "지각" 배지가 화면마다 #854d0e / #b45309 로 갈리고, 위험 텍스트가 #ba1a1a / #dc2626 로 공존했다.
+     *
+     * ※ warning(노랑)과 caution(주황)은 **일부러 나눠 둔다** - 합치면 설계 문서 두 곳과 어긋난다
+     *   - 출석 지각 = 노랑 (attendance/fe.md 2절: 출석 초록 / 지각 노랑 / 결석 빨강 / 미확인 회색)
+     *   - 제출 지각·시간/메모리 초과 = 주황 (submission/fe.md 2절: 제출 초록 / 지각 주황 / 미제출 회색)
+     */
+    --success: #16a34a;
+    --success-bg: #dcfce7;
+    --success-soft: #f0fdf4;
+    --warning: #854d0e;        /* 노랑 계열 글자 - 출석 지각·주의 */
+    --warning-bg: #fef08a;
+    --warning-soft: #fefce8;
+    --caution: #ea580c;        /* 주황 계열 글자 - 제출 지각·시간/메모리 초과 */
+    --caution-bg: #ffedd5;
+    --danger: #ba1a1a;         /* = --destructive. 결석·오답·런타임 에러·삭제 경고 */
+    --danger-bg: #ffdad6;
+    --danger-soft: #fef2f2;
+    --danger-border: #fca5a5;
+    --info: #0369a1;           /* 운영진 코멘트 */
+    --info-bg: #e0f2fe;
+    --neutral: #5d5e66;        /* = --muted-foreground. 미확인·중립 표면 */
+    --neutral-bg: #e3e1ec;
 }
 
 .dark {

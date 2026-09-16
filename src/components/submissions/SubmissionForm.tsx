@@ -238,7 +238,7 @@ export function SubmissionForm({
 
         {mutation.error && <p className="text-sm text-destructive">{(mutation.error as Error).message}</p>}
         {mutation.isSuccess && !mutation.isPending && (
-          <p className="text-sm font-semibold text-[#16a34a]">
+          <p className="text-sm font-semibold text-success">
             {judgeEnabled && tab === 'CODE' ? '제출 완료! 채점 중이에요 - 아래 기록에서 결과를 확인하세요.' : '제출 완료! 아래 기록에서 확인하세요.'}
           </p>
         )}

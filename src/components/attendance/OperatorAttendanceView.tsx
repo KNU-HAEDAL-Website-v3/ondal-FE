@@ -384,9 +384,9 @@ function Roster({
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <AttendanceStatCard label="전체 수강생" value={String(rows.length)} unit="명" labelClassName="text-muted-foreground" />
-        <AttendanceStatCard label="출석" value={String(summary.present)} icon={CircleCheckBig} className="border-[#dcfce7] bg-[#f0fdf4] text-[#16a34a]" />
-        <AttendanceStatCard label="지각" value={String(summary.late)} icon={Clock} className="border-[#fef08a] bg-[#fefce8] text-[#b45309]" />
-        <AttendanceStatCard label="결석" value={String(summary.absent)} icon={CircleX} className="border-[#fecaca] bg-[#fef2f2] text-[#ba1a1a]" />
+        <AttendanceStatCard label="출석" value={String(summary.present)} icon={CircleCheckBig} className="border-success-bg bg-success-soft text-success" />
+        <AttendanceStatCard label="지각" value={String(summary.late)} icon={Clock} className="border-warning-bg bg-warning-soft text-warning" />
+        <AttendanceStatCard label="결석" value={String(summary.absent)} icon={CircleX} className="border-danger-border bg-danger-soft text-danger" />
         <AttendanceStatCard
           label="이 차시 출석률"
           value={summary.rate === null ? '-' : `${summary.rate}%`}
@@ -565,7 +565,7 @@ function RosterRow({
     <tr className="border-b last:border-0">
       <td className="px-4 py-3">
         <span className="flex items-center gap-2.5">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#e3e1ec] text-[11px] font-semibold text-[#5d5e66]">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-neutral-bg text-[11px] font-semibold text-neutral">
             {row.user.name.charAt(0)}
           </span>
           <span className="font-medium">{row.user.name}</span>
@@ -583,10 +583,10 @@ function RosterRow({
             aria-label={`${row.user.name} 출석 상태`}
             className={cn(
               'h-7 rounded-[2px] border px-2 text-xs font-bold',
-              row.status === 'PRESENT' && 'bg-[#dcfce7] text-[#16a34a]',
-              row.status === 'LATE' && 'bg-[#fef08a] text-[#854d0e]',
-              row.status === 'ABSENT' && 'bg-[#ffdad6] text-[#ba1a1a]',
-              row.status === null && 'bg-[#e3e1ec] text-[#5d5e66]',
+              row.status === 'PRESENT' && 'bg-success-bg text-success',
+              row.status === 'LATE' && 'bg-warning-bg text-warning',
+              row.status === 'ABSENT' && 'bg-danger-bg text-danger',
+              row.status === null && 'bg-neutral-bg text-neutral',
             )}
           >
             <option value="">미확인</option>
@@ -604,9 +604,10 @@ function RosterRow({
           <span className={cn('font-mono text-xs font-semibold', rate !== null && rate < 70 && 'text-destructive')}>
             {rate === null ? '-' : `${rate}%`}
           </span>
-          <span className="h-1.5 w-24 overflow-hidden rounded-full bg-[#e3e1ec]">
+          <span className="h-1.5 w-24 overflow-hidden rounded-full bg-neutral-bg">
             <span
-              className={cn('block h-full rounded-full', rate === null ? 'bg-transparent' : rate < 70 ? 'bg-[#ba1a1a]' : rate < 90 ? 'bg-[#d97706]' : 'bg-[#4f46e5]')}
+              // 막대 채움이라 글자용 warning(#854d0e)을 쓰면 탁해진다 - 채움 두께에 맞는 caution(주황)을 쓴다
+              className={cn('block h-full rounded-full', rate === null ? 'bg-transparent' : rate < 70 ? 'bg-danger' : rate < 90 ? 'bg-caution' : 'bg-[#4f46e5]')}
               style={{ width: `${rate ?? 0}%` }}
             />
           </span>

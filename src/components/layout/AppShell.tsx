@@ -219,7 +219,7 @@ export function AppShell() {
             </Link>
             {/* 누구로 로그인했는지 - 역할을 바꿔 가며 테스트할 때 헷갈리지 않도록 이름을 그대로 보여 준다 */}
             <span className="ml-1 flex items-center gap-2" title={me?.globalRole === 'ADMIN' ? '해구르르(관리자)' : '부원'}>
-              <span className="flex size-8 items-center justify-center rounded-xl border bg-[#e3e1ec] text-xs font-semibold text-foreground">
+              <span className="flex size-8 items-center justify-center rounded-xl border bg-neutral-bg text-xs font-semibold text-foreground">
                 {me?.name?.charAt(0) ?? '?'}
               </span>
               <span className="text-sm font-medium">{me?.name}</span>
