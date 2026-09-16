@@ -32,6 +32,7 @@ concurrency:
 
 env:
   PROJECT_NAME: haedal-online-judge-fe   # Pages 프로젝트명 = URL 서브도메인 (소문자만 허용)
+  HOJ_PROJECT_NAME: haedal-hoj-fe        # HOJ 앱용 별도 Pages 프로젝트 - 커스텀 도메인 hoj.… 를 여기에 붙인다
 
 jobs:
   deploy:
@@ -103,3 +104,39 @@ jobs:
           # 봇 코멘트가 이미 있으면 수정, 없으면 새로 작성 (PR당 코멘트 1개 유지)
           gh pr comment "$PR_NUMBER" --body "$body" --edit-last \
             || gh pr comment "$PR_NUMBER" --body "$body"
+
+  # HOJ(문제 은행) 배포 - 같은 레포에서 VITE_APP=hoj 로 빌드한 별도 앱 (docs 결정 8)
+  #
+  # 왜 Actions 로 하는가:
+  #   Cloudflare 대시보드의 Git 연동(Workers Builds)은 org 에 GitHub App 설치가 필요하고, 그건 org owner 만 할 수 있다
+  #   ("This action must be performed by an organization owner"). 위 Ondal 잡과 같은 이유로 여기서도 wrangler 로 직접 민다.
+  #   org owner 승인을 받으면 Workers Builds 로 옮겨도 된다 - 그때 이 잡을 지우면 됨
+  #
+  # 커스텀 도메인(hoj.haedal-sos-man-in-the-mirror.com)은 Pages 프로젝트에 한 번만 붙이면 된다(대시보드, owner 권한 불필요)
+  deploy-hoj:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # .env.hoj 를 읽는다 (VITE_APP=hoj + Ondal 과 같은 BE) → dist-hoj/
+      - run: npm run build:hoj
+
+      - name: Deploy HOJ to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          preCommands: |
+            wrangler pages project list | grep -q "${{ env.HOJ_PROJECT_NAME }}" || npx wrangler pages project create "${{ env.HOJ_PROJECT_NAME }}" --production-branch main
+          command: >-
+            pages deploy dist-hoj
+            --project-name=${{ env.HOJ_PROJECT_NAME }}
+            --branch=main
+            --commit-hash=${{ github.sha }}
+            --commit-dirty=true
