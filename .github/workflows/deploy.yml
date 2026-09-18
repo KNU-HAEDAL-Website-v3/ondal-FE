@@ -1,14 +1,16 @@
-# Cloudflare Pages 배포 (Direct Upload 방식)
+# Cloudflare Pages 배포 (Direct Upload 방식) - Ondal 과 HOJ 두 앱 모두 이 워크플로가 올린다
 #
 # 왜 이 방식인가:
-#   Cloudflare가 레포를 읽어가는 Git 연동은 org에 GitHub App 설치(owner 승인)가 필요하다.
+#   Cloudflare가 레포를 읽어가는 Git 연동(Workers Builds)은 org에 GitHub App 설치(owner 승인)가 필요하다.
 #   대신 이 워크플로가 빌드해서 wrangler로 Cloudflare에 밀어 넣으면 레포 시크릿 2개만으로 동작한다.
+#   Ondal 은 원래 Worker `ondal-fe`(Workers Builds)가 서빙했지만 2026-09-16 에 Git 연결이 끊겨 빌드가 전부 실패하게 됐고
+#   (org owner 없이는 다시 연결할 수 없음), 2026-09-18 부터 HOJ 와 같은 방식으로 Pages 프로젝트 `haedal-ondal-fe` 에 올린다.
 #
 # 동작:
-#   - main push          → https://haedal-online-judge-fe.pages.dev - 실 BE(ondal-api) + 홈페이지(Keycloak) 로그인 빌드(.env.production).
-#                          ※ 사용자 진입 주소(https://ondal.haedal-sos-man-in-the-mirror.com)는 이 워크플로가 아니라 Cloudflare Worker `ondal-fe`
-#                            (Git 연동 Workers Builds - main push 마다 `npm run build` 후 정적 자산 배포)가 서빙한다. README "배포" 절
-#   - PR(같은 레포 브랜치) → 미리보기 https://<브랜치명>.haedal-online-judge-fe.pages.dev + PR 코멘트 - mock(MSW) 빌드
+#   - main push          → Ondal: https://haedal-ondal-fe.pages.dev (실 BE(ondal-api) + 홈페이지(Keycloak) 로그인 빌드, .env.production)
+#                          HOJ:   https://haedal-hoj-fe.pages.dev   (deploy-hoj 잡, .env.hoj)
+#                          사용자 진입 주소는 Pages 프로젝트에 붙인 커스텀 도메인 - ondal.haedal-sos-man-in-the-mirror.com / oj.… (README "배포" 절)
+#   - PR(같은 레포 브랜치) → 미리보기 https://<브랜치명>.haedal-ondal-fe.pages.dev + PR 코멘트 - mock(MSW) 빌드
 #
 # 필요한 레포 시크릿: CLOUDFLARE_API_TOKEN (Account · Cloudflare Pages · Edit), CLOUDFLARE_ACCOUNT_ID
 
@@ -31,7 +33,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PROJECT_NAME: haedal-online-judge-fe   # Pages 프로젝트명 = URL 서브도메인 (소문자만 허용)
+  PROJECT_NAME: haedal-ondal-fe        # Ondal 앱 Pages 프로젝트명 = pages.dev 서브도메인 (소문자만). 예전 haedal-online-judge-fe 는 2026-09-16 부터 계정 토큰에게 보이지 않아 교체
   HOJ_PROJECT_NAME: haedal-hoj-fe        # HOJ 앱용 별도 Pages 프로젝트 - 커스텀 도메인 oj.… 를 여기에 붙인다
 
 jobs:
@@ -59,7 +61,7 @@ jobs:
         env:
           VITE_API_MOCK: 'true'
           VITE_API_BASE_URL: ''
-      # main(프로덕션): 값은 .env.production (실 BE ondal-api + 홈페이지 로그인 oidc) - Workers Builds(ondal-fe)와 같은 단일 출처
+      # main(프로덕션): 값은 .env.production (실 BE ondal-api + 홈페이지 로그인 oidc)
       - if: github.event_name == 'push'
         run: npm run build
 
