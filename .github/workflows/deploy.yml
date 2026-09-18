@@ -32,6 +32,7 @@ concurrency:
 
 env:
   PROJECT_NAME: haedal-online-judge-fe   # Pages 프로젝트명 = URL 서브도메인 (소문자만 허용)
+  HOJ_PROJECT_NAME: haedal-hoj-fe        # HOJ 앱용 별도 Pages 프로젝트 - 커스텀 도메인 oj.… 를 여기에 붙인다
 
 jobs:
   deploy:
@@ -113,7 +114,13 @@ jobs:
   #   ("This action must be performed by an organization owner"). 위 Ondal 잡과 같은 이유로 여기서도 wrangler 로 직접 민다.
   #   org owner 승인을 받으면 Workers Builds 로 옮겨도 된다 - 그때 이 잡을 지우면 됨
   #
-  # 커스텀 도메인(hoj.haedal-sos-man-in-the-mirror.com)은 Pages 프로젝트에 한 번만 붙이면 된다(대시보드, owner 권한 불필요)
+  # 왜 Pages 인가 (Worker 가 아니라):
+  #   2026-09-16 #61 의 첫 실행이 Pages 프로젝트 haedal-hoj-fe 를 만들고 배포까지 성공했다 (https://haedal-hoj-fe.pages.dev).
+  #   #62 는 "Pages 프로젝트 생성이 막혔다"고 보고 Worker 로 바꿨지만 오판이었다 - 막힌 것은 위 Ondal 잡의 프로젝트 하나뿐이고,
+  #   Worker 배포는 레포 토큰에 Workers 권한이 없어 매번 실패했다. 그래서 Pages 로 되돌렸다.
+  #
+  # 커스텀 도메인(oj.haedal-sos-man-in-the-mirror.com)은 Pages 프로젝트에 한 번만 붙이면 된다 (대시보드, owner 권한 불필요).
+  # SPA 폴백은 Pages 기본 동작(404.html 이 없으면 모든 경로를 index.html 로) - 별도 _redirects 파일이 필요 없다
   deploy-hoj:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -127,11 +134,18 @@ jobs:
       # .env.hoj 를 읽는다 (VITE_APP=hoj + Ondal 과 같은 BE) → dist-hoj/
       - run: npm run build:hoj
 
-      # Pages 가 아니라 Worker 로 올린다 - `wrangler pages project create` 가 먹지 않아 Pages 경로는 막혔다
-      # (기존 Ondal Pages 잡도 같은 이유로 "project does not exist" 실패 중). 설정은 wrangler.hoj.jsonc
-      - name: Deploy HOJ Worker
+      - name: Deploy HOJ to Cloudflare Pages
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --config wrangler.hoj.jsonc
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          # 프로젝트가 없으면 생성 - --yes 가 필요한 이유는 위 Ondal 잡의 주석 참고
+          preCommands: |
+            npx --yes wrangler pages project list | grep -q "${{ env.HOJ_PROJECT_NAME }}" || npx --yes wrangler pages project create "${{ env.HOJ_PROJECT_NAME }}" --production-branch main
+          command: >-
+            pages deploy dist-hoj
+            --project-name=${{ env.HOJ_PROJECT_NAME }}
+            --branch=main
+            --commit-hash=${{ github.sha }}
+            --commit-dirty=true
