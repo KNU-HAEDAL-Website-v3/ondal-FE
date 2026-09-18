@@ -3,13 +3,14 @@
 # 왜 이 방식인가:
 #   Cloudflare가 레포를 읽어가는 Git 연동(Workers Builds)은 org에 GitHub App 설치(owner 승인)가 필요하다.
 #   대신 이 워크플로가 빌드해서 wrangler로 Cloudflare에 밀어 넣으면 레포 시크릿 2개만으로 동작한다.
-#   Ondal 은 원래 Worker `ondal-fe`(Workers Builds)가 서빙했지만 2026-09-16 에 Git 연결이 끊겨 빌드가 전부 실패하게 됐고
-#   (org owner 없이는 다시 연결할 수 없음), 2026-09-18 부터 HOJ 와 같은 방식으로 Pages 프로젝트 `haedal-ondal-fe` 에 올린다.
+#   Ondal 의 사용자 진입 주소(ondal.…)는 Worker `ondal-fe`(대시보드 Git 연동 Workers Builds)가 서빙한다. 2026-09-16~18 에 그 연결이
+#   끊겼던 동안 예비로 이 워크플로가 Pages `haedal-ondal-fe` 에도 같은 빌드를 올리게 했고, 복구 뒤에도 예비 경로로 둔다
+#   (Worker 가 또 끊기면 대시보드에서 커스텀 도메인 ondal.… 만 Pages 로 옮기면 됨 - 코드 변경 없음).
 #
 # 동작:
-#   - main push          → Ondal: https://haedal-ondal-fe.pages.dev (실 BE(ondal-api) + 홈페이지(Keycloak) 로그인 빌드, .env.production)
+#   - main push          → Ondal: https://haedal-ondal-fe.pages.dev (예비 사본 - 실 BE(ondal-api) + 홈페이지(Keycloak) 로그인 빌드, .env.production)
 #                          HOJ:   https://haedal-hoj-fe.pages.dev   (deploy-hoj 잡, .env.hoj)
-#                          사용자 진입 주소는 Pages 프로젝트에 붙인 커스텀 도메인 - ondal.haedal-sos-man-in-the-mirror.com / oj.… (README "배포" 절)
+#                          사용자 진입 주소: ondal.haedal-sos-man-in-the-mirror.com 은 Worker `ondal-fe`, oj.… 는 Pages `haedal-hoj-fe` 의 커스텀 도메인 (README "배포" 절)
 #   - PR(같은 레포 브랜치) → 미리보기 https://<브랜치명>.haedal-ondal-fe.pages.dev + PR 코멘트 - mock(MSW) 빌드
 #
 # 필요한 레포 시크릿: CLOUDFLARE_API_TOKEN (Account · Cloudflare Pages · Edit), CLOUDFLARE_ACCOUNT_ID
