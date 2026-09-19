@@ -541,7 +541,7 @@ export interface RejudgeResponse {
   queued: number
 }
 
-// ---- 문제 번들 가져오기 (관리자) - 문제 은행 레포 ondal-problems 의 빌드 산출물 ----------------------
+// ---- 문제 번들 가져오기 (관리자) - HOJ 레포 ondal-problems 의 빌드 산출물 ----------------------
 
 /** 번들의 문제 한 건 - 번호가 키. 서버 ProblemImportRequest.ImportProblem 미러 */
 export interface ProblemImportItem {

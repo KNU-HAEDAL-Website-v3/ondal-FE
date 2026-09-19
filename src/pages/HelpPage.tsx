@@ -35,7 +35,7 @@ export default function HelpPage() {
           공개 케이스는 행을 펼쳐 입력 · 기대 출력 · 실제 출력을 나란히 볼 수 있어요. 점수는 없어요.
         </li>
         <li>
-          사이드바 맨 아래 "HOJ로 이동하기" 는 문제 은행이에요. 과제와 별개로 문제를 골라 풀어 보고, 태그로 찾을 수 있어요.
+          사이드바 맨 아래 "HOJ로 이동하기" 는 해달 온라인 저지(HOJ)예요. 과제와 별개로 문제를 골라 풀어 보고, 태그로 찾을 수 있어요.
         </li>
         <li>
           <Link to="/attendance" className="font-semibold text-primary hover:underline">출석</Link>은 운영진이 표시하고, 나는 내 기록과 출석률만 봐요.

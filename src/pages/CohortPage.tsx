@@ -32,9 +32,9 @@ export default function CohortPage() {
   return (
     <div className="space-y-6">
       <Button variant="ghost" size="sm" asChild>
-        <Link to="/">
+        <Link to="/cohorts">
           <ArrowLeft data-icon="inline-start" />
-          홈으로
+          내 수업으로
         </Link>
       </Button>
 
@@ -64,7 +64,7 @@ export default function CohortPage() {
         </p>
       </header>
 
-      <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-6">
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-6">
         <div>
           <h2 className="text-lg font-bold tracking-tight">과제</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -76,7 +76,7 @@ export default function CohortPage() {
         </Button>
       </section>
 
-      <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-6">
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-6">
         <div>
           <h2 className="text-lg font-bold tracking-tight">Q&A</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -89,7 +89,7 @@ export default function CohortPage() {
       </section>
 
       {canSeeRoster && (
-        <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-6">
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-6">
           <div>
             <h2 className="text-lg font-bold tracking-tight">명부 · 수강생 배정</h2>
             <p className="mt-1 text-sm text-muted-foreground">

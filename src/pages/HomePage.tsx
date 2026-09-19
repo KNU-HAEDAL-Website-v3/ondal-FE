@@ -5,6 +5,7 @@ import { useMyCohorts } from '@/api/cohorts'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ApiErrorView } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { AdminOverview } from '@/components/dashboard/AdminOverview'
 import { OperatorDashboard } from '@/components/dashboard/OperatorDashboard'
 import { isAdminRole } from '@/lib/roles'
 import { StudentDashboard } from '@/components/dashboard/StudentDashboard'
@@ -23,7 +24,8 @@ export default function HomePage() {
   if (isPending) return <LoadingScreen label="대시보드 불러오는 중..." />
   if (error) return <ApiErrorView error={error} onRetry={() => void refetch()} />
 
-  const isOperator = isAdminRole(me?.globalRole) || cohorts.some((c) => c.canManage)
+  const isAdmin = isAdminRole(me?.globalRole)
+  const isOperator = isAdmin || cohorts.some((c) => c.canManage)
 
   return (
     <div className="space-y-6">
@@ -33,6 +35,8 @@ export default function HomePage() {
           <AlertDescription>{notice}</AlertDescription>
         </Alert>
       )}
+      {/* 관리자(해구르르·관리자)는 원안 "관리자 개요" 절이 먼저, 그 아래 분반 운영 대시보드 */}
+      {isAdmin && <AdminOverview />}
       {isOperator ? <OperatorDashboard cohorts={cohorts} /> : <StudentDashboard cohorts={cohorts} />}
     </div>
   )

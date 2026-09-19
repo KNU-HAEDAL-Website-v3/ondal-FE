@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import {
   BookOpen,
+  ChevronRight,
   CircleHelp,
   Code,
   FileText,
@@ -12,11 +13,13 @@ import {
   Menu,
   MessagesSquare,
   Settings2,
+  SquarePen,
   UserCheck,
   Users,
 } from 'lucide-react'
 import { useLogout, useMe } from '@/api/auth'
 import { useMyCohorts } from '@/api/cohorts'
+import { Button } from '@/components/ui/button'
 import { SiteFooter } from '@/components/SiteFooter'
 import { isAdminRole, globalRoleLabel } from '@/lib/roles'
 import { AppSwitchButton } from '@/components/AppSwitchButton'
@@ -30,23 +33,32 @@ import { cn } from '@/lib/utils'
 /** Q&A 본체 경로 - /cohorts/:id/questions[/...]. 분반 스코프라 "내 수업"(/cohorts) 과 접두사가 겹친다 */
 const COHORT_QUESTIONS = /^\/cohorts\/[^/]+\/questions(\/|$)/
 
+// 순서는 원안(ui-v1 사이드바: 홈 → 내 강의 → 과제 → 공지사항 → 출석 → 수강생 관리 → 시스템 관리)을 따른다 (2026-09-20 전수 조사).
+// 원안에 없는 Q&A 는 출석 뒤, 관리 메뉴는 맨 아래
 const NAV_ITEMS = [
   { to: '/', label: '홈', icon: LayoutGrid, end: true },
-  { to: '/attendance', label: '출석', icon: UserCheck },
-  { to: '/assignments', label: '과제', icon: FileText },
   // Q&A 를 보는 중에는 "내 수업"이 켜지면 안 된다 - 경로는 /cohorts 로 시작하지만 다른 메뉴다
   { to: '/cohorts', label: '내 수업', icon: BookOpen, inactiveWhen: COHORT_QUESTIONS },
+  { to: '/assignments', label: '과제', icon: FileText },
+  { to: '/notices', label: '공지사항', icon: Megaphone },
+  { to: '/attendance', label: '출석', icon: UserCheck },
   // Q&A 는 분반 스코프(/cohorts/:id/questions)라 분반 페이지 안에만 있었는데, 그 링크 하나가 유일한 통로여서
   // "Q&A 게시판이 없다"는 피드백이 나왔다 (2026-09-15) - 출결과 같은 "분반 먼저 고르기" 진입 화면을 둔다.
   // 분반이 하나면 /questions 가 곧바로 /cohorts/{id}/questions 로 넘어가므로 그 경로도 이 메뉴로 친다
   { to: '/questions', label: 'Q&A', icon: MessagesSquare, activeWhen: COHORT_QUESTIONS },
-  { to: '/notices', label: '공지사항', icon: Megaphone },
   // 운영진 이상(해구르르 또는 어느 분반이든 교육운영진) - 승인 대기 승인·부원 전체 (docs 결정 10). 라우트는 RequireOperator 가 지킨다
   { to: '/members', label: '부원 관리', icon: Users, operatorOnly: true },
   // 관리자 전용 - 분반 생성·보관·운영진 지정 (UC-A1). 비관리자에게는 숨기고, 라우트는 RequireAdmin 이 지킨다
   { to: '/admin/cohorts', label: '분반 관리', icon: Settings2, adminOnly: true },
   // 태그 관리는 문제의 것이라 HOJ 모드 메뉴(HojShell)에 있다 - 여기 없다
 ] as const
+
+/** 메뉴에 없는 화면의 상단 바 이름 (앞에서부터 첫 일치) */
+const EXTRA_LABELS: [RegExp, string][] = [
+  [/^\/help/, '도움말'],
+  [/^\/me$/, '마이페이지'],
+  [/^\/cohorts\/[^/]+\/members/, '명부 · 배정'],
+]
 
 interface NavMatch {
   to: string
@@ -105,6 +117,10 @@ export function AppShell() {
   useEffect(() => {
     rememberPath('ondal', `${pathname}${search}`)
   }, [pathname, search])
+
+  // 상단 바 경로 표시용 현재 메뉴 이름 - 메뉴에 없는 화면은 여기서 이름을 준다
+  const currentLabel =
+    EXTRA_LABELS.find(([pattern]) => pattern.test(pathname))?.[1] ?? NAV_ITEMS.find((item) => isNavActive(item, pathname))?.label ?? null
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -165,8 +181,17 @@ export function AppShell() {
         </nav>
 
         <div className="flex flex-col gap-1 border-t pt-4">
+          {/* 원안 사이드바의 "+ 새 공지 작성" - 운영진 이상에게만 (공지 목록의 canWrite 와 같은 조건) */}
+          {isOperator && (
+            <Button size="sm" className="mb-1 w-full" asChild>
+              <Link to="/notices/new">
+                <SquarePen data-icon="inline-start" />
+                새 공지 작성
+              </Link>
+            </Button>
+          )}
           {/*
-            HOJ(문제 은행)는 같은 앱 안의 다른 모드 - 메뉴가 통째로 바뀌므로 확인을 받고 넘어간다 (2026-09-19 PM, lib/appSwitch).
+            HOJ는 같은 앱 안의 다른 모드 - 메뉴가 통째로 바뀌므로 확인을 받고 넘어간다 (2026-09-19 PM, lib/appSwitch).
             부트캠프 운영(분반·과제·출석)과 결이 달라 아래쪽에 따로 둔다 (2026-09-15 PM 지정 위치)
           */}
           <AppSwitchButton to="hoj" className={cn(navItemClass(false), 'w-full')}>
@@ -205,6 +230,14 @@ export function AppShell() {
           >
             <Menu className="size-5" />
           </button>
+          {/* 원안 상단 바의 경로 표시("Haedal Online Judge > 교육운영진 대시보드") - 현재 메뉴 이름만, md 이상 */}
+          {currentLabel && (
+            <span className="hidden items-center gap-1 text-sm text-muted-foreground md:flex" aria-label="현재 위치">
+              <span className="font-semibold text-primary">Ondal</span>
+              <ChevronRight className="size-3.5" aria-hidden />
+              <span>{currentLabel}</span>
+            </span>
+          )}
           <div className="ml-auto flex items-center gap-2">
             <Link
               to="/help"

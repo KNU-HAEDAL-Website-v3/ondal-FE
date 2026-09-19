@@ -36,6 +36,18 @@ export function ddayLabel(dueAtIso: string, now: Date = new Date()): string {
   return '마감'
 }
 
+/** 마감까지 남은 시간 "6일 23시간" / "3시간" / "40분" - 원안(교육운영진 과제 현황)의 "마감까지 2일 4시간". 지났으면 null */
+export function remainingLabel(dueAtIso: string, now: Date = new Date()): string | null {
+  const ms = Date.parse(dueAtIso) - now.getTime()
+  if (ms <= 0) return null
+  const minutes = Math.floor(ms / 60_000)
+  const days = Math.floor(minutes / 1_440)
+  const hours = Math.floor((minutes % 1_440) / 60)
+  if (days > 0) return `${days}일 ${hours}시간`
+  if (hours > 0) return `${hours}시간`
+  return `${Math.max(1, minutes)}분`
+}
+
 /** 마감 시각(분 단위)이 지났는지 - 카드 강조 표시용 */
 export function isOverdue(dueAtIso: string, now: Date = new Date()): boolean {
   return Date.parse(dueAtIso) < now.getTime()

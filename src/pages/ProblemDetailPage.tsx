@@ -13,6 +13,7 @@ import type { SubmissionSummary } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { CodeEditor, CodeViewer } from '@/components/code/CodePane'
+import { FullscreenPane } from '@/components/code/FullscreenPane'
 import { JudgeResultView } from '@/components/judge/JudgeResultView'
 import { JudgeSamplesSection } from '@/components/judge/JudgeSamplesSection'
 import { VerdictBadge } from '@/components/judge/VerdictBadge'
@@ -55,6 +56,7 @@ export default function ProblemDetailPage() {
   const [codeText, setCodeText] = useState(saved?.codeText ?? '')
   const [language, setLanguage] = useState(saved?.language ?? '')
   const [openId, setOpenId] = useState<number | null>(null)
+  const [fullscreen, setFullscreen] = useState(false)
 
   useEffect(() => {
     // 코드가 비어 있으면 저장할 게 없다 - 언어만 남기면 제출 성공 뒤에도 임시 저장본이 되살아난다
@@ -90,6 +92,100 @@ export default function ProblemDetailPage() {
     if (!window.confirm(`#${problem.problemNo} ${problem.title} 문제를 삭제할까요? 되돌릴 수 없어요.`)) return
     deleteMutation.mutate(problem.id, { onSuccess: () => navigate('/problems', { replace: true }) })
   }
+
+  const handleReset = () => {
+    if (codeText === '' || window.confirm('작성한 코드를 모두 지울까요? 임시 저장본도 함께 지워져요.')) setCodeText('')
+  }
+
+  // 원안(수강자 코드 과제 상세): 좌 문제 / 우 편집기. 채점 기준이 없는 문제는 편집기가 없으므로 위아래로
+  const split = problem.judgeEnabled
+
+  const statement = (
+    <section aria-label="문제 본문" className="rounded-lg border bg-card p-4">
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+        <span className="font-semibold text-muted-foreground">난이도</span>
+        <DifficultyBadge value={problem.difficulty} />
+        {problem.allowedLanguages.length > 0 && (
+          <span className="rounded-md bg-info-bg px-1.5 py-0.5 font-semibold text-info">{problem.allowedLanguages.join(' · ')} 전용 문제</span>
+        )}
+      </div>
+      {problem.description ? (
+        <MarkdownView source={problem.description} />
+      ) : (
+        <p className="text-sm text-muted-foreground">문제 본문이 아직 없어요.</p>
+      )}
+    </section>
+  )
+
+  const languageSelect = (
+    <select
+      value={language}
+      onChange={(e) => setLanguage(e.target.value)}
+      aria-label="제출 언어"
+      className="h-8 rounded-lg border bg-card px-2 text-sm"
+    >
+      <option value="">언어 선택 (필수)</option>
+      {selectableLanguages(problem.allowedLanguages).map((lang) => (
+        <option key={lang} value={lang}>
+          {lang}
+        </option>
+      ))}
+    </select>
+  )
+
+  const editor = (
+    <CodeEditor
+      value={codeText}
+      onChange={setCodeText}
+      language={language === '' ? null : language}
+      height={fullscreen ? 'calc(100svh - 11rem)' : split ? 'clamp(320px, 52svh, 640px)' : undefined}
+      onReset={handleReset}
+      fullscreen={fullscreen}
+      onToggleFullscreen={() => setFullscreen((v) => !v)}
+    />
+  )
+
+  const actionRow = (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="text-xs text-muted-foreground">
+        연습 제출이에요 - 분반 과제와 따로 기록되고, 마감·지각은 없어요. 여러 번 내도 괜찮아요.
+      </p>
+      <Button onClick={handleSubmit} disabled={!canSubmit}>
+        <Send data-icon="inline-start" />
+        {submitMutation.isPending ? '제출 중...' : '제출하기'}
+      </Button>
+    </div>
+  )
+
+  const submitPanel = (
+    <section aria-label="풀이 제출" className="space-y-3 rounded-lg border bg-card p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-base font-bold">풀이 제출</h2>
+        {languageSelect}
+      </div>
+      {problem.allowedLanguages.length > 0 && (
+        <p className="text-xs text-muted-foreground">이 문제는 {problem.allowedLanguages.join(', ')} 로만 제출할 수 있어요.</p>
+      )}
+
+      {problem.judgeEnabled ? (
+        <>
+          {!fullscreen && editor}
+          <FullscreenPane open={fullscreen} title={`#${problem.problemNo} ${problem.title} - 전체 화면`} onClose={() => setFullscreen(false)}>
+            <div className="flex items-center justify-end">{languageSelect}</div>
+            {editor}
+            {actionRow}
+            {submitMutation.error && <p className="text-sm text-destructive">{(submitMutation.error as Error).message}</p>}
+          </FullscreenPane>
+          {!fullscreen && actionRow}
+          {submitMutation.error && !fullscreen && <p className="text-sm text-destructive">{(submitMutation.error as Error).message}</p>}
+        </>
+      ) : (
+        <p className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground">
+          아직 채점 기준(테스트케이스)이 없는 문제예요. 운영진이 등록하면 풀 수 있어요.
+        </p>
+      )}
+    </section>
+  )
 
   return (
     <div className="space-y-6">
@@ -149,64 +245,20 @@ export default function ProblemDetailPage() {
 
       {deleteMutation.error && <p className="text-sm text-destructive">{(deleteMutation.error as Error).message}</p>}
 
-      <section aria-label="문제 본문" className="rounded-lg border bg-card p-4">
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
-          <span className="font-semibold text-muted-foreground">난이도</span>
-          <DifficultyBadge value={problem.difficulty} />
-          {problem.allowedLanguages.length > 0 && (
-            <span className="rounded-md bg-info-bg px-1.5 py-0.5 font-semibold text-info">{problem.allowedLanguages.join(' · ')} 전용 문제</span>
-          )}
+      {split ? (
+        <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
+          <div className="space-y-4">
+            {statement}
+            <JudgeSamplesSection problemId={problem.id} />
+          </div>
+          <div className="xl:sticky xl:top-16">{submitPanel}</div>
         </div>
-        {problem.description ? (
-          <MarkdownView source={problem.description} />
-        ) : (
-          <p className="text-sm text-muted-foreground">문제 본문이 아직 없어요.</p>
-        )}
-      </section>
-
-      {problem.judgeEnabled && <JudgeSamplesSection problemId={problem.id} />}
-
-      <section aria-label="풀이 제출" className="space-y-3 rounded-lg border bg-card p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-base font-bold">풀이 제출</h2>
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            aria-label="제출 언어"
-            className="h-8 rounded-lg border bg-card px-2 text-sm"
-          >
-            <option value="">언어 선택 (필수)</option>
-            {selectableLanguages(problem.allowedLanguages).map((lang) => (
-              <option key={lang} value={lang}>
-                {lang}
-              </option>
-            ))}
-          </select>
-          {problem.allowedLanguages.length > 0 && (
-            <p className="basis-full text-xs text-muted-foreground">이 문제는 {problem.allowedLanguages.join(', ')} 로만 제출할 수 있어요.</p>
-          )}
-        </div>
-
-        {problem.judgeEnabled ? (
-          <>
-            <CodeEditor value={codeText} onChange={setCodeText} language={language === '' ? null : language} />
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground">
-                연습 제출이에요 - 분반 과제와 따로 기록되고, 마감·지각은 없어요. 여러 번 내도 괜찮아요.
-              </p>
-              <Button onClick={handleSubmit} disabled={!canSubmit}>
-                <Send data-icon="inline-start" />
-                {submitMutation.isPending ? '제출 중...' : '제출하기'}
-              </Button>
-            </div>
-            {submitMutation.error && <p className="text-sm text-destructive">{(submitMutation.error as Error).message}</p>}
-          </>
-        ) : (
-          <p className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground">
-            아직 채점 기준(테스트케이스)이 없는 문제예요. 운영진이 등록하면 풀 수 있어요.
-          </p>
-        )}
-      </section>
+      ) : (
+        <>
+          {statement}
+          {submitPanel}
+        </>
+      )}
 
       <section aria-label="내 제출 기록" className="overflow-hidden rounded-lg border bg-card">
         <div className="border-b bg-secondary px-4 py-3">
@@ -217,7 +269,7 @@ export default function ProblemDetailPage() {
         ) : mineQuery.error ? (
           <ApiErrorView error={mineQuery.error} onRetry={() => void mineQuery.refetch()} />
         ) : mineQuery.data.length === 0 ? (
-          <EmptyState title="아직 제출한 적이 없어요" description="위에서 코드를 작성해 제출해 보세요." />
+          <EmptyState compact title="아직 제출한 적이 없어요" description="위에서 코드를 작성해 제출해 보세요." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

@@ -8,7 +8,7 @@ import type { CohortResponse } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { StatCard } from '@/components/dashboard/StatCard'
 import { SubmissionStatusBadge } from '@/components/submissions/SubmissionStatusBadge'
-import { ddayLabel, formatKst, isOverdue } from '@/lib/datetime'
+import { ddayLabel, formatKst, formatKstDay, isOverdue } from '@/lib/datetime'
 
 /**
  * 수강자 홈 대시보드 (피그마 28:368) - 첫 ACTIVE 분반 기준 실데이터 요약.
@@ -108,7 +108,16 @@ export function StudentDashboard({ cohorts }: { cohorts: CohortResponse[] }) {
                     <span className="font-semibold">{a.title}</span>
                     {a.myStatus !== null && <SubmissionStatusBadge status={a.myStatus} />}
                     <span className="ml-auto flex items-center gap-2 font-mono text-xs text-muted-foreground">
-                      <span className="rounded-md bg-success-bg px-1.5 py-0.5 font-semibold text-success">{ddayLabel(a.dueAt)}</span>
+                      {/* 원안: 오늘·내일 마감은 붉게 - 그 밖은 초록 */}
+                      {(() => {
+                        const label = ddayLabel(a.dueAt)
+                        const urgent = label === 'D-DAY' || label === 'D-1'
+                        return (
+                          <span className={urgent ? 'rounded-md bg-danger-bg px-1.5 py-0.5 font-semibold text-danger' : 'rounded-md bg-success-bg px-1.5 py-0.5 font-semibold text-success'}>
+                            {label}
+                          </span>
+                        )
+                      })()}
                       {formatKst(a.dueAt)}
                     </span>
                   </Link>
@@ -140,7 +149,9 @@ export function StudentDashboard({ cohorts }: { cohorts: CohortResponse[] }) {
                         {n.pinned && <span className="rounded-md bg-danger-bg px-1.5 py-0.5 text-[11px] font-bold text-danger">필독</span>}
                         <span className="truncate font-semibold">{n.title}</span>
                       </span>
-                      <span className="mt-0.5 block text-xs text-muted-foreground">{n.cohort?.name ?? '전체 공지'} · {n.author.name}</span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        {n.cohort?.name ?? '전체 공지'} · {n.author.name} · <span className="font-mono">{formatKstDay(n.createdAt)}</span>
+                      </span>
                     </span>
                   </Link>
                 </li>
