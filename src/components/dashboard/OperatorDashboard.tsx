@@ -10,6 +10,7 @@ import { useSessions } from '@/api/sessions'
 import { useStatusBoard } from '@/api/submissions'
 import type { AssignmentResponse, CohortResponse } from '@/api/types'
 import { Button } from '@/components/ui/button'
+import { PendingApprovalBanner } from '@/components/dashboard/PendingApprovalBanner'
 import { StatCard } from '@/components/dashboard/StatCard'
 import { ApiErrorView, EmptyState } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
@@ -113,6 +114,7 @@ function CohortOverview({ cohort }: { cohort: CohortResponse }) {
 
   return (
     <div className="space-y-6">
+      <PendingApprovalBanner />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="전체 수강생" value={String(cohort.studentCount ?? 0)} unit="명" icon={Users} iconClassName="bg-secondary text-primary" />
         <StatCard

@@ -16,6 +16,7 @@ import CohortMembersPage from '@/pages/CohortMembersPage'
 import CohortPage from '@/pages/CohortPage'
 import HomePage from '@/pages/HomePage'
 import LoginPage from '@/pages/LoginPage'
+import MembersPage from '@/pages/MembersPage'
 import MyCohortsPage from '@/pages/MyCohortsPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 import NoticeDetailPage from '@/pages/NoticeDetailPage'
@@ -44,6 +45,7 @@ import QuestionsPage from '@/pages/QuestionsPage'
  *   /cohorts                   - 내 수업 (분반 목록)
  *   /cohorts/:cohortId         - 분반 페이지 (비소속은 서버 403 → 홈)
  *   /cohorts/:cohortId/members - 명부·수강생 배정 (운영진 이상·관리자, 학생은 서버 403 → 홈)
+ *   /members                   - 부원 관리 - 승인 대기 승인·전체 부원과 소속 (운영진 이상, RequireOperator. ?status=PENDING 대기 탭)
  *   /admin/cohorts             - [관리자] 분반 관리 - 목록·보관 (?status=ARCHIVED 보관함)
  *   /admin/cohorts/new         - [관리자] 분반 만들기 (+운영진 지정)
  *   /admin/cohorts/:cohortId/edit - [관리자] 분반 수정 (이름·설명)
@@ -85,6 +87,10 @@ export function AppRoutes() {
           <Route path="cohorts" element={<MyCohortsPage />} />
           <Route path="cohorts/:cohortId" element={<CohortPage />} />
           <Route path="cohorts/:cohortId/members" element={<CohortMembersPage />} />
+          {/* 부원 관리(승인)는 운영진 이상 - BE @OperatorAnywhere 와 같은 조건 (docs 결정 10) */}
+          <Route element={<RequireOperator />}>
+            <Route path="members" element={<MembersPage />} />
+          </Route>
           <Route element={<RequireAdmin />}>
             <Route path="admin/cohorts" element={<AdminCohortsPage />} />
             <Route path="admin/cohorts/new" element={<CohortFormPage />} />

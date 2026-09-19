@@ -11,12 +11,36 @@ export type CohortStatus = 'ACTIVE' | 'ARCHIVED'
  */
 export type RoleTitle = string
 
+/** 승인 상태 - PENDING(첫 홈페이지 로그인, 운영진 승인 대기 - 다른 API 는 403 USER_PENDING) / ACTIVE (docs 결정 10) */
+export type UserStatus = 'PENDING' | 'ACTIVE'
+
 /** GET /api/auth/me, POST /api/auth/login - 본인 정보 */
 export interface UserResponse {
   id: number
   loginId: string
   name: string
   globalRole: GlobalRole
+  status: UserStatus
+}
+
+/** 부원 목록 한 줄의 소속 요약 - GET /api/users */
+export interface EnrollmentBrief {
+  cohortId: number
+  cohortName: string
+  cohortStatus: CohortStatus
+  role: EnrollmentRole
+}
+
+/** GET /api/users (운영진 이상) - 부원 관리·명부 배정 모달이 쓴다. 승인 대기가 먼저, 그 다음 최근 생성순 */
+export interface UserDirectoryEntry {
+  id: number
+  loginId: string
+  name: string
+  globalRole: GlobalRole
+  status: UserStatus
+  /** 계정 생성 시각(UTC) - 첫 로그인 또는 선등록 시각 */
+  createdAt: string
+  enrollments: EnrollmentBrief[]
 }
 
 /** POST /api/auth/logout - 응답 시점에 Ondal 세션은 이미 끝난 상태 */
