@@ -18,6 +18,11 @@ export function formatKst(iso: string): string {
     .replace(/-/g, '.')
 }
 
+/** UTC ISO → "2026.08.01" (KST) - 가입일처럼 날짜만 보일 때 */
+export function formatKstDay(iso: string): string {
+  return new Date(iso).toLocaleDateString('sv-SE', { timeZone: KST }).replace(/-/g, '.')
+}
+
 /** KST 달력 날짜(자정)를 UTC ms로 - D-day는 시각이 아니라 날짜 차이로 센다 */
 function kstDateMs(date: Date): number {
   return Date.parse(date.toLocaleDateString('sv-SE', { timeZone: KST }))
@@ -29,6 +34,18 @@ export function ddayLabel(dueAtIso: string, now: Date = new Date()): string {
   if (days > 0) return `D-${days}`
   if (days === 0) return 'D-DAY'
   return '마감'
+}
+
+/** 마감까지 남은 시간 "6일 23시간" / "3시간" / "40분" - 원안(교육운영진 과제 현황)의 "마감까지 2일 4시간". 지났으면 null */
+export function remainingLabel(dueAtIso: string, now: Date = new Date()): string | null {
+  const ms = Date.parse(dueAtIso) - now.getTime()
+  if (ms <= 0) return null
+  const minutes = Math.floor(ms / 60_000)
+  const days = Math.floor(minutes / 1_440)
+  const hours = Math.floor((minutes % 1_440) / 60)
+  if (days > 0) return `${days}일 ${hours}시간`
+  if (hours > 0) return `${hours}시간`
+  return `${Math.max(1, minutes)}분`
 }
 
 /** 마감 시각(분 단위)이 지났는지 - 카드 강조 표시용 */

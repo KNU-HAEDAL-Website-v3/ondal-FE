@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Code, FileArchive, Link2, Plus, Send, X } from 'lucide-react'
+import { Code, FileArchive, Link2, Plus, Save, Send, X } from 'lucide-react'
 import { useCreateSubmission } from '@/api/submissions'
 import type { SubmissionType } from '@/api/types'
 import { CodeEditor } from '@/components/code/CodePane'
+import { FullscreenPane } from '@/components/code/FullscreenPane'
 import { Button } from '@/components/ui/button'
 import { isOverdue } from '@/lib/datetime'
 import { clearDraft, readDraft, writeDraft } from '@/lib/draft'
@@ -26,11 +27,17 @@ interface SubmissionDraft {
   linkUrls: string[]
 }
 
+/** "임시 저장됨 14:23:05" 표시용 - 원안의 "마지막 임시 저장" 문구 */
+function timeLabel(date: Date): string {
+  return date.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
 /**
  * 제출 폼 (#18) - 3종 택1(type): 코드(언어 필수) / zip 파일(10MB) / 링크(1~5개, + 버튼).
  * 선택한 탭의 필수값이 다 차야 제출 가능(버튼 비활성으로 서버 400 선반영).
  * CLAUDE.md 필수 규칙: 실패 시 입력 보존(상태를 지우지 않는다) + 요청 중 버튼 잠금.
  * 마감 후에도 제출 가능 - "지각 제출로 기록" 확인 안내 후 진행 (flows UC-S4 A1).
+ * 원안(수강자 코드 과제 상세) 반영(2026-09-20): 편집기 초기화·전체 화면, 임시 저장 시각 표시, 파일은 드래그로도 첨부.
  */
 export function SubmissionForm({
   cohortId,
@@ -38,6 +45,7 @@ export function SubmissionForm({
   dueAt,
   judgeEnabled = false,
   problemId,
+  editorHeight,
 }: {
   cohortId: number
   assignmentId: number
@@ -46,6 +54,8 @@ export function SubmissionForm({
   judgeEnabled?: boolean
   /** 배정된 문제 id - 허용 언어(V9)를 읽어 언어 선택지를 좁힌다. 서버도 같은 규칙으로 400 을 낸다 */
   problemId?: number
+  /** 편집기 높이 - 과제 상세가 2단 분할일 때 화면 높이에 맞춰 키운다 */
+  editorHeight?: string
 }) {
   const problemQuery = useProblem(problemId ?? NaN)
   const allowedLanguages = problemQuery.data?.allowedLanguages ?? []
@@ -56,14 +66,22 @@ export function SubmissionForm({
   const [linkUrls, setLinkUrls] = useState<string[]>(() => readDraft<SubmissionDraft>(key)?.linkUrls ?? [''])
   const [file, setFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
+  const [savedAt, setSavedAt] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const mutation = useCreateSubmission(cohortId, assignmentId)
 
   useEffect(() => {
     const empty = codeText === '' && language === '' && linkUrls.every((url) => url.trim() === '')
-    if (empty) clearDraft(key)
-    else writeDraft<SubmissionDraft>(key, { tab, codeText, language, linkUrls })
+    if (empty) {
+      clearDraft(key)
+      setSavedAt(null)
+    } else {
+      writeDraft<SubmissionDraft>(key, { tab, codeText, language, linkUrls })
+      setSavedAt(timeLabel(new Date()))
+    }
   }, [key, tab, codeText, language, linkUrls])
 
   const filledLinks = linkUrls.map((url) => url.trim()).filter((url) => url !== '')
@@ -102,6 +120,10 @@ export function SubmissionForm({
     setLinkUrls((prev) => (prev.length === 1 ? [''] : prev.filter((_, i) => i !== index)))
   }
 
+  const handleReset = () => {
+    if (codeText === '' || window.confirm('작성한 코드를 모두 지울까요? 임시 저장본도 함께 지워져요.')) setCodeText('')
+  }
+
   const handleSubmit = () => {
     if (isOverdue(dueAt) && !window.confirm('마감이 지난 과제예요. 지각 제출로 기록됩니다. 계속할까요?')) return
     mutation.mutate(
@@ -122,6 +144,7 @@ export function SubmissionForm({
           setLanguage('')
           setLinkUrls([''])
           setFile(null)
+          setFullscreen(false)
           if (fileInputRef.current) fileInputRef.current.value = ''
         },
       },
@@ -134,70 +157,138 @@ export function SubmissionForm({
       active ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground',
     )
 
+  const languageSelect = (
+    <select
+      value={language}
+      onChange={(e) => setLanguage(e.target.value)}
+      aria-label="제출 언어"
+      className="h-8 rounded-lg border bg-card px-2 text-sm"
+    >
+      <option value="">언어 선택 (필수)</option>
+      {selectableLanguages(allowedLanguages).map((lang) => (
+        <option key={lang} value={lang}>
+          {lang}
+        </option>
+      ))}
+    </select>
+  )
+
+  const editor = (
+    <CodeEditor
+      value={codeText}
+      onChange={setCodeText}
+      language={language === '' ? null : language}
+      height={fullscreen ? 'calc(100svh - 11rem)' : editorHeight}
+      onReset={handleReset}
+      fullscreen={fullscreen}
+      onToggleFullscreen={() => setFullscreen((v) => !v)}
+    />
+  )
+
+  const actionRow = (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+        <span>
+          {judgeEnabled
+            ? '자동 채점 문제예요. 코드 제출은 바로 채점되고, zip·링크는 운영진이 확인합니다. 재제출은 이력으로 쌓여요.'
+            : '코드 / 파일 / 링크 중 한 형태를 골라 제출해요. 재제출은 이력으로 쌓입니다.'}
+        </span>
+        {savedAt && tab !== 'FILE' && (
+          <span className="inline-flex items-center gap-1 font-mono" title="이 브라우저 탭에 자동으로 임시 저장돼요 - 로그인 화면에 다녀와도 남아요">
+            <Save className="size-3" aria-hidden />
+            임시 저장됨 {savedAt}
+          </span>
+        )}
+      </p>
+      <Button onClick={handleSubmit} disabled={!canSubmit}>
+        <Send data-icon="inline-start" />
+        {mutation.isPending ? '제출 중...' : '제출하기'}
+      </Button>
+    </div>
+  )
+
   return (
     <section className="rounded-lg border bg-card">
-      <div className="flex items-center justify-between border-b px-4">
-        <div className="flex" role="tablist" aria-label="제출 형태">
-          <button type="button" role="tab" aria-selected={tab === 'CODE'} className={tabClass(tab === 'CODE')} onClick={() => setTab('CODE')}>
-            <Code className="size-4" />
-            코드 작성
-          </button>
-          <button type="button" role="tab" aria-selected={tab === 'FILE'} className={tabClass(tab === 'FILE')} onClick={() => setTab('FILE')}>
-            <FileArchive className="size-4" />
-            파일 업로드
-          </button>
-          <button type="button" role="tab" aria-selected={tab === 'LINK'} className={tabClass(tab === 'LINK')} onClick={() => setTab('LINK')}>
-            <Link2 className="size-4" />
-            링크 제출
-          </button>
+      <div className="border-b px-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex" role="tablist" aria-label="제출 형태">
+            <button type="button" role="tab" aria-selected={tab === 'CODE'} className={tabClass(tab === 'CODE')} onClick={() => setTab('CODE')}>
+              <Code className="size-4" />
+              코드 작성
+            </button>
+            <button type="button" role="tab" aria-selected={tab === 'FILE'} className={tabClass(tab === 'FILE')} onClick={() => setTab('FILE')}>
+              <FileArchive className="size-4" />
+              파일 업로드
+            </button>
+            <button type="button" role="tab" aria-selected={tab === 'LINK'} className={tabClass(tab === 'LINK')} onClick={() => setTab('LINK')}>
+              <Link2 className="size-4" />
+              링크 제출
+            </button>
+          </div>
+          {tab === 'CODE' && languageSelect}
         </div>
-        {tab === 'CODE' && (
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            aria-label="제출 언어"
-            className="h-8 rounded-lg border bg-card px-2 text-sm"
-          >
-            <option value="">언어 선택 (필수)</option>
-            {selectableLanguages(allowedLanguages).map((lang) => (
-              <option key={lang} value={lang}>
-                {lang}
-              </option>
-            ))}
-          </select>
-        )}
         {tab === 'CODE' && allowedLanguages.length > 0 && (
-          <p className="basis-full text-xs text-muted-foreground">이 문제는 {allowedLanguages.join(', ')} 로만 제출할 수 있어요.</p>
+          <p className="pb-2 text-xs text-muted-foreground">이 문제는 {allowedLanguages.join(', ')} 로만 제출할 수 있어요.</p>
         )}
       </div>
 
       <div className="space-y-3 p-4">
+        {tab === 'CODE' && !fullscreen && editor}
         {tab === 'CODE' && (
-          <CodeEditor value={codeText} onChange={setCodeText} language={language === '' ? null : language} />
+          <FullscreenPane open={fullscreen} title="코드 작성 - 전체 화면" onClose={() => setFullscreen(false)}>
+            <div className="flex items-center justify-end">{languageSelect}</div>
+            {editor}
+            {actionRow}
+            {mutation.error && <p className="text-sm text-destructive">{(mutation.error as Error).message}</p>}
+          </FullscreenPane>
         )}
         {tab === 'FILE' && (
-          <div className="flex h-56 flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-6 text-center">
-            <FileArchive className="size-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">zip 파일 1개, 최대 10MB</p>
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="zip 파일을 끌어다 놓거나 눌러서 고르기"
+            onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                fileInputRef.current?.click()
+              }
+            }}
+            onDragOver={(e) => {
+              e.preventDefault()
+              setDragging(true)
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setDragging(false)
+              handleFileChange(e.dataTransfer.files?.[0] ?? null)
+            }}
+            className={cn(
+              'flex h-56 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-6 text-center transition-colors',
+              dragging ? 'border-primary bg-secondary' : 'hover:border-primary/60',
+            )}
+          >
+            <span className="flex size-12 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              <FileArchive className="size-6" />
+            </span>
+            <p className="text-sm font-semibold">{file ? file.name : '클릭하거나 파일을 드래그하세요'}</p>
+            <p className="text-xs text-muted-foreground">{file ? `${(file.size / 1024).toFixed(0)}KB · 다시 고르려면 누르세요` : 'zip 파일 1개, 최대 10MB'}</p>
             <input
               ref={fileInputRef}
               type="file"
               accept=".zip"
               aria-label="제출 파일"
               onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-              className="max-w-full text-sm file:mr-3 file:rounded-md file:border file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-semibold"
+              onClick={(e) => e.stopPropagation()}
+              className="sr-only"
             />
-            {file && (
-              <p className="text-xs text-muted-foreground">
-                {file.name} ({(file.size / 1024).toFixed(0)}KB)
-              </p>
-            )}
             {fileError && <p className="text-sm text-destructive">{fileError}</p>}
           </div>
         )}
         {tab === 'LINK' && (
           <div className="min-h-56 space-y-2 rounded-lg border p-4">
-            <p className="text-sm text-muted-foreground">GitHub·배포 URL 등을 1~5개 제출할 수 있어요. 입력 순서대로 저장됩니다.</p>
+            <p className="text-sm text-muted-foreground">GitHub 저장소·배포 URL 등을 1~5개 제출할 수 있어요. 입력 순서대로 저장됩니다.</p>
             {linkUrls.map((url, index) => (
               // index key 사용: 순서가 곧 의미(position)라 재정렬이 없다
               <div key={index} className="flex items-center gap-2">
@@ -206,7 +297,7 @@ export function SubmissionForm({
                   type="url"
                   value={url}
                   onChange={(e) => setLinkAt(index, e.target.value)}
-                  placeholder="https://"
+                  placeholder={index === 0 ? 'https://github.com/username/repository' : 'https://'}
                   aria-label={`제출 링크 ${index + 1}`}
                   className="h-9 flex-1 rounded-lg border bg-card px-3 text-sm outline-none focus:border-primary"
                 />
@@ -233,19 +324,9 @@ export function SubmissionForm({
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-muted-foreground">
-            {judgeEnabled
-              ? '자동 채점 문제예요. 코드 제출은 바로 채점되고, zip·링크는 운영진이 확인합니다. 재제출은 이력으로 쌓여요.'
-              : '코드 / 파일 / 링크 중 한 형태를 골라 제출해요. 재제출은 이력으로 쌓입니다.'}
-          </p>
-          <Button onClick={handleSubmit} disabled={!canSubmit}>
-            <Send data-icon="inline-start" />
-            {mutation.isPending ? '제출 중...' : '제출하기'}
-          </Button>
-        </div>
+        {!fullscreen && actionRow}
 
-        {mutation.error && <p className="text-sm text-destructive">{(mutation.error as Error).message}</p>}
+        {mutation.error && !fullscreen && <p className="text-sm text-destructive">{(mutation.error as Error).message}</p>}
         {mutation.isSuccess && !mutation.isPending && (
           <p className="text-sm font-semibold text-success">
             {judgeEnabled && tab === 'CODE' ? '제출 완료! 채점 중이에요 - 아래 기록에서 결과를 확인하세요.' : '제출 완료! 아래 기록에서 확인하세요.'}

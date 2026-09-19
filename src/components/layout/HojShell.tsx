@@ -94,13 +94,18 @@ export function HojShell() {
               <LayoutGrid className="size-3.5 shrink-0" />
               Ondal로 이동하기
             </AppSwitchButton>
+            {/* AppShell 상단 바와 같은 구성 - 아바타·이름을 누르면 마이페이지 (2026-09-20 전수 조사) */}
             {me && (
-              <span className="flex items-center gap-2" title={globalRoleLabel(me.globalRole)}>
+              <Link
+                to="/me"
+                className="flex items-center gap-2 rounded-md py-1 pr-2 pl-1 hover:bg-secondary"
+                title={`마이페이지 - ${globalRoleLabel(me.globalRole)}`}
+              >
                 <span className="flex size-8 items-center justify-center rounded-full border bg-secondary text-xs font-semibold">
                   {me.name?.charAt(0) ?? '?'}
                 </span>
                 <span className="hidden text-sm font-medium sm:inline">{me.name}</span>
-              </span>
+              </Link>
             )}
             <button
               type="button"

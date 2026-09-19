@@ -79,7 +79,7 @@ export const problemBankKeys = {
   status: ['problems', 'bank', 'status'] as const,
 }
 
-/** [관리자] 문제 은행 레포 설정 - "깃허브에서 가져오기" 버튼을 보일지(configured)와 레포·브랜치 표시 */
+/** [관리자] HOJ 레포 설정 - "깃허브에서 가져오기" 버튼을 보일지(configured)와 레포·브랜치 표시 */
 export function useProblemBankSource(enabled = true) {
   return useQuery({
     queryKey: problemBankKeys.source,
@@ -113,7 +113,7 @@ export function useStartGithubImport() {
   })
 }
 
-/** [관리자] 문제 번들 파일 가져오기(보조 경로) - 문제 은행 레포의 빌드 산출물(JSON). 끝나면(실패해도 앞 묶음은 저장됨) 문제 목록·태그 캐시를 비운다 */
+/** [관리자] 문제 번들 파일 가져오기(보조 경로) - HOJ 레포의 빌드 산출물(JSON). 끝나면(실패해도 앞 묶음은 저장됨) 문제 목록·태그 캐시를 비운다 */
 export function useImportProblems() {
   const queryClient = useQueryClient()
   return useMutation({

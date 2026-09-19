@@ -872,6 +872,9 @@ export const handlers = [
     return HttpResponse.json(toDirectoryEntry(target))
   }),
 
+  // 서버 생존 확인 - 관리자 개요 "시스템 상태" (BE HealthController). mock 은 늘 UP
+  http.get('/api/health', () => HttpResponse.json({ status: 'UP' })),
+
   http.get('/api/auth/me', async () => {
     await delay(200)
     const user = currentUser()
@@ -1915,7 +1918,7 @@ export const handlers = [
     return HttpResponse.json(outcome.result)
   }),
 
-  // [관리자] 문제 은행 레포(GitHub) 설정 - BE ProblemBankSyncService.source. mock 은 항상 설정된 것으로
+  // [관리자] HOJ 레포(GitHub) 설정 - BE ProblemBankSyncService.source. mock 은 항상 설정된 것으로
   http.get('/api/problems/import/github', async () => {
     await delay(200)
     const user = currentUser()
