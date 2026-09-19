@@ -570,3 +570,17 @@ export interface ProblemImportResult {
   createdTags: string[]
   problemNos: number[]
 }
+
+// ---- 마이페이지 ------------------------------------------------------------------------------
+
+/** GET /api/me/stats - 본인 활동 요약. 점수·랭킹 없음 */
+export interface MyStatsResponse {
+  /** 계정 생성 시각(UTC) - 첫 로그인 또는 선등록 시각 */
+  joinedAt: string
+  /** 분반 과제 제출 건수 (재제출 포함) */
+  assignmentSubmissions: number
+  /** HOJ 연습 제출 건수 (재제출 포함) */
+  practiceSubmissions: number
+  /** 맞힌 문제 수 - 과제·연습 어느 쪽이든 정답 판정을 받은 문제 */
+  solvedProblems: number
+}

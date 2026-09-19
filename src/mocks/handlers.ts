@@ -756,6 +756,25 @@ export const handlers = [
     return HttpResponse.json(body)
   }),
 
+  // 마이페이지 활동 요약 (BE MyStatsService) - 본인 제출을 과제/연습으로 나눠 세고, ACCEPTED 를 받은 문제 수
+  http.get('/api/me/stats', async () => {
+    await delay(200)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const mine = submissions.filter((s) => s.loginId === user.loginId)
+    const solved = new Set(
+      judgeResults
+        .filter((r) => r.verdict === 'ACCEPTED' && submissions.find((s) => s.id === r.submissionId)?.loginId === user.loginId)
+        .map((r) => r.problemId),
+    )
+    return HttpResponse.json({
+      joinedAt: '2026-08-01T00:00:00Z',
+      assignmentSubmissions: mine.filter((s) => s.assignmentId !== null).length,
+      practiceSubmissions: mine.filter((s) => s.problemId !== null).length,
+      solvedProblems: solved.size,
+    })
+  }),
+
   http.get('/api/me/cohorts', async () => {
     await delay(400)
     const user = currentUser()
