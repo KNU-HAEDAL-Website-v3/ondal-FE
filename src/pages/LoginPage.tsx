@@ -51,7 +51,9 @@ export default function LoginPage() {
   if (me) return <Navigate to={returnTo} replace />
 
   return (
-    <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background px-4">
+    <main className="flex min-h-svh flex-col bg-background px-4">
+      {/* 카드는 남는 높이 가운데, 푸터는 맨 아래 - 셸 화면과 같은 자리 */}
+      <div className="flex flex-1 items-center justify-center py-8">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <p className="text-2xl font-bold tracking-tight text-primary">Ondal</p>
@@ -75,7 +77,8 @@ export default function LoginPage() {
           )}
         </CardContent>
       </Card>
-      <SiteFooter />
+      </div>
+      <SiteFooter className="pb-6" />
     </main>
   )
 }

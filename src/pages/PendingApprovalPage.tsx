@@ -25,7 +25,9 @@ export default function PendingApprovalPage() {
   }
 
   return (
-    <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background px-4">
+    <main className="flex min-h-svh flex-col bg-background px-4">
+      {/* 카드는 남는 높이 가운데, 푸터는 맨 아래 - 로그인·셸 화면과 같은 자리 */}
+      <div className="flex flex-1 items-center justify-center py-8">
       <section className="w-full max-w-md rounded-lg border bg-card p-8 text-center">
         <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-warning-bg text-warning">
           <Hourglass className="size-6" aria-hidden />
@@ -60,7 +62,8 @@ export default function PendingApprovalPage() {
           </Button>
         </div>
       </section>
-      <SiteFooter />
+      </div>
+      <SiteFooter className="pb-6" />
     </main>
   )
 }
