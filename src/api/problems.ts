@@ -28,18 +28,26 @@ function listPath(tagIds: number[]) {
   return `/api/problems?${params.toString()}`
 }
 
+/**
+ * 구 서버 호환 - 난이도·허용 언어 열(BE V9)이 아직 없는 서버의 응답에도 기본값을 채운다.
+ * FE 가 BE 보다 먼저 배포돼도 목록·상세·출제 폼이 깨지지 않도록(필드가 없으면 "-" 와 제한 없음으로 보인다)
+ */
+function withBankFields<T extends { difficulty?: number | null; allowedLanguages?: string[] }>(problem: T): T {
+  return { ...problem, difficulty: problem.difficulty ?? null, allowedLanguages: problem.allowedLanguages ?? [] }
+}
+
 /** 목록 - 번호 오름차순(서버 정렬). 태그를 주면 그 태그를 모두 가진 문제만(AND) */
 export function useProblems(tagIds: number[] = []) {
   return useQuery({
     queryKey: problemKeys.list(tagIds),
-    queryFn: () => apiFetch<ProblemSummary[]>(listPath(tagIds)),
+    queryFn: () => apiFetch<ProblemSummary[]>(listPath(tagIds)).then((list) => list.map(withBankFields)),
   })
 }
 
 export function useProblem(problemId: number) {
   return useQuery({
     queryKey: problemKeys.detail(problemId),
-    queryFn: () => apiFetch<ProblemResponse>(`/api/problems/${problemId}`),
+    queryFn: () => apiFetch<ProblemResponse>(`/api/problems/${problemId}`).then(withBankFields),
     enabled: Number.isFinite(problemId),
   })
 }
