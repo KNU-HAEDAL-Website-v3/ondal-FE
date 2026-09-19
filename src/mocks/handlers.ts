@@ -1782,6 +1782,15 @@ export const handlers = [
     const items = Array.isArray(body?.problems) ? (body!.problems as Record<string, unknown>[]) : []
     if (items.length === 0) return error(400, 'INVALID_INPUT', 'problems 는 비어 있을 수 없습니다.')
     const overwrite = body?.overwrite === true
+    // BE 와 같이 요청 하나는 통째로 성공하거나 실패 - 먼저 전부 검사하고 나서 반영한다 (묶음 도중 실패 시 앞 문제가 남지 않음)
+    const seenNos = new Set<number>()
+    for (const item of items) {
+      const problemNo = Number(item.problemNo)
+      if (!Number.isInteger(problemNo) || problemNo < 1000) return error(400, 'INVALID_INPUT', '문제 번호는 1000 이상이어야 합니다.')
+      if (seenNos.has(problemNo)) return error(400, 'INVALID_INPUT', `번들 안에 같은 문제 번호가 두 번 있습니다: ${problemNo}`)
+      seenNos.add(problemNo)
+      if (typeof item.title !== 'string' || item.title.trim() === '') return error(400, 'INVALID_INPUT', '문제 제목은 비어 있을 수 없습니다.')
+    }
     const createdTags: string[] = []
     const problemNos: number[] = []
     let created = 0
