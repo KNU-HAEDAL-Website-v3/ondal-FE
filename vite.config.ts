@@ -12,26 +12,10 @@ export default defineConfig(({ mode }) => {
     throw new Error('VITE_AUTH_MODE=oidc 에는 VITE_API_BASE_URL 절대 주소(https://...)가 필요합니다 - .env.example 참고')
   }
 
-  // 같은 코드베이스에서 두 앱이 나온다 (src/lib/apps.ts) - 배포 대상이 다르므로 산출 폴더도 나눈다.
-  // Cloudflare Worker 는 각자 자기 dist 만 보면 되고, SPA fallback(index.html)도 각자 것을 쓴다
-  const isHoj = (process.env.VITE_APP ?? env.VITE_APP) === 'hoj'
-
-  // index.html 은 두 앱이 공유하므로 탭 제목만 빌드 때 갈아 끼운다.
-  // 런타임(document.title)로 바꾸면 잠깐 반대 앱 이름이 보였다가 바뀐다 - 두 앱을 동시에 열어 두는 화면이라 헷갈린다
-  const title = isHoj ? 'HOJ - 해달 온라인 저지' : 'Ondal - 해달 부트캠프 과제 플랫폼'
-
+  // 앱은 하나다 - HOJ(문제 은행)는 같은 빌드 안의 모드(라우트별 셸)라 별도 산출 폴더·탭 제목 치환이 없다 (src/lib/appSwitch.ts).
+  // HOJ 화면의 탭 제목은 HojShell 이 런타임에 바꾼다
   return {
-    plugins: [
-      react(),
-      tailwindcss(),
-      {
-        name: 'ondal-app-title',
-        transformIndexHtml(html: string) {
-          return html.replace(/<title>[\s\S]*?<\/title>/, `<title>${title}</title>`)
-        },
-      },
-    ],
-    build: { outDir: isHoj ? 'dist-hoj' : 'dist' },
+    plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),

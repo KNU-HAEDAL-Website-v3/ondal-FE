@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import {
-  ArrowUpRight,
   BookOpen,
   CircleHelp,
   Code,
@@ -12,13 +11,13 @@ import {
   Megaphone,
   Menu,
   MessagesSquare,
-  Tags,
   Settings2,
   UserCheck,
 } from 'lucide-react'
 import { useLogout, useMe } from '@/api/auth'
 import { SiteFooter } from '@/components/SiteFooter'
-import { crossAppLinkProps, HOJ_IS_SEPARATE, hojHref } from '@/lib/apps'
+import { AppSwitchButton } from '@/components/AppSwitchButton'
+import { rememberPath } from '@/lib/appSwitch'
 import { cn } from '@/lib/utils'
 
 /**
@@ -41,9 +40,7 @@ const NAV_ITEMS = [
   { to: '/notices', label: '공지사항', icon: Megaphone },
   // 관리자 전용 - 분반 생성·보관·운영진 지정 (UC-A1). 비관리자에게는 숨기고, 라우트는 RequireAdmin 이 지킨다
   { to: '/admin/cohorts', label: '분반 관리', icon: Settings2, adminOnly: true },
-  // 태그 어휘는 관리자만 관리한다 - 자유 생성이면 표기가 갈라져 분류가 쓸모없어진다.
-  // HOJ 가 따로 배포되면 태그는 그쪽 메뉴에 있으므로 여기서는 뺀다 (경로로 들어와도 routes.tsx 가 HOJ 로 넘김)
-  { to: '/admin/tags', label: '태그 관리', icon: Tags, adminOnly: true, hideWhenHojSeparate: true },
+  // 태그 관리는 문제의 것이라 HOJ 모드 메뉴(HojShell)에 있다 - 여기 없다
 ] as const
 
 interface NavMatch {
@@ -86,7 +83,7 @@ const navItemClass = (isActive: boolean) =>
 export function AppShell() {
   const { data: me } = useMe()
   const navigate = useNavigate()
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   const logoutMutation = useLogout()
   const [navOpen, setNavOpen] = useState(false)
 
@@ -94,6 +91,11 @@ export function AppShell() {
   useEffect(() => {
     setNavOpen(false)
   }, [pathname])
+
+  // 이 모드에서 마지막으로 본 화면 - HOJ 에 갔다가 "Ondal로 이동하기" 로 돌아올 때 여기로 온다 (lib/appSwitch)
+  useEffect(() => {
+    rememberPath('ondal', `${pathname}${search}`)
+  }, [pathname, search])
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -138,11 +140,7 @@ export function AppShell() {
         </Link>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
-          {NAV_ITEMS.filter(
-            (item) =>
-              (!('adminOnly' in item && item.adminOnly) || me?.globalRole === 'ADMIN') &&
-              !('hideWhenHojSeparate' in item && item.hideWhenHojSeparate && HOJ_IS_SEPARATE),
-          ).map((item) => {
+          {NAV_ITEMS.filter((item) => !('adminOnly' in item && item.adminOnly) || me?.globalRole === 'ADMIN').map((item) => {
             const active = isNavActive(item, pathname)
             return (
               <Link key={item.to} to={item.to} aria-current={active ? 'page' : undefined} className={navItemClass(active)}>
@@ -155,29 +153,13 @@ export function AppShell() {
 
         <div className="flex flex-col gap-1 border-t pt-4">
           {/*
-            HOJ 는 부트캠프 운영(분반·과제·출석)과 결이 달라 아래쪽에 따로 둔다 (2026-09-15 PM 지정 위치).
-            따로 배포돼 있으면 새 탭으로 - 과제를 하다 문제를 보러 가도 과제 화면이 남아 있게 (lib/apps.ts)
+            HOJ(문제 은행)는 같은 앱 안의 다른 모드 - 메뉴가 통째로 바뀌므로 확인을 받고 넘어간다 (2026-09-19 PM, lib/appSwitch).
+            부트캠프 운영(분반·과제·출석)과 결이 달라 아래쪽에 따로 둔다 (2026-09-15 PM 지정 위치)
           */}
-          {HOJ_IS_SEPARATE ? (
-            <a
-              href={hojHref()}
-              {...crossAppLinkProps(true)}
-              className={cn(navItemClass(false), 'w-full')}
-            >
-              <Code className="size-[18px] shrink-0" />
-              HOJ로 이동하기
-              <ArrowUpRight className="ml-auto size-3.5 shrink-0 opacity-60" aria-hidden />
-            </a>
-          ) : (
-            <Link
-              to="/problems"
-              aria-current={isNavActive({ to: '/problems' }, pathname) ? 'page' : undefined}
-              className={cn(navItemClass(isNavActive({ to: '/problems' }, pathname)), 'w-full')}
-            >
-              <Code className="size-[18px] shrink-0" />
-              HOJ로 이동하기
-            </Link>
-          )}
+          <AppSwitchButton to="hoj" className={cn(navItemClass(false), 'w-full')}>
+            <Code className="size-[18px] shrink-0" />
+            HOJ로 이동하기
+          </AppSwitchButton>
           <Link
             to="/help"
             aria-current={isNavActive({ to: '/help' }, pathname) ? 'page' : undefined}

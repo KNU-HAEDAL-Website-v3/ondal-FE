@@ -34,4 +34,3 @@ lerna-debug.log*
 !.env.hoj
 !.env.hoj-mock
 *.local
-dist-hoj

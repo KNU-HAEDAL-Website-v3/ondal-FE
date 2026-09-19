@@ -1,10 +1,9 @@
 import { Route, Routes } from 'react-router'
-import { HojRedirect } from '@/components/HojRedirect'
 import { RequireAdmin } from '@/components/RequireAdmin'
 import { RequireAuth } from '@/components/RequireAuth'
 import { RequireOperator } from '@/components/RequireOperator'
 import { AppShell } from '@/components/layout/AppShell'
-import { HOJ_IS_SEPARATE } from '@/lib/apps'
+import { HojShell } from '@/components/layout/HojShell'
 import AdminCohortsPage from '@/pages/AdminCohortsPage'
 import AdminTagsPage from '@/pages/AdminTagsPage'
 import AssignmentDetailPage from '@/pages/AssignmentDetailPage'
@@ -31,15 +30,13 @@ import QuestionsEntryPage from '@/pages/QuestionsEntryPage'
 import QuestionsPage from '@/pages/QuestionsPage'
 
 /**
- * 라우트 한눈에 보기.
- *   /login                     - 공개
+ * 라우트 한눈에 보기. 앱은 하나, 셸(메뉴)이 둘이다 - Ondal 모드(사이드바)와 HOJ 모드(상단 가로 메뉴). lib/appSwitch.ts
+ *
+ * [공개]
+ *   /login                     - 로그인
+ * [Ondal 모드 - AppShell]
  *   /                          - 홈 대시보드 (역할별: 수강자 / 교육운영진)
  *   /attendance                - 출석 (역할별: 출석 현황 / 출결 관리)
- *   /problems                  - HOJ 문제 목록 (로그인 누구나 - 분반 무관, 태그 필터)
- *   /problems/:problemId       - 문제 상세 - 본문·예시·풀이 제출·내 기록 (로그인 누구나)
- *   /problems/new              - 문제 출제 (RequireOperator)
- *   /problems/:problemId/edit  - 문제 수정 (RequireOperator)
- *   /admin/tags                - [관리자] 문제 태그 관리
  *   /assignments               - 과제 목록 (?cohort= 분반 선택, 기본 내 첫 분반)
  *   /assignments/new           - 과제 등록 (운영진, ?cohort= 필수)
  *   /assignments/:assignmentId - 과제 상세 (?cohort=) - 제출란·내 기록·현황판(운영진) 포함
@@ -60,8 +57,16 @@ import QuestionsPage from '@/pages/QuestionsPage'
  *   /notices/:noticeId         - 공지 상세 (수정·삭제 버튼은 서버 canEdit·canDelete)
  *   /notices/:noticeId/edit    - 공지 수정 (대상 고정)
  *   /help                      - 도움말 (역할별 할 수 있는 일·문제 보고 방법) - 사이드바·상단 아이콘에서 진입
+ * [HOJ 모드 - HojShell] 문제는 분반과 무관하므로 메뉴가 다르다 (2026-09-19 PM, docs 결정 9)
+ *   /problems                  - 문제 목록 (로그인 누구나 - 태그 필터)
+ *   /problems/:problemId       - 문제 상세 - 본문·예시·풀이 제출·내 기록 (로그인 누구나)
+ *   /problems/new              - 문제 출제 (RequireOperator)
+ *   /problems/:problemId/edit  - 문제 수정 (RequireOperator)
+ *   /admin/tags                - [관리자] 문제 태그 관리 - 태그는 문제의 것이라 HOJ 메뉴에 있다
+ * [그 외]
  *   *                          - 404
- * 로그인 필요 화면은 RequireAuth(울타리) → AppShell(사이드바+상단 바) 아래에, 관리자 화면은 그 안의 RequireAdmin 아래에 둔다.
+ * 로그인 필요 화면은 RequireAuth(울타리) 아래에, 관리자 화면은 그 안의 RequireAdmin 아래에 둔다.
+ * 두 모드는 경로 접두사로 갈리므로(lib/appSwitch modeOf) 같은 주소가 두 셸에 동시에 걸리지 않는다.
  */
 export function AppRoutes() {
   return (
@@ -72,24 +77,6 @@ export function AppRoutes() {
           <Route index element={<HomePage />} />
           <Route path="attendance" element={<AttendancePage />} />
           <Route path="help" element={<HelpPage />} />
-          {/*
-            HOJ 가 따로 배포되면(VITE_HOJ_URL 존재) 문제 화면은 Ondal 에 두지 않는다 - 두 앱의 성격이 달라 나눈 것이므로.
-            다만 라우트를 지우는 대신 HOJ 로 넘긴다: 그동안 공유된 `/problems/12` 링크와 북마크가 404 가 되면 안 된다.
-            분리 전(로컬·mock)에는 예전처럼 Ondal 안에서 그대로 보인다 - 개발할 때 앱을 두 개 띄우지 않아도 되게.
-          */}
-          {HOJ_IS_SEPARATE ? (
-            <Route path="problems/*" element={<HojRedirect />} />
-          ) : (
-            <>
-              <Route path="problems" element={<ProblemsPage />} />
-              <Route path="problems/:problemId" element={<ProblemDetailPage />} />
-              {/* 출제·수정은 운영진 이상 - BE @OperatorAnywhere 와 같은 조건 (CLAUDE.md 규칙 3) */}
-              <Route element={<RequireOperator />}>
-                <Route path="problems/new" element={<ProblemFormPage />} />
-                <Route path="problems/:problemId/edit" element={<ProblemFormPage />} />
-              </Route>
-            </>
-          )}
           <Route path="assignments" element={<AssignmentsPage />} />
           <Route path="assignments/new" element={<AssignmentFormPage />} />
           <Route path="assignments/:assignmentId" element={<AssignmentDetailPage />} />
@@ -98,13 +85,10 @@ export function AppRoutes() {
           <Route path="cohorts" element={<MyCohortsPage />} />
           <Route path="cohorts/:cohortId" element={<CohortPage />} />
           <Route path="cohorts/:cohortId/members" element={<CohortMembersPage />} />
-          {/* 태그는 문제의 것이라 HOJ 로 간다. 울타리 밖에 두는 이유: 관리자가 아니어도 403 대신 HOJ 로 넘겨주는 편이 낫다 */}
-          {HOJ_IS_SEPARATE && <Route path="admin/tags" element={<HojRedirect />} />}
           <Route element={<RequireAdmin />}>
             <Route path="admin/cohorts" element={<AdminCohortsPage />} />
             <Route path="admin/cohorts/new" element={<CohortFormPage />} />
             <Route path="admin/cohorts/:cohortId/edit" element={<CohortFormPage />} />
-            {!HOJ_IS_SEPARATE && <Route path="admin/tags" element={<AdminTagsPage />} />}
           </Route>
           <Route path="questions" element={<QuestionsEntryPage />} />
           <Route path="cohorts/:cohortId/questions" element={<QuestionsPage />} />
@@ -115,6 +99,20 @@ export function AppRoutes() {
           <Route path="notices/new" element={<NoticeFormPage />} />
           <Route path="notices/:noticeId" element={<NoticeDetailPage />} />
           <Route path="notices/:noticeId/edit" element={<NoticeFormPage />} />
+        </Route>
+
+        <Route element={<HojShell />}>
+          <Route path="problems" element={<ProblemsPage />} />
+          <Route path="problems/:problemId" element={<ProblemDetailPage />} />
+          {/* 출제·수정은 운영진 이상 - BE @OperatorAnywhere 와 같은 조건 (CLAUDE.md 규칙 3) */}
+          <Route element={<RequireOperator />}>
+            <Route path="problems/new" element={<ProblemFormPage />} />
+            <Route path="problems/:problemId/edit" element={<ProblemFormPage />} />
+          </Route>
+          {/* 태그 어휘는 관리자만 - 자유 생성이면 표기가 갈라져 분류가 쓸모없어진다 */}
+          <Route element={<RequireAdmin />}>
+            <Route path="admin/tags" element={<AdminTagsPage />} />
+          </Route>
         </Route>
       </Route>
       <Route path="*" element={<NotFoundPage />} />
