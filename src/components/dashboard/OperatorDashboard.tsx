@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { CalendarClock, ClipboardList, Eye, Megaphone, Plus, UserCheck, Users } from 'lucide-react'
+import { CalendarClock, ClipboardList, Eye, ListTodo, Megaphone, Plus, UserCheck, Users } from 'lucide-react'
 import { useAssignments } from '@/api/assignments'
 import { useRoster } from '@/api/attendances'
 import { useMe } from '@/api/auth'
@@ -15,6 +15,7 @@ import { PendingApprovalBanner } from '@/components/dashboard/PendingApprovalBan
 import { StatCard } from '@/components/dashboard/StatCard'
 import { ApiErrorView, EmptyState } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { VerdictBadge } from '@/components/judge/VerdictBadge'
 import { SubmissionStatusBadge } from '@/components/submissions/SubmissionStatusBadge'
 import { ddayLabel, formatKst, isOverdue } from '@/lib/datetime'
 
@@ -110,7 +111,9 @@ function CohortOverview({ cohort }: { cohort: CohortResponse }) {
   const boardQuery = useStatusBoard(cohortId, boardTarget?.id ?? NaN, boardTarget !== undefined)
   const rows = boardQuery.data ?? []
   const notSubmitted = rows.filter((r) => r.status === 'NOT_SUBMITTED').length
+  const judged = rows.some((r) => r.latestJudgeStatus !== null)
   const rate = rosterQuery.data?.summary.rate ?? null
+  const unchecked = rosterQuery.data?.summary.unchecked ?? null
   const notices = (noticesQuery.data ?? []).filter((n) => n.cohort === null || n.cohort.id === cohortId).slice(0, 3)
 
   return (
@@ -195,6 +198,7 @@ function CohortOverview({ cohort }: { cohort: CohortResponse }) {
                       <tr className="border-b bg-muted text-[13px] tracking-[0.55px] text-muted-foreground">
                         <th className="px-4 py-2 text-left font-bold">이름</th>
                         <th className="px-2 py-2 text-center font-bold">상태</th>
+                        {judged && <th className="px-2 py-2 text-center font-bold">판정</th>}
                         <th className="px-2 py-2 text-center font-bold">제출 횟수</th>
                         <th className="px-2 py-2 text-center font-bold">최근 제출</th>
                       </tr>
@@ -206,6 +210,15 @@ function CohortOverview({ cohort }: { cohort: CohortResponse }) {
                           <td className="px-2 py-2.5 text-center">
                             <SubmissionStatusBadge status={row.status} />
                           </td>
+                          {judged && (
+                            <td className="px-2 py-2.5 text-center">
+                              {row.latestJudgeStatus === null ? (
+                                <span className="text-xs text-muted-foreground">-</span>
+                              ) : (
+                                <VerdictBadge status={row.latestJudgeStatus} verdict={row.latestVerdict} />
+                              )}
+                            </td>
+                          )}
                           <td className="px-2 py-2.5 text-center font-mono">{row.submissionCount}</td>
                           <td className="px-2 py-2.5 text-center font-mono text-xs text-muted-foreground">
                             {row.lastSubmittedAt === null ? '-' : formatKst(row.lastSubmittedAt)}
@@ -229,6 +242,35 @@ function CohortOverview({ cohort }: { cohort: CohortResponse }) {
         </section>
 
         <div className="space-y-4">
+          {/* 원안 "오늘의 할 일" - 최근 차시 출석 미확인 · 선택 과제 미제출. 둘 다 이미 받은 응답의 요약값이라 서버 개념 추가 없이 센다 */}
+          <section className="rounded-lg border bg-card p-4">
+            <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight">
+              <ListTodo className="size-4 text-muted-foreground" aria-hidden />
+              오늘의 할 일
+            </h2>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li>
+                <Link to="/attendance" className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 hover:bg-secondary/50">
+                  <span>{latestSession ? `${latestSession.sessionNo}차시 출석 미확인` : '출석 미확인'}</span>
+                  <span className={unchecked !== null && unchecked > 0 ? 'rounded-md bg-danger-bg px-2 py-0.5 font-mono text-xs font-bold text-danger' : 'font-mono text-xs text-muted-foreground'}>
+                    {latestSession === undefined ? '차시 없음' : unchecked === null ? '-' : `${unchecked}명`}
+                  </span>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to={boardTarget ? `/assignments/${boardTarget.id}?cohort=${cohortId}` : `/assignments?cohort=${cohortId}`}
+                  className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 hover:bg-secondary/50"
+                >
+                  <span className="min-w-0 truncate">{boardTarget ? `#${boardTarget.problemNo} 미제출 수강생` : '과제 미제출 수강생'}</span>
+                  <span className={notSubmitted > 0 ? 'rounded-md bg-warning-bg px-2 py-0.5 font-mono text-xs font-bold text-warning' : 'font-mono text-xs text-muted-foreground'}>
+                    {boardTarget === undefined ? '과제 없음' : boardQuery.isPending ? '-' : `${notSubmitted}명`}
+                  </span>
+                </Link>
+              </li>
+            </ul>
+          </section>
+
           <section className="rounded-lg border bg-card p-4">
             <h2 className="text-lg font-bold tracking-tight">빠른 이동</h2>
             <ul className="mt-3 grid gap-2 text-sm">

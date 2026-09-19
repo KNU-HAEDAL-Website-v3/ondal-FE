@@ -9,7 +9,7 @@ import { oneDark } from '@codemirror/theme-one-dark'
 import { dracula } from '@uiw/codemirror-theme-dracula'
 import { githubLight } from '@uiw/codemirror-theme-github'
 import { solarizedLight } from '@uiw/codemirror-theme-solarized'
-import { Check, Copy, Palette } from 'lucide-react'
+import { Check, Copy, Maximize2, Minimize2, Palette, RotateCcw } from 'lucide-react'
 import {
   EDITOR_THEMES,
   getEditorTheme,
@@ -97,16 +97,41 @@ export function CodeEditorImpl({
   value,
   onChange,
   language,
+  height = '224px',
+  onReset,
+  fullscreen = false,
+  onToggleFullscreen,
 }: {
   value: string
   onChange: (value: string) => void
   language: string | null
+  /** 편집기 높이 - 분할 화면·전체 화면에서는 더 크게 (원안: 에디터가 화면 높이를 채움) */
+  height?: string
+  /** 초기화(작성 내용 비우기) - 주면 도구 줄에 버튼이 생긴다 */
+  onReset?: () => void
+  fullscreen?: boolean
+  /** 전체 화면 토글 - 주면 도구 줄에 버튼이 생긴다 */
+  onToggleFullscreen?: () => void
 }) {
   const theme = useEditorTheme()
+  const toolClass =
+    'flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent'
   return (
     <div className="space-y-1">
-      <div className="flex justify-end">
-        <ThemePicker id="code-editor-theme" />
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {onReset && (
+          <button type="button" onClick={onReset} disabled={value === ''} className={toolClass}>
+            <RotateCcw className="size-3.5" aria-hidden />
+            초기화
+          </button>
+        )}
+        {onToggleFullscreen && (
+          <button type="button" onClick={onToggleFullscreen} aria-pressed={fullscreen} className={toolClass}>
+            {fullscreen ? <Minimize2 className="size-3.5" aria-hidden /> : <Maximize2 className="size-3.5" aria-hidden />}
+            {fullscreen ? '전체 화면 닫기' : '전체 화면'}
+          </button>
+        )}
+        <ThemePicker id={fullscreen ? 'code-editor-theme-fullscreen' : 'code-editor-theme'} />
       </div>
       <CodeMirror
         value={value}
@@ -114,7 +139,7 @@ export function CodeEditorImpl({
         extensions={languageExtensions(language)}
         theme={themeExtensions(theme)[0]}
         placeholder="코드를 붙여넣거나 작성하세요"
-        height="224px"
+        height={height}
         aria-label="제출 코드"
         className="overflow-hidden rounded-lg border font-mono text-sm [&_.cm-content]:font-mono [&_.cm-gutters]:font-mono [&_.cm-editor]:h-full [&_.cm-editor.cm-focused]:outline-none"
       />

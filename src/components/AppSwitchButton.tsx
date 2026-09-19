@@ -13,7 +13,7 @@ import {
 import { lastPath, MODE_LABEL, type AppMode } from '@/lib/appSwitch'
 
 const DESCRIPTION: Record<AppMode, string> = {
-  hoj: '문제 은행에서는 분반·과제와 무관하게 문제를 골라 풀고 바로 채점받을 수 있어요. 돌아올 때는 지금 보던 화면으로 돌아와요.',
+  hoj: 'HOJ에서는 분반·과제와 무관하게 문제를 골라 풀고 바로 채점받을 수 있어요. 돌아올 때는 지금 보던 화면으로 돌아와요.',
   ondal: '과제 플랫폼으로 돌아가요. 분반·과제·출석·공지·Q&A 는 그쪽에 있어요. 다시 오면 지금 보던 화면으로 돌아와요.',
 }
 
