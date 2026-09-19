@@ -1,6 +1,6 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from './client'
-import type { ProblemImportItem, ProblemImportResult } from './types'
+import type { ProblemBankSource, ProblemBankSyncResult, ProblemImportItem, ProblemImportResult } from './types'
 
 /**
  * 한 요청에 담는 문제 수. 테스트케이스까지 담긴 번들은 문제당 100KB 안팎이라(100문제 = 약 10MB)
@@ -74,7 +74,37 @@ export async function importProblemsInChunks({ problems, overwrite, onProgress }
   return acc
 }
 
-/** [관리자] 문제 번들 가져오기 - 문제 은행 레포의 빌드 산출물(JSON). 끝나면(실패해도 앞 묶음은 저장됨) 문제 목록·태그 캐시를 비운다 */
+export const problemBankKeys = {
+  source: ['problems', 'bank', 'source'] as const,
+}
+
+/** [관리자] 문제 은행 레포 설정 - "깃허브에서 가져오기" 버튼을 보일지(configured)와 레포·브랜치 표시 */
+export function useProblemBankSource(enabled = true) {
+  return useQuery({
+    queryKey: problemBankKeys.source,
+    queryFn: () => apiFetch<ProblemBankSource>('/api/problems/import/github'),
+    enabled,
+    staleTime: 60_000,
+  })
+}
+
+/**
+ * [관리자] 깃허브에서 문제 가져오기 - 서버가 레포 ref 의 zip 을 받아 problems/* 를 읽어 넣는다. 브라우저는 요청 하나만 보낸다.
+ * 로컬 빌드(bank.json)·파일 선택이 필요 없는 기본 경로. 서버에 토큰이 없으면 503 PROBLEM_BANK_NOT_CONFIGURED
+ */
+export function useImportFromGithub() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (overwrite: boolean) =>
+      apiFetch<ProblemBankSyncResult>(`/api/problems/import/github?overwrite=${overwrite ? 'true' : 'false'}`, { method: 'POST' }),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['problems'] })
+      void queryClient.invalidateQueries({ queryKey: ['tags'] })
+    },
+  })
+}
+
+/** [관리자] 문제 번들 파일 가져오기(보조 경로) - 문제 은행 레포의 빌드 산출물(JSON). 끝나면(실패해도 앞 묶음은 저장됨) 문제 목록·태그 캐시를 비운다 */
 export function useImportProblems() {
   const queryClient = useQueryClient()
   return useMutation({
