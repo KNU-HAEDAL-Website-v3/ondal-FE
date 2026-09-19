@@ -23,6 +23,7 @@ import type {
   ProblemResponse,
   ProblemSummary,
   TagResponse,
+  ProblemImportResult,
   UserDirectoryEntry,
   UserResponse,
   UserSummary,
@@ -692,6 +693,96 @@ function findViewableSubmission(
   if (found.loginId === user.loginId || isAdminRole(user.globalRole)) return found
   const mine = enrollments.find((e) => e.cohortId === cohortId && e.loginId === user.loginId)
   return mine?.role === 'OPERATOR' ? found : null
+}
+
+/** 깃허브 가져오기 mock 의 레포 내용 - ondal-problems 의 앞 3문제를 축약 (실제 레포는 100문제) */
+const MOCK_BANK_REPO = 'KNU-HAEDAL-Website-v3/ondal-problems'
+const MOCK_BANK: Record<string, unknown>[] = [
+  { problemNo: 2001, title: '두 수의 합', description: '## 문제\n\n두 정수 A, B 를 입력받아 A+B 를 출력한다.', difficulty: 1, allowedLanguages: [], tags: ['구현', '사칙연산'], timeLimitMs: 1000, memoryLimitMb: 256, testCases: [{ input: '1 2\n', expectedOutput: '3\n', isPublic: true }, { input: '10 20\n', expectedOutput: '30\n', isPublic: false }] },
+  { problemNo: 2002, title: '세 수 최댓값', description: '## 문제\n\n세 정수 중 가장 큰 수를 출력한다.', difficulty: 1, allowedLanguages: [], tags: ['구현', '조건문'], timeLimitMs: 1000, memoryLimitMb: 256, testCases: [{ input: '3 1 2\n', expectedOutput: '3\n', isPublic: true }] },
+  { problemNo: 2005, title: '[C언어] int 오버플로', description: '## 문제\n\n두 int 를 곱해 long long 으로 출력한다.', difficulty: 3, allowedLanguages: ['C'], tags: ['C언어', '자료형'], timeLimitMs: 1000, memoryLimitMb: 256, testCases: [{ input: '100000 100000\n', expectedOutput: '10000000000\n', isPublic: true }] },
+]
+
+/**
+ * BE ProblemImportService.importBundle - 번호가 키, 태그는 이름으로(없으면 생성), 테스트케이스는 통째 교체.
+ * 파일 업로드(POST /api/problems/import)와 깃허브 가져오기(POST /api/problems/import/github)가 같이 쓴다. 요청 하나는 전부 검사한 뒤 반영(원자성)
+ */
+function importProblems(items: Record<string, unknown>[], overwrite: boolean, user: MockUser): { fail: ReturnType<typeof error> } | { result: ProblemImportResult } {
+  // BE 와 같이 요청 하나는 통째로 성공하거나 실패 - 먼저 전부 검사하고 나서 반영한다 (묶음 도중 실패 시 앞 문제가 남지 않음)
+  const seenNos = new Set<number>()
+  for (const item of items) {
+    const problemNo = Number(item.problemNo)
+    if (!Number.isInteger(problemNo) || problemNo < 1000) return { fail: error(400, 'INVALID_INPUT', '문제 번호는 1000 이상이어야 합니다.') }
+    if (seenNos.has(problemNo)) return { fail: error(400, 'INVALID_INPUT', `번들 안에 같은 문제 번호가 두 번 있습니다: ${problemNo}`) }
+    seenNos.add(problemNo)
+    if (typeof item.title !== 'string' || item.title.trim() === '') return { fail: error(400, 'INVALID_INPUT', '문제 제목은 비어 있을 수 없습니다.') }
+  }
+  const createdTags: string[] = []
+  const problemNos: number[] = []
+  let created = 0
+  let updated = 0
+  let skipped = 0
+  const seen = new Set<number>()
+  for (const item of items) {
+    const problemNo = Number(item.problemNo)
+    if (!Number.isInteger(problemNo) || problemNo < 1000) return { fail: error(400, 'INVALID_INPUT', '문제 번호는 1000 이상이어야 합니다.') }
+    if (seen.has(problemNo)) return { fail: error(400, 'INVALID_INPUT', `번들 안에 같은 문제 번호가 두 번 있습니다: ${problemNo}`) }
+    seen.add(problemNo)
+    const title = typeof item.title === 'string' ? item.title.trim() : ''
+    if (title === '') return { fail: error(400, 'INVALID_INPUT', '문제 제목은 비어 있을 수 없습니다.') }
+    const names = Array.isArray(item.tags) ? item.tags.map(String).map((n) => n.trim()).filter((n) => n !== '') : []
+    const tagIds = [...new Set(names)].map((name) => {
+      let tag = tags.find((t) => t.name === name)
+      if (!tag) {
+        tag = { id: Math.max(0, ...tags.map((t) => t.id)) + 1, name, createdAt: new Date().toISOString() }
+        tags.push(tag)
+        createdTags.push(name)
+      }
+      return tag.id
+    })
+    const languages = Array.isArray(item.allowedLanguages) ? item.allowedLanguages.map(String).filter((l) => JUDGE_LANGUAGES.includes(l)) : []
+    const difficulty = item.difficulty === null || item.difficulty === undefined ? null : Number(item.difficulty)
+    const testCases = Array.isArray(item.testCases)
+      ? (item.testCases as { input?: unknown; expectedOutput?: unknown; isPublic?: unknown }[]).map((tc) => ({
+          input: String(tc.input ?? ''),
+          expectedOutput: String(tc.expectedOutput ?? ''),
+          isPublic: tc.isPublic === true,
+        }))
+      : []
+    const stamp = new Date().toISOString()
+    let problem = problems.find((pr) => pr.problemNo === problemNo)
+    if (problem) {
+      if (!overwrite) {
+        skipped += 1
+        continue
+      }
+      problem.title = title
+      problem.description = typeof item.description === 'string' ? item.description : null
+      problem.updatedAt = stamp
+      updated += 1
+    } else {
+      problem = {
+        id: Math.max(0, ...problems.map((pr) => pr.id)) + 1,
+        problemNo,
+        title,
+        description: typeof item.description === 'string' ? item.description : null,
+        tagIds: [],
+        createdBy: user.name,
+        createdAt: stamp,
+        updatedAt: stamp,
+      }
+      problems.push(problem)
+      created += 1
+    }
+    problem.tagIds = tagIds
+    problem.difficulty = difficulty
+    problem.allowedLanguages = languages
+    problem.timeLimitMs = item.timeLimitMs === undefined ? null : (item.timeLimitMs as number | null)
+    problem.memoryLimitMb = item.memoryLimitMb === undefined ? null : (item.memoryLimitMb as number | null)
+    replaceTestCases(problem, testCases)
+    problemNos.push(problemNo)
+  }
+  return { result: { created, updated, skipped, createdTags, problemNos } }
 }
 
 export const handlers = [
@@ -1782,82 +1873,30 @@ export const handlers = [
     const body = (await request.json().catch(() => null)) as { problems?: unknown; overwrite?: unknown } | null
     const items = Array.isArray(body?.problems) ? (body!.problems as Record<string, unknown>[]) : []
     if (items.length === 0) return error(400, 'INVALID_INPUT', 'problems 는 비어 있을 수 없습니다.')
-    const overwrite = body?.overwrite === true
-    // BE 와 같이 요청 하나는 통째로 성공하거나 실패 - 먼저 전부 검사하고 나서 반영한다 (묶음 도중 실패 시 앞 문제가 남지 않음)
-    const seenNos = new Set<number>()
-    for (const item of items) {
-      const problemNo = Number(item.problemNo)
-      if (!Number.isInteger(problemNo) || problemNo < 1000) return error(400, 'INVALID_INPUT', '문제 번호는 1000 이상이어야 합니다.')
-      if (seenNos.has(problemNo)) return error(400, 'INVALID_INPUT', `번들 안에 같은 문제 번호가 두 번 있습니다: ${problemNo}`)
-      seenNos.add(problemNo)
-      if (typeof item.title !== 'string' || item.title.trim() === '') return error(400, 'INVALID_INPUT', '문제 제목은 비어 있을 수 없습니다.')
-    }
-    const createdTags: string[] = []
-    const problemNos: number[] = []
-    let created = 0
-    let updated = 0
-    let skipped = 0
-    const seen = new Set<number>()
-    for (const item of items) {
-      const problemNo = Number(item.problemNo)
-      if (!Number.isInteger(problemNo) || problemNo < 1000) return error(400, 'INVALID_INPUT', '문제 번호는 1000 이상이어야 합니다.')
-      if (seen.has(problemNo)) return error(400, 'INVALID_INPUT', `번들 안에 같은 문제 번호가 두 번 있습니다: ${problemNo}`)
-      seen.add(problemNo)
-      const title = typeof item.title === 'string' ? item.title.trim() : ''
-      if (title === '') return error(400, 'INVALID_INPUT', '문제 제목은 비어 있을 수 없습니다.')
-      const names = Array.isArray(item.tags) ? item.tags.map(String).map((n) => n.trim()).filter((n) => n !== '') : []
-      const tagIds = [...new Set(names)].map((name) => {
-        let tag = tags.find((t) => t.name === name)
-        if (!tag) {
-          tag = { id: Math.max(0, ...tags.map((t) => t.id)) + 1, name, createdAt: new Date().toISOString() }
-          tags.push(tag)
-          createdTags.push(name)
-        }
-        return tag.id
-      })
-      const languages = Array.isArray(item.allowedLanguages) ? item.allowedLanguages.map(String).filter((l) => JUDGE_LANGUAGES.includes(l)) : []
-      const difficulty = item.difficulty === null || item.difficulty === undefined ? null : Number(item.difficulty)
-      const testCases = Array.isArray(item.testCases)
-        ? (item.testCases as { input?: unknown; expectedOutput?: unknown; isPublic?: unknown }[]).map((tc) => ({
-            input: String(tc.input ?? ''),
-            expectedOutput: String(tc.expectedOutput ?? ''),
-            isPublic: tc.isPublic === true,
-          }))
-        : []
-      const stamp = new Date().toISOString()
-      let problem = problems.find((pr) => pr.problemNo === problemNo)
-      if (problem) {
-        if (!overwrite) {
-          skipped += 1
-          continue
-        }
-        problem.title = title
-        problem.description = typeof item.description === 'string' ? item.description : null
-        problem.updatedAt = stamp
-        updated += 1
-      } else {
-        problem = {
-          id: Math.max(0, ...problems.map((pr) => pr.id)) + 1,
-          problemNo,
-          title,
-          description: typeof item.description === 'string' ? item.description : null,
-          tagIds: [],
-          createdBy: user.name,
-          createdAt: stamp,
-          updatedAt: stamp,
-        }
-        problems.push(problem)
-        created += 1
-      }
-      problem.tagIds = tagIds
-      problem.difficulty = difficulty
-      problem.allowedLanguages = languages
-      problem.timeLimitMs = item.timeLimitMs === undefined ? null : (item.timeLimitMs as number | null)
-      problem.memoryLimitMb = item.memoryLimitMb === undefined ? null : (item.memoryLimitMb as number | null)
-      replaceTestCases(problem, testCases)
-      problemNos.push(problemNo)
-    }
-    return HttpResponse.json({ created, updated, skipped, createdTags, problemNos })
+    const outcome = importProblems(items, body?.overwrite === true, user)
+    if ('fail' in outcome) return outcome.fail
+    return HttpResponse.json(outcome.result)
+  }),
+
+  // [관리자] 문제 은행 레포(GitHub) 설정 - BE ProblemBankSyncService.source. mock 은 항상 설정된 것으로
+  http.get('/api/problems/import/github', async () => {
+    await delay(200)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (!isAdminRole(user.globalRole)) return forbiddenAdmin()
+    return HttpResponse.json({ configured: true, repo: MOCK_BANK_REPO, ref: 'main' })
+  }),
+
+  // [관리자] 깃허브에서 문제 가져오기 - 서버가 레포 zip 을 읽는 것을 내장 번들(MOCK_BANK)로 흉내. 규칙은 파일 가져오기와 같다
+  http.post('/api/problems/import/github', async ({ request }) => {
+    await delay(1200)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (!isAdminRole(user.globalRole)) return forbiddenAdmin()
+    const overwrite = new URL(request.url).searchParams.get('overwrite') === 'true'
+    const outcome = importProblems(MOCK_BANK.map((p) => ({ ...p })), overwrite, user)
+    if ('fail' in outcome) return outcome.fail
+    return HttpResponse.json({ repo: MOCK_BANK_REPO, ref: 'main', commitSha: 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345678', problemsInRepo: MOCK_BANK.length, importedAt: new Date().toISOString(), result: outcome.result })
   }),
 
   http.post('/api/problems', async ({ request }) => {

@@ -572,6 +572,23 @@ export interface ProblemImportResult {
   problemNos: number[]
 }
 
+/** GET /api/problems/import/github (관리자) - 서버가 어느 레포·브랜치에서 가져오도록 설정돼 있는지. configured=false 면 파일 업로드만 가능 */
+export interface ProblemBankSource {
+  configured: boolean
+  repo: string
+  ref: string
+}
+
+/** POST /api/problems/import/github 결과 - 어느 커밋을 가져왔는지 + 가져오기 집계(파일 업로드와 같은 규칙) */
+export interface ProblemBankSyncResult {
+  repo: string
+  ref: string
+  commitSha: string
+  problemsInRepo: number
+  importedAt: string
+  result: ProblemImportResult
+}
+
 // ---- 마이페이지 ------------------------------------------------------------------------------
 
 /** GET /api/me/stats - 본인 활동 요약. 점수·랭킹 없음 */
