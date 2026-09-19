@@ -23,6 +23,7 @@ import type {
   ProblemResponse,
   ProblemSummary,
   TagResponse,
+  ProblemBankSyncStatus,
   ProblemImportResult,
   UserDirectoryEntry,
   UserResponse,
@@ -783,6 +784,42 @@ function importProblems(items: Record<string, unknown>[], overwrite: boolean, us
     problemNos.push(problemNo)
   }
   return { result: { created, updated, skipped, createdTags, problemNos } }
+}
+
+/** 깃허브 가져오기 작업 (mock) - BE 는 메모리에 마지막 작업 하나를 둔다. 단계는 경과 시간으로 흉내 */
+const GITHUB_FETCH_MS = 800
+const GITHUB_IMPORT_MS = 1500
+let githubJob: { startedAt: number; overwrite: boolean; requestedBy: string; total: number; result: ProblemImportResult | null; error: { code: string; message: string } | null } | null = null
+
+function githubStatus(): ProblemBankSyncStatus {
+  if (!githubJob) {
+    return { state: 'IDLE', step: null, processed: 0, total: 0, startedAt: null, finishedAt: null, fetchMs: null, importMs: null, overwrite: false, requestedBy: null, outcome: null, error: null }
+  }
+  const elapsed = Date.now() - githubJob.startedAt
+  const startedAt = new Date(githubJob.startedAt).toISOString()
+  const base = { overwrite: githubJob.overwrite, requestedBy: githubJob.requestedBy, startedAt, outcome: null, error: null }
+  if (elapsed < GITHUB_FETCH_MS) {
+    return { ...base, state: 'RUNNING', step: elapsed < GITHUB_FETCH_MS / 2 ? '커밋 조회' : 'zip 다운로드', processed: 0, total: 0, finishedAt: null, fetchMs: null, importMs: null }
+  }
+  if (elapsed < GITHUB_FETCH_MS + GITHUB_IMPORT_MS) {
+    const processed = Math.min(githubJob.total, Math.floor(((elapsed - GITHUB_FETCH_MS) / GITHUB_IMPORT_MS) * githubJob.total))
+    return { ...base, state: 'RUNNING', step: '문제 넣는 중', processed, total: githubJob.total, finishedAt: null, fetchMs: GITHUB_FETCH_MS, importMs: null }
+  }
+  const finishedAt = new Date(githubJob.startedAt + GITHUB_FETCH_MS + GITHUB_IMPORT_MS).toISOString()
+  if (githubJob.error) {
+    return { ...base, state: 'FAILED', step: '문제 넣는 중', processed: 0, total: githubJob.total, finishedAt, fetchMs: GITHUB_FETCH_MS, importMs: null, error: githubJob.error }
+  }
+  return {
+    ...base,
+    state: 'DONE',
+    step: '완료',
+    processed: githubJob.total,
+    total: githubJob.total,
+    finishedAt,
+    fetchMs: GITHUB_FETCH_MS,
+    importMs: GITHUB_IMPORT_MS,
+    outcome: { repo: MOCK_BANK_REPO, ref: 'main', commitSha: 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345678', problemsInRepo: githubJob.total, importedAt: finishedAt, result: githubJob.result! },
+  }
 }
 
 export const handlers = [
@@ -1887,16 +1924,33 @@ export const handlers = [
     return HttpResponse.json({ configured: true, repo: MOCK_BANK_REPO, ref: 'main' })
   }),
 
-  // [관리자] 깃허브에서 문제 가져오기 - 서버가 레포 zip 을 읽는 것을 내장 번들(MOCK_BANK)로 흉내. 규칙은 파일 가져오기와 같다
+  // [관리자] 깃허브에서 문제 가져오기 - BE ProblemBankSyncService.start: 작업을 띄우고(202) 상태를 돌려준다. 화면은 GET .../status 폴링.
+  // mock 은 시작 시각 기준으로 단계가 흘러가는 것처럼 보이고(받기 0.8초 → 넣기 1.5초), 반영은 시작할 때 내장 번들(MOCK_BANK)로 미리 해 둔다
   http.post('/api/problems/import/github', async ({ request }) => {
-    await delay(1200)
+    await delay(200)
     const user = currentUser()
     if (!user) return unauthenticated()
     if (!isAdminRole(user.globalRole)) return forbiddenAdmin()
+    if (githubJob && githubStatus().state === 'RUNNING') return error(409, 'CONFLICT', `이미 깃허브에서 가져오는 중이에요 (${githubJob.requestedBy} 시작). 끝나면 다시 눌러 주세요.`)
     const overwrite = new URL(request.url).searchParams.get('overwrite') === 'true'
     const outcome = importProblems(MOCK_BANK.map((p) => ({ ...p })), overwrite, user)
-    if ('fail' in outcome) return outcome.fail
-    return HttpResponse.json({ repo: MOCK_BANK_REPO, ref: 'main', commitSha: 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345678', problemsInRepo: MOCK_BANK.length, importedAt: new Date().toISOString(), result: outcome.result })
+    githubJob = {
+      startedAt: Date.now(),
+      overwrite,
+      requestedBy: user.name,
+      total: MOCK_BANK.length,
+      result: 'fail' in outcome ? null : outcome.result,
+      error: 'fail' in outcome ? { code: 'INVALID_INPUT', message: '번들이 규칙을 어겼어요' } : null,
+    }
+    return HttpResponse.json(githubStatus(), { status: 202 })
+  }),
+
+  http.get('/api/problems/import/github/status', async () => {
+    await delay(120)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (!isAdminRole(user.globalRole)) return forbiddenAdmin()
+    return HttpResponse.json(githubStatus())
   }),
 
   http.post('/api/problems', async ({ request }) => {

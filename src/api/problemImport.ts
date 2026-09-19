@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from './client'
-import type { ProblemBankSource, ProblemBankSyncResult, ProblemImportItem, ProblemImportResult } from './types'
+import type { ProblemBankSource, ProblemBankSyncStatus, ProblemImportItem, ProblemImportResult } from './types'
 
 /**
  * 한 요청에 담는 문제 수. 테스트케이스까지 담긴 번들은 문제당 100KB 안팎이라(100문제 = 약 10MB)
@@ -76,6 +76,7 @@ export async function importProblemsInChunks({ problems, overwrite, onProgress }
 
 export const problemBankKeys = {
   source: ['problems', 'bank', 'source'] as const,
+  status: ['problems', 'bank', 'status'] as const,
 }
 
 /** [관리자] 문제 은행 레포 설정 - "깃허브에서 가져오기" 버튼을 보일지(configured)와 레포·브랜치 표시 */
@@ -88,19 +89,27 @@ export function useProblemBankSource(enabled = true) {
   })
 }
 
+/** [관리자] 깃허브 가져오기 작업 상태 - RUNNING 이면 1.5초마다 다시 읽는다 (대화상자가 열려 있을 때만) */
+export function useGithubImportStatus(enabled: boolean) {
+  return useQuery({
+    queryKey: problemBankKeys.status,
+    queryFn: () => apiFetch<ProblemBankSyncStatus>('/api/problems/import/github/status'),
+    enabled,
+    refetchInterval: (query) => (query.state.data?.state === 'RUNNING' ? 1500 : false),
+  })
+}
+
 /**
- * [관리자] 깃허브에서 문제 가져오기 - 서버가 레포 ref 의 zip 을 받아 problems/* 를 읽어 넣는다. 브라우저는 요청 하나만 보낸다.
- * 로컬 빌드(bank.json)·파일 선택이 필요 없는 기본 경로. 서버에 토큰이 없으면 503 PROBLEM_BANK_NOT_CONFIGURED
+ * [관리자] 깃허브에서 문제 가져오기 시작 - 서버가 레포 ref 의 zip 을 받아 problems/* 를 읽어 넣는 작업을 띄우고(202) 상태를 돌려준다.
+ * 끝날 때까지는 useGithubImportStatus 가 폴링. 로컬 빌드(bank.json)·파일 선택이 필요 없는 기본 경로.
+ * 서버에 토큰이 없으면 503 PROBLEM_BANK_NOT_CONFIGURED, 이미 도는 중이면 409
  */
-export function useImportFromGithub() {
+export function useStartGithubImport() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (overwrite: boolean) =>
-      apiFetch<ProblemBankSyncResult>(`/api/problems/import/github?overwrite=${overwrite ? 'true' : 'false'}`, { method: 'POST' }),
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ['problems'] })
-      void queryClient.invalidateQueries({ queryKey: ['tags'] })
-    },
+      apiFetch<ProblemBankSyncStatus>(`/api/problems/import/github?overwrite=${overwrite ? 'true' : 'false'}`, { method: 'POST' }),
+    onSuccess: (status) => queryClient.setQueryData(problemBankKeys.status, status),
   })
 }
 

@@ -579,7 +579,7 @@ export interface ProblemBankSource {
   ref: string
 }
 
-/** POST /api/problems/import/github 결과 - 어느 커밋을 가져왔는지 + 가져오기 집계(파일 업로드와 같은 규칙) */
+/** 깃허브 가져오기 완료 결과 - 어느 커밋을 가져왔는지 + 가져오기 집계(파일 업로드와 같은 규칙) */
 export interface ProblemBankSyncResult {
   repo: string
   ref: string
@@ -587,6 +587,27 @@ export interface ProblemBankSyncResult {
   problemsInRepo: number
   importedAt: string
   result: ProblemImportResult
+}
+
+/**
+ * 깃허브 가져오기 작업 상태 - POST /api/problems/import/github 는 작업을 시작하고 이 상태를 돌려준다(202), 화면은 GET .../status 를 폴링.
+ * 수 초~수십 초 걸리는 일이라 요청 하나로 기다리면 프록시가 끊는다. 상태는 서버 메모리 - 재시작하면 IDLE
+ */
+export interface ProblemBankSyncStatus {
+  state: 'IDLE' | 'RUNNING' | 'DONE' | 'FAILED'
+  step: string | null
+  processed: number
+  total: number
+  startedAt: string | null
+  finishedAt: string | null
+  fetchMs: number | null
+  importMs: number | null
+  overwrite: boolean
+  requestedBy: string | null
+  /** DONE 일 때 */
+  outcome: ProblemBankSyncResult | null
+  /** FAILED 일 때 */
+  error: { code: string; message: string } | null
 }
 
 // ---- 마이페이지 ------------------------------------------------------------------------------
