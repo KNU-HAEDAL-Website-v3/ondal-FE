@@ -25,7 +25,7 @@ import { parseId } from '@/lib/params'
 import { cn } from '@/lib/utils'
 
 const TEXTAREA_CLASS =
-  'w-full resize-y rounded-[2px] border bg-background px-3 py-2 text-sm leading-6 outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'w-full resize-y rounded-lg border bg-background px-3 py-2 text-sm leading-6 outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 const DRAFT_PREFIX = 'ondal-problem-draft'
 const draftKey = (problemId: number | null) => `${DRAFT_PREFIX}:${problemId ?? 'new'}`
@@ -227,7 +227,7 @@ export default function ProblemFormPage() {
                       aria-pressed={selected}
                       onClick={() => toggleTag(tag.id)}
                       className={cn(
-                        'flex items-center gap-1 rounded-[2px] border px-2.5 py-1 text-xs transition-colors',
+                        'flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs transition-colors',
                         selected ? 'border-primary bg-secondary font-semibold text-primary' : 'hover:bg-secondary/50',
                       )}
                     >
@@ -252,10 +252,10 @@ export default function ProblemFormPage() {
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <div className="flex items-center gap-2">
-          <Button type="submit" className="rounded-[2px]" disabled={pending || title.trim() === ''}>
+          <Button type="submit" disabled={pending || title.trim() === ''}>
             {pending ? '저장 중...' : editing ? '저장' : '출제하기'}
           </Button>
-          <Button type="button" variant="outline" className="rounded-[2px]" asChild>
+          <Button type="button" variant="outline" asChild>
             <Link to={editing ? `/problems/${problemId}` : '/problems'}>취소</Link>
           </Button>
         </div>

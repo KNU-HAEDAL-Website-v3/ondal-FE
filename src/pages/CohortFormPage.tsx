@@ -125,7 +125,7 @@ export default function CohortFormPage() {
       </header>
 
       {archived && (
-        <p className="rounded-[2px] border bg-muted px-3 py-2 text-sm text-muted-foreground">
+        <p className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground">
           보관된 분반은 수정할 수 없어요. 분반 관리의 보관함에서 해제한 뒤 다시 시도해 주세요.
         </p>
       )}
@@ -156,7 +156,7 @@ export default function CohortFormPage() {
             maxLength={DESCRIPTION_MAX}
             rows={4}
             placeholder="수업 요일·시간, 대상 등 수강생 홈 카드에 보일 한두 줄"
-            className="w-full rounded-[6px] border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
           <p className="text-right text-xs text-muted-foreground">
             {description.length}/{DESCRIPTION_MAX}
@@ -172,7 +172,7 @@ export default function CohortFormPage() {
               onChange={(e) => setOperators(e.target.value)}
               rows={3}
               placeholder={'홈페이지(Keycloak) 아이디를 줄바꿈이나 쉼표로 구분해 입력\n예: hong, kim'}
-              className="w-full rounded-[6px] border border-input bg-transparent px-3 py-2 font-mono text-sm shadow-xs outline-none placeholder:font-sans placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="w-full rounded-lg border border-input bg-transparent px-3 py-2 font-mono text-sm shadow-xs outline-none placeholder:font-sans placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
             <p className="text-xs text-muted-foreground">
               {operatorLoginIds.length === 0
@@ -185,10 +185,10 @@ export default function CohortFormPage() {
         {mutationError && <p className="text-sm text-destructive">{(mutationError as Error).message}</p>}
 
         <div className="flex items-center gap-2">
-          <Button type="submit" disabled={!canSubmit} className="rounded-[2px]">
+          <Button type="submit" disabled={!canSubmit}>
             {isPending ? '저장 중...' : editing ? '저장' : '만들기'}
           </Button>
-          <Button type="button" variant="outline" className="rounded-[2px]" onClick={handleCancel}>
+          <Button type="button" variant="outline" onClick={handleCancel}>
             취소
           </Button>
         </div>

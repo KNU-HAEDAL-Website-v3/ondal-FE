@@ -74,7 +74,7 @@ export default function AdminTagsPage() {
             placeholder="예: 다이나믹 프로그래밍"
           />
         </div>
-        <Button type="submit" className="rounded-[2px]" disabled={createMutation.isPending || newName.trim() === ''}>
+        <Button type="submit" disabled={createMutation.isPending || newName.trim() === ''}>
           <Plus data-icon="inline-start" />
           {createMutation.isPending ? '추가 중...' : '태그 추가'}
         </Button>
@@ -101,7 +101,7 @@ export default function AdminTagsPage() {
                     aria-label={`${tag.name} 이름 수정`}
                     className="max-w-64"
                   />
-                  <Button type="submit" size="sm" className="rounded-[2px]" disabled={updateMutation.isPending}>
+                  <Button type="submit" size="sm" disabled={updateMutation.isPending}>
                     저장
                   </Button>
                   <Button type="button" variant="ghost" size="sm" onClick={() => setEditingId(null)} aria-label="취소">
@@ -114,7 +114,7 @@ export default function AdminTagsPage() {
                   <Button
                     variant="ghost"
                     size="xs"
-                    className="rounded-[2px]"
+                   
                     onClick={() => {
                       setEditingId(tag.id)
                       setEditingName(tag.name)
@@ -126,7 +126,7 @@ export default function AdminTagsPage() {
                   <Button
                     variant="ghost"
                     size="xs"
-                    className="rounded-[2px] text-destructive"
+                    className="text-destructive"
                     onClick={() => handleDelete(tag)}
                     disabled={deleteMutation.isPending}
                   >

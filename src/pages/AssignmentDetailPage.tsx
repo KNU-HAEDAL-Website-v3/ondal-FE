@@ -83,7 +83,7 @@ export default function AssignmentDetailPage() {
         {/* V7: 제목·본문·태그는 배정된 문제의 것 - HOJ 에서 같은 문제를 다시 볼 수 있게 링크를 둔다 */}
         <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
           {assignment.tags.map((tag) => (
-            <span key={tag.id} className="rounded-[2px] bg-secondary px-1.5 py-0.5 font-semibold">
+            <span key={tag.id} className="rounded-md bg-secondary px-1.5 py-0.5 font-semibold">
               {tag.name}
             </span>
           ))}
@@ -97,14 +97,14 @@ export default function AssignmentDetailPage() {
             {assignment.title}
             {assignment.myStatus !== null && <SubmissionStatusBadge status={assignment.myStatus} />}
             {assignment.judgeEnabled && (
-              <span className="rounded-[2px] bg-[#ede9fe] px-2 py-0.5 text-xs font-bold text-[#6d28d9]">자동 채점</span>
+              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-bold text-primary">자동 채점</span>
             )}
           </h1>
           <div className="flex items-center gap-2">
             <span
               className={cn(
-                'flex items-center gap-1.5 rounded-[2px] border bg-card px-3 py-1.5 text-xs font-semibold',
-                overdue ? 'text-muted-foreground' : 'text-[#464555]',
+                'flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-semibold',
+                overdue ? 'text-muted-foreground' : 'text-muted-foreground',
               )}
             >
               <Clock className="size-3.5" />
@@ -112,7 +112,7 @@ export default function AssignmentDetailPage() {
             </span>
             {canManage && (
               <>
-                <Button variant="outline" size="sm" className="rounded-[2px]" asChild>
+                <Button variant="outline" size="sm" asChild>
                   <Link to={`/assignments/${assignment.id}/edit?cohort=${cohortId}`}>
                     <Pencil data-icon="inline-start" />
                     수정
@@ -121,7 +121,7 @@ export default function AssignmentDetailPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="rounded-[2px] text-destructive"
+                  className="text-destructive"
                   onClick={handleDelete}
                   disabled={deleteMutation.isPending}
                 >
@@ -160,7 +160,7 @@ export default function AssignmentDetailPage() {
       {assignment.judgeEnabled && <JudgeSamplesSection problemId={assignment.problemId} />}
 
       {archived ? (
-        <p className="rounded-[2px] border bg-muted px-3 py-2 text-sm text-muted-foreground">
+        <p className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground">
           보관된 분반이라 새 제출은 할 수 없어요. 기록 열람은 가능합니다.
         </p>
       ) : (

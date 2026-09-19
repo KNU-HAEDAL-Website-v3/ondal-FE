@@ -51,7 +51,7 @@ export default function LoginPage() {
   if (me) return <Navigate to={returnTo} replace />
 
   return (
-    <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted/30 px-4">
+    <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <p className="text-2xl font-bold tracking-tight text-primary">Ondal</p>

@@ -13,7 +13,7 @@ const STATUS_META: Record<SubmissionStatus, { label: string; className: string }
 export function SubmissionStatusBadge({ status, className }: { status: SubmissionStatus; className?: string }) {
   const meta = STATUS_META[status]
   return (
-    <span className={cn('inline-block rounded-[2px] px-2 py-0.5 text-xs font-bold', meta.className, className)}>
+    <span className={cn('inline-block rounded-md px-2 py-0.5 text-xs font-bold', meta.className, className)}>
       {meta.label}
     </span>
   )
@@ -24,7 +24,7 @@ export function LateBadge({ late }: { late: boolean }) {
   return (
     <span
       className={cn(
-        'inline-block rounded-[2px] px-2 py-0.5 text-xs font-bold',
+        'inline-block rounded-md px-2 py-0.5 text-xs font-bold',
         late ? 'bg-caution-bg text-caution' : 'bg-success-bg text-success',
       )}
     >

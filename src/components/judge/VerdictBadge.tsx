@@ -17,7 +17,7 @@ export function isJudging(status: JudgeStatus | null | undefined): boolean {
   return status === 'PENDING' || status === 'RUNNING'
 }
 
-const BASE_CLASS = 'inline-flex items-center gap-1 rounded-[2px] px-2 py-0.5 text-xs font-bold whitespace-nowrap'
+const BASE_CLASS = 'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-bold whitespace-nowrap'
 
 /**
  * 채점 배지 - status 가 null 이면 채점 대상이 아니라 아무것도 그리지 않는다.

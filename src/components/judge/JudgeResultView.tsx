@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 export function JudgeResultView({ judge }: { judge: JudgeResultResponse }) {
   const judging = isJudging(judge.status)
   return (
-    <section aria-label="채점 결과" className="rounded-[2px] border bg-card p-3">
+    <section aria-label="채점 결과" className="rounded-lg border bg-card p-3">
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span className="flex items-center gap-1 font-bold tracking-[0.55px]">
           <Gavel className="size-3.5" />
@@ -43,7 +43,7 @@ export function JudgeResultView({ judge }: { judge: JudgeResultResponse }) {
       {judge.compileOutput && (
         <div className="mt-2">
           <p className="text-xs font-semibold text-muted-foreground">{judge.verdict === 'COMPILE_ERROR' ? '컴파일 메시지' : '메시지'}</p>
-          <pre className="mt-1 max-h-48 overflow-auto rounded-[2px] bg-muted p-2 font-mono text-xs leading-5 whitespace-pre-wrap">{judge.compileOutput}</pre>
+          <pre className="mt-1 max-h-48 overflow-auto rounded-lg bg-muted p-2 font-mono text-xs leading-5 whitespace-pre-wrap">{judge.compileOutput}</pre>
         </div>
       )}
 
@@ -79,7 +79,7 @@ function CaseRow({ c }: { c: JudgeCaseView }) {
       <tr data-case-position={c.position}>
         <td className="py-1.5 font-mono text-xs text-muted-foreground">{c.position + 1}</td>
         <td className="py-1.5">
-          <span className={cn('inline-block rounded-[2px] px-1.5 py-0.5 text-[11px] font-bold', meta.className)}>{meta.label}</span>
+          <span className={cn('inline-block rounded-md px-1.5 py-0.5 text-[11px] font-bold', meta.className)}>{meta.label}</span>
         </td>
         <td className="py-1.5 font-mono text-xs">{c.timeMs === null ? '-' : `${c.timeMs} ms`}</td>
         <td className="py-1.5 font-mono text-xs">{c.memoryKb === null ? '-' : `${c.memoryKb} KB`}</td>
@@ -121,7 +121,7 @@ function IoBlock({ label, value, highlight }: { label: string; value: string; hi
       <p className="text-[11px] font-semibold text-muted-foreground">{label}</p>
       <pre
         className={cn(
-          'mt-0.5 max-h-40 min-h-8 overflow-auto rounded-[2px] border bg-muted/40 p-2 font-mono text-xs leading-5 whitespace-pre-wrap',
+          'mt-0.5 max-h-40 min-h-8 overflow-auto rounded-lg border bg-muted p-2 font-mono text-xs leading-5 whitespace-pre-wrap',
           highlight && 'border-danger-border bg-danger-soft',
         )}
       >

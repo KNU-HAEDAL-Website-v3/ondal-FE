@@ -62,7 +62,7 @@ export function toPayload(draft: JudgeDraft, rejudge: boolean): JudgeConfigPaylo
 
 const LANGUAGE_FALLBACK = ['C', 'C++', 'Java', 'Python 3', 'JavaScript', 'TypeScript']
 const TEXTAREA_CLASS =
-  'w-full resize-y rounded-[2px] border bg-background px-2 py-1.5 font-mono text-xs leading-5 outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'w-full resize-y rounded-lg border bg-background px-2 py-1.5 font-mono text-xs leading-5 outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 type RunMark = { verdict: Verdict | null; stdout: string; timeMs: number | null; memoryKb: number | null }
 
@@ -213,7 +213,7 @@ export function JudgeConfigSection({
       {draft.enabled && (
         <div className="space-y-5 p-4">
           {config && !config.engineAvailable && (
-            <p className="rounded-[2px] border border-dashed bg-muted px-3 py-2 text-sm text-muted-foreground">
+            <p className="rounded-lg border border-dashed bg-muted px-3 py-2 text-sm text-muted-foreground">
               채점 엔진이 아직 연결되지 않았어요. 테스트케이스 저장은 되지만 제출은 "채점 중"으로 대기하고, 기대 출력 채우기·출제 검증은 엔진 연결 뒤에 쓸 수 있어요.
             </p>
           )}
@@ -322,7 +322,7 @@ export function JudgeConfigSection({
                         {mark && mark.verdict !== null && (
                           <span
                             className={cn(
-                              'inline-flex items-center gap-1 rounded-[2px] px-1.5 py-0.5 font-bold',
+                              'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-bold',
                               mark.verdict === 'ACCEPTED' ? 'bg-success-bg text-success' : 'bg-danger-bg text-danger',
                             )}
                             aria-label={`케이스 ${index + 1} 검증 ${VERDICT_META[mark.verdict].label}`}
@@ -351,13 +351,13 @@ export function JudgeConfigSection({
               </tbody>
             </table>
             </div>
-            <Button type="button" variant="outline" size="sm" className="mt-2 rounded-[2px]" onClick={addCase} disabled={disabled || draft.testCases.length >= maxCases}>
+            <Button type="button" variant="outline" size="sm" className="mt-2" onClick={addCase} disabled={disabled || draft.testCases.length >= maxCases}>
               <Plus data-icon="inline-start" />
               케이스 추가
             </Button>
           </div>
 
-          <div className="rounded-[2px] border bg-muted/20 p-3">
+          <div className="rounded-lg border bg-muted p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="flex items-center gap-1.5 text-xs font-bold tracking-[0.55px] text-muted-foreground">
                 <Wand2 className="size-3.5" />
@@ -368,7 +368,7 @@ export function JudgeConfigSection({
                 onChange={(e) => setAnswer({ ...answer, language: e.target.value })}
                 disabled={disabled}
                 aria-label="정답 코드 언어"
-                className="h-8 rounded-[2px] border bg-card px-2 text-sm"
+                className="h-8 rounded-lg border bg-card px-2 text-sm"
               >
                 <option value="">언어 선택</option>
                 {languages.map((lang) => (
@@ -386,10 +386,10 @@ export function JudgeConfigSection({
               <CodeEditor value={answer.code} onChange={(code) => setAnswer({ ...answer, code })} language={answer.language === '' ? null : answer.language} />
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Button type="button" size="sm" variant="outline" className="rounded-[2px]" onClick={fillExpected} disabled={!canRun}>
+              <Button type="button" size="sm" variant="outline" onClick={fillExpected} disabled={!canRun}>
                 {runMutation.isPending ? '실행 중...' : '기대 출력 채우기'}
               </Button>
-              <Button type="button" size="sm" variant="outline" className="rounded-[2px]" onClick={verify} disabled={!canRun}>
+              <Button type="button" size="sm" variant="outline" onClick={verify} disabled={!canRun}>
                 출제 검증
               </Button>
               {runNote && <p className="text-xs whitespace-pre-wrap text-muted-foreground" role="status">{runNote}</p>}

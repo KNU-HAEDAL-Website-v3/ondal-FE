@@ -46,7 +46,7 @@ export default function NoticesPage() {
               value={String(target)}
               onChange={(e) => setTarget(e.target.value === 'all' ? 'all' : e.target.value === 'global' ? 'global' : Number(e.target.value))}
               aria-label="대상 필터"
-              className="h-8 rounded-[2px] border bg-card px-2 text-sm"
+              className="h-8 rounded-lg border bg-card px-2 text-sm"
             >
               <option value="all">전체 보기</option>
               <option value="global">전체 공지만</option>
@@ -58,7 +58,7 @@ export default function NoticesPage() {
             </select>
           )}
           {canWrite && (
-            <Button size="sm" className="rounded-[2px]" asChild>
+            <Button size="sm" asChild>
               <Link to="/notices/new">
                 <SquarePen data-icon="inline-start" />
                 공지 작성
@@ -104,7 +104,7 @@ function NoticeRow({ notice }: { notice: NoticeResponse }) {
       >
         <span
           className={cn(
-            'flex size-9 shrink-0 items-center justify-center rounded-xl',
+            'flex size-9 shrink-0 items-center justify-center rounded-lg',
             notice.pinned ? 'bg-danger-bg text-danger' : 'bg-secondary text-primary',
           )}
         >
@@ -113,7 +113,7 @@ function NoticeRow({ notice }: { notice: NoticeResponse }) {
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
             {notice.pinned && (
-              <span className="shrink-0 rounded-[2px] bg-danger-bg px-2 py-0.5 text-xs font-bold text-danger">필독</span>
+              <span className="shrink-0 rounded-md bg-danger-bg px-2 py-0.5 text-xs font-bold text-danger">필독</span>
             )}
             <span className="truncate font-semibold">{notice.title}</span>
           </span>

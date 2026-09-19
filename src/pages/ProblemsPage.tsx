@@ -47,7 +47,7 @@ export default function ProblemsPage() {
           </p>
         </div>
         {canCreate && (
-          <Button size="sm" className="rounded-[2px]" asChild>
+          <Button size="sm" asChild>
             <Link to="/problems/new">
               <Plus data-icon="inline-start" />
               문제 출제
@@ -79,7 +79,7 @@ export default function ProblemsPage() {
                   aria-pressed={selected}
                   onClick={() => toggleTag(tag.id)}
                   className={cn(
-                    'flex items-center gap-1 rounded-[2px] border px-2.5 py-1 text-xs transition-colors',
+                    'flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs transition-colors',
                     selected ? 'border-primary bg-secondary font-semibold text-primary' : 'hover:bg-secondary/50',
                   )}
                 >
@@ -92,7 +92,7 @@ export default function ProblemsPage() {
               <span className="text-xs text-muted-foreground">고른 태그를 모두 가진 문제만 보여요</span>
             )}
             {selectedTags.length > 0 && (
-              <Button variant="ghost" size="xs" className="rounded-[2px]" onClick={() => setSelectedTags([])}>
+              <Button variant="ghost" size="xs" onClick={() => setSelectedTags([])}>
                 필터 해제
               </Button>
             )}
@@ -170,7 +170,7 @@ function ProblemRow({ problem }: { problem: ProblemSummary }) {
       </td>
       <td className="px-4 py-3 text-center">
         {problem.solved ? (
-          <span className="inline-flex items-center gap-1 rounded-[2px] bg-success-bg px-2 py-0.5 text-xs font-bold text-success">
+          <span className="inline-flex items-center gap-1 rounded-md bg-success-bg px-2 py-0.5 text-xs font-bold text-success">
             <Check className="size-3" />
             해결
           </span>
