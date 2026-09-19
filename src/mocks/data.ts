@@ -2,13 +2,15 @@
 // 계정: admin(ADMIN) / operator1 / student1~3. 모르는 아이디로 로그인하면 MEMBER로 새로 만든다 (find-or-create).
 // 분반: "2026-2 C언어"(ACTIVE: operator1 + student1~3), "2026-1 파이썬"(ARCHIVED: student1)
 
-import type { AttendanceStatus, CohortStatus, EnrollmentRole, GlobalRole, JudgeStatus, Verdict } from '@/api/types'
+import type { AttendanceStatus, CohortStatus, EnrollmentRole, GlobalRole, JudgeStatus, UserStatus, Verdict } from '@/api/types'
 
 export interface MockUser {
   id: number
   loginId: string
   name: string
   globalRole: GlobalRole
+  /** 승인 상태 - newbie 만 PENDING (시더와 동일). 스텁 로그인으로 새로 생긴 계정은 ACTIVE */
+  status: UserStatus
 }
 
 export interface MockCohort {
@@ -28,11 +30,13 @@ export interface MockEnrollment {
 }
 
 export const users: MockUser[] = [
-  { id: 1, loginId: 'admin', name: '관리자', globalRole: 'ADMIN' },
-  { id: 2, loginId: 'operator1', name: 'operator1', globalRole: 'MEMBER' },
-  { id: 3, loginId: 'student1', name: 'student1', globalRole: 'MEMBER' },
-  { id: 4, loginId: 'student2', name: 'student2', globalRole: 'MEMBER' },
-  { id: 5, loginId: 'student3', name: 'student3', globalRole: 'MEMBER' },
+  { id: 1, loginId: 'admin', name: '관리자', globalRole: 'ADMIN', status: 'ACTIVE' },
+  { id: 2, loginId: 'operator1', name: 'operator1', globalRole: 'MEMBER', status: 'ACTIVE' },
+  { id: 3, loginId: 'student1', name: 'student1', globalRole: 'MEMBER', status: 'ACTIVE' },
+  { id: 4, loginId: 'student2', name: 'student2', globalRole: 'MEMBER', status: 'ACTIVE' },
+  { id: 5, loginId: 'student3', name: 'student3', globalRole: 'MEMBER', status: 'ACTIVE' },
+  // 승인 대기 화면·부원 관리(승인) 확인용 - newbie 로 로그인하면 "승인 대기" 만 보인다 (BE LocalDataSeeder 와 동일)
+  { id: 6, loginId: 'newbie', name: '신입부원', globalRole: 'MEMBER', status: 'PENDING' },
 ]
 
 export const cohorts: MockCohort[] = [

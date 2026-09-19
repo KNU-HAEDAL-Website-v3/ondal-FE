@@ -23,6 +23,7 @@ import type {
   ProblemResponse,
   ProblemSummary,
   TagResponse,
+  UserDirectoryEntry,
   UserResponse,
   UserSummary,
 } from '@/api/types'
@@ -88,7 +89,25 @@ function error(status: number, code: string, message: string) {
 const unauthenticated = () => error(401, 'UNAUTHENTICATED', '로그인이 필요합니다.')
 
 function toUserResponse(u: MockUser): UserResponse {
-  return { id: u.id, loginId: u.loginId, name: u.name, globalRole: u.globalRole }
+  return { id: u.id, loginId: u.loginId, name: u.name, globalRole: u.globalRole, status: u.status }
+}
+
+/** BE UserDirectoryEntry.of - 부원 목록 한 줄 (소속 요약 포함) */
+function toDirectoryEntry(u: MockUser): UserDirectoryEntry {
+  return {
+    id: u.id,
+    loginId: u.loginId,
+    name: u.name,
+    globalRole: u.globalRole,
+    status: u.status,
+    createdAt: '2026-08-01T00:00:00Z',
+    enrollments: enrollments
+      .filter((e) => e.loginId === u.loginId)
+      .map((e) => {
+        const cohort = cohorts.find((c) => c.id === e.cohortId)!
+        return { cohortId: cohort.id, cohortName: cohort.name, cohortStatus: cohort.status, role: e.role }
+      }),
+  }
 }
 
 /** BE RoleTitle.of - ADMIN이면 어디서든 해구르르 → OPERATOR면 교육운영진 → 나머지 */
@@ -278,9 +297,10 @@ const forbiddenAdmin = () => error(403, 'FORBIDDEN', '관리자만 사용할 수
 function findOrCreateUser(loginId: string): MockUser {
   let user = users.find((u) => u.loginId === loginId)
   if (!user) {
-    user = { id: Math.max(0, ...users.map((u) => u.id)) + 1, loginId, name: loginId, globalRole: 'MEMBER' }
+    user = { id: Math.max(0, ...users.map((u) => u.id)) + 1, loginId, name: loginId, globalRole: 'MEMBER', status: 'ACTIVE' }
     users.push(user)
   }
+  user.status = 'ACTIVE' // 배정 = 승인 (BE EnrollmentService - 승인 대기 계정도 분반에 넣으면 열린다)
   return user
 }
 
@@ -671,11 +691,44 @@ export const handlers = [
 
     let user = users.find((u) => u.loginId === loginId)
     if (!user) {
-      user = { id: users.length + 1, loginId, name: loginId, globalRole: 'MEMBER' } // find-or-create
+      user = { id: users.length + 1, loginId, name: loginId, globalRole: 'MEMBER', status: 'ACTIVE' } // find-or-create - 스텁은 ACTIVE
       users.push(user)
     }
     sessionStorage.setItem(SESSION_KEY, user.loginId)
     return HttpResponse.json(toUserResponse(user))
+  }),
+
+  // 승인 대기 게이트 (BE AuthorizationInterceptor + @PendingAllowed) - PENDING 계정은 /api/auth/* 밖에 못 쓴다.
+  // 통과시킬 때는 아무것도 돌려주지 않아 MSW 가 다음 핸들러로 넘어간다
+  http.all('/api/*', ({ request }) => {
+    const user = currentUser()
+    if (!user || user.status !== 'PENDING') return undefined
+    if (new URL(request.url).pathname.startsWith('/api/auth/')) return undefined
+    return error(403, 'USER_PENDING', '운영진 승인을 기다리는 계정이에요. 승인이 끝나면 이용할 수 있어요.')
+  }),
+
+  // 부원 목록·승인 (운영진 이상) - docs 결정 10
+  http.get('/api/users', async ({ request }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (!isOperatorAnywhere(user)) return error(403, 'FORBIDDEN', '권한이 없습니다.')
+    const status = new URL(request.url).searchParams.get('status')
+    const list = users
+      .filter((u) => !status || u.status === status)
+      .sort((a, b) => Number(a.status !== 'PENDING') - Number(b.status !== 'PENDING') || b.id - a.id)
+    return HttpResponse.json(list.map(toDirectoryEntry))
+  }),
+
+  http.post('/api/users/:userId/approve', async ({ params }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (!isOperatorAnywhere(user)) return error(403, 'FORBIDDEN', '권한이 없습니다.')
+    const target = users.find((u) => u.id === Number(params.userId))
+    if (!target) return error(404, 'NOT_FOUND', '존재하지 않는 사용자입니다.')
+    target.status = 'ACTIVE' // 멱등
+    return HttpResponse.json(toDirectoryEntry(target))
   }),
 
   http.get('/api/auth/me', async () => {

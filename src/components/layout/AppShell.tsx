@@ -13,8 +13,10 @@ import {
   MessagesSquare,
   Settings2,
   UserCheck,
+  Users,
 } from 'lucide-react'
 import { useLogout, useMe } from '@/api/auth'
+import { useMyCohorts } from '@/api/cohorts'
 import { SiteFooter } from '@/components/SiteFooter'
 import { AppSwitchButton } from '@/components/AppSwitchButton'
 import { rememberPath } from '@/lib/appSwitch'
@@ -38,6 +40,8 @@ const NAV_ITEMS = [
   // 분반이 하나면 /questions 가 곧바로 /cohorts/{id}/questions 로 넘어가므로 그 경로도 이 메뉴로 친다
   { to: '/questions', label: 'Q&A', icon: MessagesSquare, activeWhen: COHORT_QUESTIONS },
   { to: '/notices', label: '공지사항', icon: Megaphone },
+  // 운영진 이상(해구르르 또는 어느 분반이든 교육운영진) - 승인 대기 승인·부원 전체 (docs 결정 10). 라우트는 RequireOperator 가 지킨다
+  { to: '/members', label: '부원 관리', icon: Users, operatorOnly: true },
   // 관리자 전용 - 분반 생성·보관·운영진 지정 (UC-A1). 비관리자에게는 숨기고, 라우트는 RequireAdmin 이 지킨다
   { to: '/admin/cohorts', label: '분반 관리', icon: Settings2, adminOnly: true },
   // 태그 관리는 문제의 것이라 HOJ 모드 메뉴(HojShell)에 있다 - 여기 없다
@@ -86,6 +90,10 @@ export function AppShell() {
   const { pathname, search } = useLocation()
   const logoutMutation = useLogout()
   const [navOpen, setNavOpen] = useState(false)
+  // 운영진 메뉴 노출 판정 - HomePage·RequireOperator 와 같은 규칙(ADMIN 이거나 canManage 분반이 하나라도). 소속을 받기 전에는 숨긴다
+  const myCohortsQuery = useMyCohorts()
+  const isAdmin = me?.globalRole === 'ADMIN'
+  const isOperator = isAdmin || (myCohortsQuery.data ?? []).some((cohort) => cohort.canManage)
 
   // 메뉴를 고르면 화면이 넘어가므로 서랍은 닫는다 - 안 닫으면 새 화면이 서랍에 가려진다
   useEffect(() => {
@@ -140,7 +148,11 @@ export function AppShell() {
         </Link>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
-          {NAV_ITEMS.filter((item) => !('adminOnly' in item && item.adminOnly) || me?.globalRole === 'ADMIN').map((item) => {
+          {NAV_ITEMS.filter(
+            (item) =>
+              (!('adminOnly' in item && item.adminOnly) || isAdmin) &&
+              (!('operatorOnly' in item && item.operatorOnly) || isOperator),
+          ).map((item) => {
             const active = isNavActive(item, pathname)
             return (
               <Link key={item.to} to={item.to} aria-current={active ? 'page' : undefined} className={navItemClass(active)}>

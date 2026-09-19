@@ -30,6 +30,15 @@ export function setUnauthenticatedHandler(handler: () => void) {
   onUnauthenticated = handler
 }
 
+/**
+ * 403 USER_PENDING(승인 대기)을 받았을 때 - 로그인 뒤 운영진이 아직 승인하지 않은 계정. main 이 me 의 status 를 PENDING 으로 바꿔
+ * RequireAuth 가 대기 화면을 그리게 한다. 홈으로 보내는 일반 403(FORBIDDEN)과는 다른 코드다 (docs 결정 10)
+ */
+let onPending: (() => void) | undefined
+export function setPendingHandler(handler: () => void) {
+  onPending = handler
+}
+
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   /** JSON 본문 - 직렬화와 Content-Type을 대신 처리 */
   json?: unknown
@@ -67,6 +76,7 @@ export async function apiFetch<T>(path: string, { json, form, headers, ...init }
     const body = (data ?? {}) as Partial<ErrorResponse>
     const error = new ApiError(res.status, body.code ?? 'UNKNOWN', body.message ?? `요청에 실패했습니다. (${res.status})`)
     if (res.status === 401) onUnauthenticated?.()
+    if (res.status === 403 && error.is('USER_PENDING')) onPending?.()
     throw error
   }
   return data as T
