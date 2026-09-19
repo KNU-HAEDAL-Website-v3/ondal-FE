@@ -18,6 +18,11 @@ export function formatKst(iso: string): string {
     .replace(/-/g, '.')
 }
 
+/** UTC ISO → "2026.08.01" (KST) - 가입일처럼 날짜만 보일 때 */
+export function formatKstDay(iso: string): string {
+  return new Date(iso).toLocaleDateString('sv-SE', { timeZone: KST }).replace(/-/g, '.')
+}
+
 /** KST 달력 날짜(자정)를 UTC ms로 - D-day는 시각이 아니라 날짜 차이로 센다 */
 function kstDateMs(date: Date): number {
   return Date.parse(date.toLocaleDateString('sv-SE', { timeZone: KST }))

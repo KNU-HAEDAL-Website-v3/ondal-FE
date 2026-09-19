@@ -1,5 +1,5 @@
 import { useState, useSyncExternalStore } from 'react'
-import CodeMirror from '@uiw/react-codemirror'
+import CodeMirror, { EditorView } from '@uiw/react-codemirror'
 import type { Extension } from '@codemirror/state'
 import { cpp } from '@codemirror/lang-cpp'
 import { java } from '@codemirror/lang-java'
@@ -17,6 +17,7 @@ import {
   subscribeEditorTheme,
   type EditorThemeId,
 } from '@/lib/editorTheme'
+import { cn } from '@/lib/utils'
 
 /**
  * CodeMirror 실제 구현 - 무거운 의존성(에디터 본체·언어·테마)이 전부 여기 모여 있다.
@@ -118,6 +119,62 @@ export function CodeEditorImpl({
         className="overflow-hidden rounded-lg border font-mono text-sm [&_.cm-content]:font-mono [&_.cm-gutters]:font-mono [&_.cm-editor]:h-full [&_.cm-editor.cm-focused]:outline-none"
       />
     </div>
+  )
+}
+
+/** 테마 미리보기용 짧은 코드 - 키워드·함수·숫자·주석이 한 번씩 나와 테마 간 색 차이가 드러난다. 줄이 짧아야 좁은 카드에서도 안 잘린다 */
+const THEME_PREVIEW_CODE = ['def solve(n):', '    total = 0', '    for i in range(n):', '        total += i + 1', '    return total  # sum'].join('\n')
+
+/** 미리보기는 보기만 - 5개가 한 화면에 있으므로 Tab 초점·마우스 선택이 걸리지 않게 한다 */
+const previewExtensions: Extension[] = [python(), EditorView.contentAttributes.of({ tabindex: '-1' })]
+
+/**
+ * 마이페이지 "코드 에디터 테마" - 테마마다 같은 코드를 그 테마로 그려 두고 라디오로 고른다.
+ * 이름만 보고는 고를 수 없어서(One Dark 가 어떤 색인지 모른다) 실제 에디터를 축소해 보여 준다. 고르면 저장되고 화면의 모든 에디터에 즉시 반영된다.
+ */
+export function EditorThemeGalleryImpl() {
+  const theme = useEditorTheme()
+  return (
+    <fieldset className="min-w-0">
+      <legend className="sr-only">코드 에디터 테마</legend>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {EDITOR_THEMES.map((option) => {
+          const selected = option.id === theme
+          return (
+            <label
+              key={option.id}
+              className={cn(
+                'block cursor-pointer overflow-hidden rounded-lg border bg-card transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/50',
+                selected ? 'border-primary ring-1 ring-primary' : 'hover:border-primary/50',
+              )}
+            >
+              <input
+                type="radio"
+                name="editor-theme"
+                value={option.id}
+                checked={selected}
+                onChange={() => setEditorTheme(option.id)}
+                className="sr-only"
+              />
+              <span className="flex items-center justify-between gap-2 border-b px-3 py-1.5 text-xs font-semibold">
+                {option.label}
+                {selected && <Check className="size-3.5 text-primary" aria-label="선택됨" />}
+              </span>
+              <CodeMirror
+                value={THEME_PREVIEW_CODE}
+                readOnly
+                editable={false}
+                extensions={previewExtensions}
+                theme={themeExtensions(option.id)[0]}
+                basicSetup={{ lineNumbers: false, foldGutter: false, highlightActiveLine: false, highlightActiveLineGutter: false }}
+                aria-hidden
+                className="pointer-events-none font-mono text-[11px] select-none [&_.cm-content]:font-mono [&_.cm-content]:py-2 [&_.cm-line]:px-3"
+              />
+            </label>
+          )
+        })}
+      </div>
+    </fieldset>
   )
 }
 
