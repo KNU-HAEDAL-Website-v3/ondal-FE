@@ -21,6 +21,8 @@ import {
 } from '@/components/judge/JudgeConfigSection'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { clearDraft, readDraft, writeDraft } from '@/lib/draft'
+import { LANGUAGES } from '@/lib/languages'
+import { TIER_LABELS, subOf, tierOf, toDifficulty } from '@/lib/difficulty'
 import { parseId } from '@/lib/params'
 import { cn } from '@/lib/utils'
 
@@ -35,6 +37,8 @@ interface ProblemDraft {
   title: string
   description: string
   tagIds: number[]
+  difficulty?: number | null
+  allowedLanguages?: string[]
 }
 
 /**
@@ -60,6 +64,8 @@ export default function ProblemFormPage() {
   const [title, setTitle] = useState(saved?.title ?? '')
   const [description, setDescription] = useState(saved?.description ?? '')
   const [tagIds, setTagIds] = useState<number[]>(saved?.tagIds ?? [])
+  const [difficulty, setDifficulty] = useState<number | null>(saved?.difficulty ?? null)
+  const [allowedLanguages, setAllowedLanguages] = useState<string[]>(saved?.allowedLanguages ?? [])
   // 임시 저장본이 있으면 그것이 더 최신 - 서버 값으로 덮어쓰지 않는다
   const [prefilled, setPrefilled] = useState(!editing || saved !== null)
 
@@ -79,6 +85,8 @@ export default function ProblemFormPage() {
       setTitle(existingQuery.data.title)
       setDescription(existingQuery.data.description ?? '')
       setTagIds(existingQuery.data.tags.map((tag) => tag.id))
+      setDifficulty(existingQuery.data.difficulty)
+      setAllowedLanguages(existingQuery.data.allowedLanguages)
       setPrefilled(true)
     }
   }, [editing, existingQuery.data, prefilled])
@@ -94,9 +102,9 @@ export default function ProblemFormPage() {
 
   useEffect(() => {
     if (!prefilled) return
-    if (title === '' && description === '' && tagIds.length === 0) clearDraft(key)
-    else writeDraft<ProblemDraft>(key, { problemNo, title, description, tagIds })
-  }, [key, prefilled, problemNo, title, description, tagIds])
+    if (title === '' && description === '' && tagIds.length === 0 && difficulty === null && allowedLanguages.length === 0) clearDraft(key)
+    else writeDraft<ProblemDraft>(key, { problemNo, title, description, tagIds, difficulty, allowedLanguages })
+  }, [key, prefilled, problemNo, title, description, tagIds, difficulty, allowedLanguages])
 
   if (editing && !Number.isFinite(problemId)) {
     return <ApiErrorView error={new ApiError(404, 'NOT_FOUND', '존재하지 않는 문제 주소예요.')} />
@@ -114,7 +122,14 @@ export default function ProblemFormPage() {
     title: title.trim(),
     description: description.trim() === '' ? null : description,
     tagIds,
+    difficulty,
+    allowedLanguages,
   })
+
+  const toggleLanguage = (lang: string) =>
+    setAllowedLanguages((prev) => (prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang]))
+  const tier = tierOf(difficulty)
+  const sub = subOf(difficulty)
 
   const judgeChanged = !draftEquals(judgeDraft, judgeInitial)
 
@@ -238,6 +253,69 @@ export default function ProblemFormPage() {
                 })}
               </div>
             )}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="problem-tier">난이도</Label>
+              <div className="flex items-center gap-2">
+                <select
+                  id="problem-tier"
+                  value={tier ?? ''}
+                  onChange={(e) => setDifficulty(e.target.value === '' ? null : toDifficulty(Number(e.target.value), sub ?? 1))}
+                  className="h-8 rounded-lg border bg-card px-2 text-sm"
+                  aria-label="난이도 대분류"
+                >
+                  <option value="">미지정</option>
+                  {TIER_LABELS.map((label, index) => (
+                    <option key={label} value={index + 1}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-sm text-muted-foreground">-</span>
+                <select
+                  value={sub ?? ''}
+                  onChange={(e) => setDifficulty(toDifficulty(tier ?? 1, Number(e.target.value)))}
+                  disabled={tier === null}
+                  className="h-8 rounded-lg border bg-card px-2 text-sm disabled:opacity-50"
+                  aria-label="난이도 소분류"
+                >
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-xs text-muted-foreground">1-1 이 가장 쉽고 5-5 가 가장 어려워요. 백준 브론즈 = 1, 실버 = 2, 골드 = 3 정도</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>허용 언어 (선택)</Label>
+              <div className="flex flex-wrap gap-2">
+                {LANGUAGES.map((lang) => {
+                  const selected = allowedLanguages.includes(lang)
+                  return (
+                    <button
+                      key={lang}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => toggleLanguage(lang)}
+                      className={cn(
+                        'flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs transition-colors',
+                        selected ? 'border-primary bg-secondary font-semibold text-primary' : 'hover:bg-secondary/50',
+                      )}
+                    >
+                      {selected && <Check className="size-3" />}
+                      {lang}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                고르지 않으면 어느 언어로든 제출할 수 있어요. 언어별 특화 문제("C언어" 태그 등)에만 걸어 주세요
+              </p>
+            </div>
           </div>
         </section>
 

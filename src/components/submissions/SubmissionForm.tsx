@@ -8,7 +8,8 @@ import { isOverdue } from '@/lib/datetime'
 import { clearDraft, readDraft, writeDraft } from '@/lib/draft'
 import { cn } from '@/lib/utils'
 
-const LANGUAGES = ['C', 'C++', 'Java', 'Python 3', 'JavaScript', 'TypeScript'] as const
+import { useProblem } from '@/api/problems'
+import { selectableLanguages } from '@/lib/languages'
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 서버 제한(10MB)의 선반영 - 최종 판정은 서버
 const MAX_LINKS = 5
 
@@ -36,13 +37,18 @@ export function SubmissionForm({
   assignmentId,
   dueAt,
   judgeEnabled = false,
+  problemId,
 }: {
   cohortId: number
   assignmentId: number
   dueAt: string
   /** 자동 채점 문제 - 코드 제출은 바로 채점된다는 안내 (judge/fe.md 2절) */
   judgeEnabled?: boolean
+  /** 배정된 문제 id - 허용 언어(V9)를 읽어 언어 선택지를 좁힌다. 서버도 같은 규칙으로 400 을 낸다 */
+  problemId?: number
 }) {
+  const problemQuery = useProblem(problemId ?? NaN)
+  const allowedLanguages = problemQuery.data?.allowedLanguages ?? []
   const key = draftKey(cohortId, assignmentId)
   const [tab, setTab] = useState<SubmissionType>(() => readDraft<SubmissionDraft>(key)?.tab ?? 'CODE')
   const [codeText, setCodeText] = useState(() => readDraft<SubmissionDraft>(key)?.codeText ?? '')
@@ -153,12 +159,15 @@ export function SubmissionForm({
             className="h-8 rounded-lg border bg-card px-2 text-sm"
           >
             <option value="">언어 선택 (필수)</option>
-            {LANGUAGES.map((lang) => (
+            {selectableLanguages(allowedLanguages).map((lang) => (
               <option key={lang} value={lang}>
                 {lang}
               </option>
             ))}
           </select>
+        )}
+        {tab === 'CODE' && allowedLanguages.length > 0 && (
+          <p className="basis-full text-xs text-muted-foreground">이 문제는 {allowedLanguages.join(', ')} 로만 제출할 수 있어요.</p>
         )}
       </div>
 

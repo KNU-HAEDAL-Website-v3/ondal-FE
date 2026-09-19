@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { ApiErrorView, EmptyState } from '@/components/ApiErrorView'
 import { JudgeSamplesSection } from '@/components/judge/JudgeSamplesSection'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { MarkdownView } from '@/components/MarkdownView'
 import { MySubmissionList } from '@/components/submissions/MySubmissionList'
 import { StatusBoard } from '@/components/submissions/StatusBoard'
 import { SubmissionForm } from '@/components/submissions/SubmissionForm'
@@ -140,9 +141,11 @@ export default function AssignmentDetailPage() {
       <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
         <section className="rounded-lg border bg-card p-4">
           <h2 className="text-xs font-bold tracking-[0.55px] text-muted-foreground">과제 설명</h2>
-          <p className="mt-3 text-sm leading-6 font-medium whitespace-pre-line">
-            {assignment.description ?? '설명이 없습니다.'}
-          </p>
+          {assignment.description ? (
+            <MarkdownView source={assignment.description} className="mt-3" />
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">설명이 없습니다.</p>
+          )}
         </section>
 
         <section className="flex flex-col justify-center gap-4 rounded-lg border bg-card p-4">
@@ -164,7 +167,7 @@ export default function AssignmentDetailPage() {
           보관된 분반이라 새 제출은 할 수 없어요. 기록 열람은 가능합니다.
         </p>
       ) : (
-        <SubmissionForm cohortId={cohortId} assignmentId={assignment.id} dueAt={assignment.dueAt} judgeEnabled={assignment.judgeEnabled} />
+        <SubmissionForm cohortId={cohortId} assignmentId={assignment.id} dueAt={assignment.dueAt} judgeEnabled={assignment.judgeEnabled} problemId={assignment.problemId} />
       )}
 
       <MySubmissionList cohortId={cohortId} assignmentId={assignment.id} />
