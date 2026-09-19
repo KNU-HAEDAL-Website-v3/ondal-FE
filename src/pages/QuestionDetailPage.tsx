@@ -60,7 +60,7 @@ export default function QuestionDetailPage() {
           {(question.canEdit || question.canDelete) && (
             <div className="flex shrink-0 items-center gap-2">
               {question.canEdit && (
-                <Button variant="outline" size="sm" className="rounded-[2px]" asChild>
+                <Button variant="outline" size="sm" asChild>
                   <Link to={`/cohorts/${cohortId}/questions/${question.id}/edit`}>
                     <Pencil data-icon="inline-start" />
                     수정
@@ -71,7 +71,7 @@ export default function QuestionDetailPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="rounded-[2px] text-destructive"
+                  className="text-destructive"
                   onClick={handleDelete}
                   disabled={deleteMutation.isPending}
                 >

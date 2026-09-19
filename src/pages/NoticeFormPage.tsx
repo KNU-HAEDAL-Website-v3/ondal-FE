@@ -167,7 +167,7 @@ export default function NoticeFormPage() {
               id="notice-target"
               value={selectedTarget}
               onChange={(e) => setTarget(e.target.value)}
-              className="h-9 w-full rounded-[6px] border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
               {options.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -204,7 +204,7 @@ export default function NoticeFormPage() {
             maxLength={CONTENT_MAX}
             rows={12}
             placeholder="공지 내용 - 줄바꿈이 그대로 표시됩니다."
-            className="w-full rounded-[6px] border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
           <p className="flex justify-between gap-2 text-xs text-muted-foreground">
             <span>입력 내용은 이 탭에 임시 저장돼요 - 세션이 만료돼 다시 로그인해도 유지됩니다.</span>
@@ -228,10 +228,10 @@ export default function NoticeFormPage() {
         {mutationError && <p className="text-sm text-destructive">{(mutationError as Error).message}</p>}
 
         <div className="flex items-center gap-2">
-          <Button type="submit" disabled={!canSubmit} className="rounded-[2px]">
+          <Button type="submit" disabled={!canSubmit}>
             {isPending ? '저장 중...' : editing ? '저장' : '등록'}
           </Button>
-          <Button type="button" variant="outline" className="rounded-[2px]" onClick={handleCancel}>
+          <Button type="button" variant="outline" onClick={handleCancel}>
             취소
           </Button>
         </div>

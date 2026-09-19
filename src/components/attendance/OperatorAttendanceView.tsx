@@ -100,7 +100,7 @@ export function OperatorAttendanceView({ cohorts }: { cohorts: CohortResponse[] 
                     aria-pressed={selected}
                     onClick={() => setSelectedCohortId(c.id)}
                     className={cn(
-                      'flex items-center gap-2 rounded-[2px] border px-3 py-1.5 text-sm transition-colors',
+                      'flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors',
                       selected ? 'border-primary bg-secondary font-semibold text-primary' : 'hover:bg-secondary/50',
                     )}
                   >
@@ -192,7 +192,7 @@ function CohortAttendance({ cohort }: { cohort: CohortResponse }) {
   return (
     <div className="space-y-6">
       {archived && (
-        <p className="rounded-[2px] border bg-muted px-3 py-2 text-sm text-muted-foreground">
+        <p className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground">
           보관된 분반이에요. 출석 기록 열람만 가능하고 차시 추가·표시는 보관을 해제한 뒤에 할 수 있어요.
         </p>
       )}
@@ -211,7 +211,7 @@ function CohortAttendance({ cohort }: { cohort: CohortResponse }) {
               setSelectedSessionId(Number(e.target.value))
               setEditor('closed')
             }}
-            className="h-8 rounded-[2px] border bg-card px-2 text-sm"
+            className="h-8 rounded-lg border bg-card px-2 text-sm"
           >
             {sessions.map((s) => (
               <option key={s.id} value={s.id}>
@@ -223,7 +223,7 @@ function CohortAttendance({ cohort }: { cohort: CohortResponse }) {
         )}
         <div className="ml-auto flex items-center gap-2">
           {sessions.length > 0 && (
-            <Button variant="outline" size="sm" className="rounded-[2px]" onClick={() => void exportCohort()} disabled={exporting}>
+            <Button variant="outline" size="sm" onClick={() => void exportCohort()} disabled={exporting}>
               <Download data-icon="inline-start" />
               {exporting ? '내보내는 중...' : '분반 전체 내보내기'}
             </Button>
@@ -231,12 +231,12 @@ function CohortAttendance({ cohort }: { cohort: CohortResponse }) {
           {!archived && (
             <>
               {session && (
-                <Button variant="outline" size="sm" className="rounded-[2px]" onClick={() => setEditor(editor === 'edit' ? 'closed' : 'edit')}>
+                <Button variant="outline" size="sm" onClick={() => setEditor(editor === 'edit' ? 'closed' : 'edit')}>
                   <Pencil data-icon="inline-start" />
                   차시 수정
                 </Button>
               )}
-              <Button size="sm" className="rounded-[2px]" onClick={() => setEditor(editor === 'create' ? 'closed' : 'create')}>
+              <Button size="sm" onClick={() => setEditor(editor === 'create' ? 'closed' : 'create')}>
                 <Plus data-icon="inline-start" />
                 차시 추가
               </Button>
@@ -306,9 +306,9 @@ function SessionEditor({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 rounded-lg border bg-card/40 p-4" aria-label={editing ? '차시 수정' : '차시 추가'}>
+    <form onSubmit={handleSubmit} className="space-y-3 rounded-lg border bg-card p-4" aria-label={editing ? '차시 수정' : '차시 추가'}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-bold">{editing ? `${session.sessionNo}차시 수정` : '차시 추가'}</h2>
+        <h2 className="text-base font-bold">{editing ? `${session.sessionNo}차시 수정` : '차시 추가'}</h2>
         <Button type="button" variant="ghost" size="sm" onClick={() => onDone()} aria-label="닫기">
           <X />
         </Button>
@@ -329,10 +329,10 @@ function SessionEditor({
       </div>
       {error && <p className="text-sm text-destructive">{(error as Error).message}</p>}
       <div className="flex items-center gap-2">
-        <Button type="submit" size="sm" className="rounded-[2px]" disabled={isPending || heldOn === ''}>
+        <Button type="submit" size="sm" disabled={isPending || heldOn === ''}>
           {isPending ? '저장 중...' : editing ? '저장' : '추가'}
         </Button>
-        <Button type="button" variant="outline" size="sm" className="rounded-[2px]" onClick={() => onDone()}>
+        <Button type="button" variant="outline" size="sm" onClick={() => onDone()}>
           취소
         </Button>
       </div>
@@ -390,7 +390,7 @@ function Roster({
         <AttendanceStatCard
           label="이 차시 출석률"
           value={summary.rate === null ? '-' : `${summary.rate}%`}
-          className="border-transparent bg-[#4f46e5] text-white"
+          className="border-transparent bg-primary text-white"
           labelClassName="text-white/80"
         />
       </div>
@@ -497,7 +497,7 @@ function RosterTable({
             id="roster-sort"
             value={snapshot.sort}
             onChange={(e) => changeSort(e.target.value as RosterSort)}
-            className="h-7 rounded-[2px] border bg-card px-2 text-xs"
+            className="h-7 rounded-md border bg-card px-2 text-xs"
           >
             {(Object.keys(ROSTER_SORT_LABEL) as RosterSort[]).map((key) => (
               <option key={key} value={key}>
@@ -505,17 +505,17 @@ function RosterTable({
               </option>
             ))}
           </select>
-          <Button variant="outline" size="sm" className="rounded-[2px]" onClick={exportSession} disabled={rows.length === 0}>
+          <Button variant="outline" size="sm" onClick={exportSession} disabled={rows.length === 0}>
             <Download data-icon="inline-start" />
             이 차시 내보내기
           </Button>
           {!readOnly && (
             <>
-              <Button size="sm" className="rounded-[2px]" onClick={onMarkAllUnchecked} disabled={uncheckedCount === 0 || busy}>
+              <Button size="sm" onClick={onMarkAllUnchecked} disabled={uncheckedCount === 0 || busy}>
                 <CheckCheck data-icon="inline-start" />
                 일괄 출석 처리{uncheckedCount > 0 ? ` (${uncheckedCount})` : ''}
               </Button>
-              <Button variant="outline" size="sm" className="rounded-[2px] text-destructive" onClick={onDeleteSession} disabled={deleting}>
+              <Button variant="outline" size="sm" className="text-destructive" onClick={onDeleteSession} disabled={deleting}>
                 <Trash2 data-icon="inline-start" />
                 차시 삭제
               </Button>
@@ -582,7 +582,7 @@ function RosterRow({
             disabled={busy}
             aria-label={`${row.user.name} 출석 상태`}
             className={cn(
-              'h-7 rounded-[2px] border px-2 text-xs font-bold',
+              'h-7 rounded-md border px-2 text-xs font-bold',
               row.status === 'PRESENT' && 'bg-success-bg text-success',
               row.status === 'LATE' && 'bg-warning-bg text-warning',
               row.status === 'ABSENT' && 'bg-danger-bg text-danger',
@@ -607,7 +607,7 @@ function RosterRow({
           <span className="h-1.5 w-24 overflow-hidden rounded-full bg-neutral-bg">
             <span
               // 막대 채움이라 글자용 warning(#854d0e)을 쓰면 탁해진다 - 채움 두께에 맞는 caution(주황)을 쓴다
-              className={cn('block h-full rounded-full', rate === null ? 'bg-transparent' : rate < 70 ? 'bg-danger' : rate < 90 ? 'bg-caution' : 'bg-[#4f46e5]')}
+              className={cn('block h-full rounded-full', rate === null ? 'bg-transparent' : rate < 70 ? 'bg-danger' : rate < 90 ? 'bg-caution' : 'bg-primary')}
               style={{ width: `${rate ?? 0}%` }}
             />
           </span>

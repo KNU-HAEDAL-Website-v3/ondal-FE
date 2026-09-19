@@ -87,7 +87,7 @@ export function StatusBoard({
                       {row.latestSubmissionId === null ? (
                         <span className="text-xs text-muted-foreground">-</span>
                       ) : row.latestCommented ? (
-                        <span className="inline-block rounded-[2px] bg-info-bg px-2 py-0.5 text-xs font-bold text-info">남김</span>
+                        <span className="inline-block rounded-md bg-info-bg px-2 py-0.5 text-xs font-bold text-info">남김</span>
                       ) : (
                         <span className="text-xs text-muted-foreground">아직</span>
                       )}
@@ -109,7 +109,7 @@ export function StatusBoard({
                     </td>
                   </tr>
                   {openUserId === row.user.id && row.latestSubmissionId !== null && (
-                    <tr className="border-b bg-muted/20 last:border-0">
+                    <tr className="border-b bg-muted last:border-0">
                       <td colSpan={7}>
                         <SubmissionDetailView
                           cohortId={cohortId}

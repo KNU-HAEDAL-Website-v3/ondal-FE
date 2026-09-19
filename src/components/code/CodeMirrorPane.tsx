@@ -76,7 +76,7 @@ function ThemePicker({ id }: { id: string }) {
         id={id}
         value={theme}
         onChange={(e) => setEditorTheme(e.target.value as EditorThemeId)}
-        className="h-6 rounded-[2px] border bg-card px-1 text-xs text-muted-foreground"
+        className="h-6 rounded-md border bg-card px-1 text-xs text-muted-foreground"
       >
         {EDITOR_THEMES.map((option) => (
           <option key={option.id} value={option.id}>
@@ -115,7 +115,7 @@ export function CodeEditorImpl({
         placeholder="코드를 붙여넣거나 작성하세요"
         height="224px"
         aria-label="제출 코드"
-        className="overflow-hidden rounded-[2px] border font-mono text-sm [&_.cm-content]:font-mono [&_.cm-gutters]:font-mono [&_.cm-editor]:h-full [&_.cm-editor.cm-focused]:outline-none"
+        className="overflow-hidden rounded-lg border font-mono text-sm [&_.cm-content]:font-mono [&_.cm-gutters]:font-mono [&_.cm-editor]:h-full [&_.cm-editor.cm-focused]:outline-none"
       />
     </div>
   )
@@ -142,7 +142,7 @@ export function CodeViewerImpl({ value, language }: { value: string; language: s
         type="button"
         onClick={copy}
         aria-label="코드 복사"
-        className="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-[2px] border bg-card px-2 py-1 text-xs font-semibold text-muted-foreground shadow-xs hover:text-primary"
+        className="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-xs font-semibold text-muted-foreground shadow-xs hover:text-primary"
       >
         {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
         {copied ? '복사됨' : '복사'}
@@ -156,7 +156,7 @@ export function CodeViewerImpl({ value, language }: { value: string; language: s
         maxHeight="320px"
         aria-label="제출 코드 열람"
         basicSetup={{ highlightActiveLine: false, highlightActiveLineGutter: false, foldGutter: false }}
-        className="overflow-hidden rounded-[2px] border font-mono text-xs [&_.cm-content]:font-mono [&_.cm-gutters]:font-mono [&_.cm-editor.cm-focused]:outline-none"
+        className="overflow-hidden rounded-lg border font-mono text-xs [&_.cm-content]:font-mono [&_.cm-gutters]:font-mono [&_.cm-editor.cm-focused]:outline-none"
       />
     </div>
   )

@@ -25,10 +25,10 @@ export function StatCard({
         <span className="text-xs font-bold tracking-[0.55px] text-muted-foreground">{label}</span>
         <span className="flex items-baseline gap-0.5">
           <span className={cn('text-[32px] leading-10 font-bold tracking-tight', valueClassName)}>{value}</span>
-          {unit && <span className="text-sm text-[#464555]">{unit}</span>}
+          {unit && <span className="text-sm text-muted-foreground">{unit}</span>}
         </span>
       </div>
-      <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl', iconClassName)}>
+      <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', iconClassName)}>
         <Icon className="size-5" />
       </span>
     </div>

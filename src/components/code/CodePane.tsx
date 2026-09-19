@@ -19,7 +19,7 @@ function EditorSkeleton({ height, label }: { height: string; label: string }) {
     <div
       role="status"
       style={{ height }}
-      className="flex items-center justify-center rounded-[2px] border bg-muted/40 text-sm text-muted-foreground"
+      className="flex items-center justify-center rounded-lg border bg-muted text-sm text-muted-foreground"
     >
       {label}
     </div>

@@ -115,7 +115,7 @@ export default function QuestionFormPage() {
       </header>
 
       {archived && (
-        <p className="rounded-[2px] border bg-muted px-3 py-2 text-sm text-muted-foreground">
+        <p className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground">
           보관된 분반은 질문을 {editing ? '수정' : '등록'}할 수 없어요. 보관을 해제한 뒤 다시 시도해 주세요.
         </p>
       )}
@@ -147,7 +147,7 @@ export default function QuestionFormPage() {
             maxLength={CONTENT_MAX}
             rows={12}
             placeholder="어디까지 해 봤고 무엇이 막히는지 적으면 답을 얻기 쉬워요. 코드는 그대로 붙여 넣어도 됩니다."
-            className="w-full rounded-[6px] border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
           <p className="flex justify-between gap-2 text-xs text-muted-foreground">
             <span>입력 내용은 이 탭에 임시 저장돼요 - 세션이 만료돼 다시 로그인해도 유지됩니다.</span>
@@ -160,10 +160,10 @@ export default function QuestionFormPage() {
         {mutation.error && <p className="text-sm text-destructive">{(mutation.error as Error).message}</p>}
 
         <div className="flex items-center gap-2">
-          <Button type="submit" disabled={!canSubmit} className="rounded-[2px]">
+          <Button type="submit" disabled={!canSubmit}>
             {mutation.isPending ? '저장 중...' : editing ? '저장' : '등록'}
           </Button>
-          <Button type="button" variant="outline" className="rounded-[2px]" onClick={handleCancel}>
+          <Button type="button" variant="outline" onClick={handleCancel}>
             취소
           </Button>
         </div>

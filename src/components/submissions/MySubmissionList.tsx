@@ -97,11 +97,11 @@ function SubmissionRow({
             <Icon className="size-3.5 text-muted-foreground" />
             {label}
             {detail && <span className="text-xs text-muted-foreground">({detail})</span>}
-            {latest && <span className="rounded-[2px] bg-secondary px-1.5 py-0.5 text-[11px] font-bold text-primary">최신</span>}
+            {latest && <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[11px] font-bold text-primary">최신</span>}
             {submission.hasComment && (
               <span
                 aria-label="운영진 코멘트 있음"
-                className="flex items-center gap-0.5 rounded-[2px] bg-info-bg px-1.5 py-0.5 text-[11px] font-bold text-info"
+                className="flex items-center gap-0.5 rounded-md bg-info-bg px-1.5 py-0.5 text-[11px] font-bold text-info"
               >
                 <MessageSquare className="size-3" />
                 코멘트
@@ -140,7 +140,7 @@ function SubmissionRow({
       {expanded && (
         <tr>
           <td colSpan={6} className="pb-2">
-            <div className="rounded-[2px] border bg-muted/20">
+            <div className="rounded-lg border bg-muted">
               <SubmissionDetailView cohortId={cohortId} assignmentId={assignmentId} submissionId={submission.id} canComment={false} />
             </div>
           </td>

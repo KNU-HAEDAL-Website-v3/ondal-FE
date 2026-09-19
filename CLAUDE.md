@@ -28,6 +28,14 @@
    - 마감 시각: KST 표시
    - 제출/미제출/지각 배지: 서버 응답 그대로 표시 - 프론트 재계산 금지
 
+## 디자인 규칙 (2026-09-19 경계 정리)
+
+- **표면 3단계** - 토큰 정의는 `src/index.css` 주석: 캔버스(`bg-background`, 연한 보라 회색) < 패널(`bg-card` + `border`, 흰색 - 카드·표·폼 상자·사이드바·상단 바) < 팝업(`bg-popover` + 그림자)
+  - 반투명 표면 금지(`bg-card/40`, `bg-muted/50` ...) - 바닥에 따라 색이 달라져 경계가 흐려짐. 강조 바닥은 `bg-muted` 불투명
+  - 색은 토큰만(`text-muted-foreground`, `bg-primary`, 상태색 `success/warning/caution/danger/info/neutral`) - `text-[#464555]` 같은 hex 직접 지정 금지
+- **모서리는 `--radius` 스케일만**: 버튼·입력·패널·표 = 컴포넌트 기본값(`rounded-lg`) / 상태 칩·작은 토글·로고 = `rounded-md` / 아바타 = `rounded-full`. `rounded-[Npx]` 직접 지정 금지, `Button` 에 모서리 오버라이드 금지
+- **제목 2단**: 페이지 제목 `h1 text-2xl font-bold tracking-tight` / 섹션 제목 `h2 text-lg font-bold tracking-tight` / 패널 안 제목 `h2 text-base font-bold` / 소제목(eyebrow) `text-xs font-bold tracking-[0.55px] text-muted-foreground`. 그 밖의 조합을 새로 만들지 않는다
+
 ## 문서 작성 규칙
 
 - 모든 문서·PR 본문·이슈는 **개조식**으로 작성 (3개 레포 공통 - 상세: docs 레포 CONTRIBUTING.md)

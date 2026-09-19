@@ -24,7 +24,7 @@ export default function MyCohortsPage() {
           <p className="mt-1 text-sm text-muted-foreground">소속된 분반에서 과제를 확인하고 제출할 수 있어요.</p>
         </div>
         {isAdmin && (
-          <Button variant="outline" size="sm" className="rounded-[2px]" asChild>
+          <Button variant="outline" size="sm" asChild>
             <Link to="/admin/cohorts">
               <Settings2 data-icon="inline-start" />
               분반 관리

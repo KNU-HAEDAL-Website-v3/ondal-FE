@@ -70,7 +70,7 @@ export default function AssignmentsPage() {
               value={cohortId}
               onChange={(e) => setSearchParams({ cohort: e.target.value })}
               aria-label="분반 선택"
-              className="h-8 rounded-[2px] border bg-card px-2 text-sm"
+              className="h-8 rounded-lg border bg-card px-2 text-sm"
             >
               {myCohorts.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -80,7 +80,7 @@ export default function AssignmentsPage() {
               ))}
             </select>
           )}
-          <div role="group" aria-label="보기 방식" className="flex overflow-hidden rounded-[2px] border">
+          <div role="group" aria-label="보기 방식" className="flex overflow-hidden rounded-lg border">
             <button
               type="button"
               aria-pressed={view === 'grid'}
@@ -102,13 +102,13 @@ export default function AssignmentsPage() {
           </div>
           {canWrite && (
             <>
-              <Button size="sm" variant="outline" className="rounded-[2px]" asChild>
+              <Button size="sm" variant="outline" asChild>
                 <Link to={`/assignments/new?cohort=${cohortId}&session=${nextSessionNo}`}>
                   <Plus data-icon="inline-start" />
                   차시 추가
                 </Link>
               </Button>
-              <Button size="sm" className="rounded-[2px]" asChild>
+              <Button size="sm" asChild>
                 <Link to={`/assignments/new?cohort=${cohortId}`}>
                   <Plus data-icon="inline-start" />
                   과제 등록
@@ -120,7 +120,7 @@ export default function AssignmentsPage() {
       </header>
 
       {cohort?.status === 'ARCHIVED' && (
-        <p className="rounded-[2px] border bg-muted px-3 py-2 text-sm text-muted-foreground">
+        <p className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground">
           보관된 분반이에요. 과제 열람만 가능합니다.
         </p>
       )}
@@ -136,11 +136,11 @@ export default function AssignmentsPage() {
         />
       ) : (
         groups.map((group) => (
-          <section key={group.label} className="space-y-3 rounded-lg border bg-card/40 p-4">
+          <section key={group.label} className="space-y-3 rounded-lg border bg-card p-4">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-lg font-bold">{group.label}</h2>
+              <h2 className="text-lg font-bold tracking-tight">{group.label}</h2>
               {canWrite && (
-                <Button size="sm" variant="outline" className="rounded-[2px]" asChild>
+                <Button size="sm" variant="outline" asChild>
                   <Link
                     to={`/assignments/new?cohort=${cohortId}${group.sessionNo !== null ? `&session=${group.sessionNo}` : ''}`}
                     aria-label={`${group.label}에 과제 추가`}
@@ -158,7 +158,7 @@ export default function AssignmentsPage() {
                 ))}
               </div>
             ) : (
-              <ul className="divide-y overflow-hidden rounded-[2px] border bg-card">
+              <ul className="divide-y overflow-hidden rounded-lg border bg-card">
                 {group.items.map((a) => (
                   <AssignmentRow key={a.id} assignment={a} cohortId={cohortId} />
                 ))}
@@ -196,7 +196,7 @@ function AssignmentCard({ assignment, cohortId }: { assignment: AssignmentRespon
       <span className="flex flex-wrap items-center gap-1.5">
         <span
           className={cn(
-            'inline-block rounded-[2px] px-2 py-0.5 text-xs font-semibold',
+            'inline-block rounded-md px-2 py-0.5 text-xs font-semibold',
             overdue ? 'bg-muted text-muted-foreground' : 'bg-success-bg text-success',
           )}
         >
@@ -232,7 +232,7 @@ function AssignmentRow({ assignment, cohortId }: { assignment: AssignmentRespons
         <span className="font-semibold">{assignment.title}</span>
         <span
           className={cn(
-            'rounded-[2px] px-1.5 py-0.5 text-[11px] font-semibold',
+            'rounded-md px-1.5 py-0.5 text-[11px] font-semibold',
             overdue ? 'bg-muted text-muted-foreground' : 'bg-success-bg text-success',
           )}
         >

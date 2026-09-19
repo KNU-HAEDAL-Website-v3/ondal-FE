@@ -10,7 +10,7 @@ import { clearDraft, readDraft, writeDraft } from '@/lib/draft'
 
 const CONTENT_MAX = 10000
 const TEXTAREA_CLASS =
-  'w-full rounded-[6px] border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50'
+  'w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50'
 
 /**
  * 질문 상세의 답변 영역 (docs/qna/fe.md 1절, 결정 11) - 목록(오래된 순) + 작성 폼 + 답변별 인라인 수정·삭제.
@@ -45,7 +45,7 @@ export function AnswerSection({ cohortId, questionId, archived }: { cohortId: nu
 
   return (
     <section className="space-y-4" aria-label="답변">
-      <h2 className="flex items-center gap-2 text-lg font-bold">
+      <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight">
         <MessageSquare className="size-5 text-primary" />
         답변 {query.data ? <span className="text-muted-foreground">{query.data.length}</span> : null}
       </h2>
@@ -55,7 +55,7 @@ export function AnswerSection({ cohortId, questionId, archived }: { cohortId: nu
       ) : query.error ? (
         <ApiErrorView error={query.error} onRetry={() => void query.refetch()} />
       ) : query.data.length === 0 ? (
-        <p className="rounded-[2px] border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+        <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
           아직 답변이 없어요.{!archived && ' 첫 답변을 남겨 보세요.'}
         </p>
       ) : (
@@ -69,7 +69,7 @@ export function AnswerSection({ cohortId, questionId, archived }: { cohortId: nu
       {archived ? (
         <p className="text-sm text-muted-foreground">보관된 분반이라 새 답변은 남길 수 없어요.</p>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-2 rounded-lg border bg-card/40 p-4">
+        <form onSubmit={handleSubmit} className="space-y-2 rounded-lg border bg-card p-4">
           <label htmlFor="answer-content" className="text-sm font-semibold">
             답변 남기기
           </label>
@@ -85,7 +85,7 @@ export function AnswerSection({ cohortId, questionId, archived }: { cohortId: nu
           {createMutation.error && <p className="text-sm text-destructive">{(createMutation.error as Error).message}</p>}
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs text-muted-foreground">입력 내용은 이 탭에 임시 저장돼요.</span>
-            <Button type="submit" size="sm" className="rounded-[2px]" disabled={createMutation.isPending || content.trim() === ''}>
+            <Button type="submit" size="sm" disabled={createMutation.isPending || content.trim() === ''}>
               {createMutation.isPending ? '등록 중...' : '답변 등록'}
             </Button>
           </div>
@@ -127,13 +127,13 @@ function AnswerItem({ answer, cohortId, questionId }: { answer: AnswerResponse; 
         {(answer.canEdit || answer.canDelete) && !editing && (
           <div className="flex items-center gap-1">
             {answer.canEdit && (
-              <Button variant="ghost" size="xs" className="rounded-[2px]" onClick={() => setEditing(true)}>
+              <Button variant="ghost" size="xs" onClick={() => setEditing(true)}>
                 <Pencil data-icon="inline-start" />
                 수정
               </Button>
             )}
             {answer.canDelete && (
-              <Button variant="ghost" size="xs" className="rounded-[2px] text-destructive" onClick={handleDelete} disabled={deleteMutation.isPending}>
+              <Button variant="ghost" size="xs" className="text-destructive" onClick={handleDelete} disabled={deleteMutation.isPending}>
                 <Trash2 data-icon="inline-start" />
                 삭제
               </Button>
@@ -153,14 +153,14 @@ function AnswerItem({ answer, cohortId, questionId }: { answer: AnswerResponse; 
           />
           {updateMutation.error && <p className="text-sm text-destructive">{(updateMutation.error as Error).message}</p>}
           <div className="flex items-center gap-2">
-            <Button type="submit" size="sm" className="rounded-[2px]" disabled={updateMutation.isPending || draft.trim() === ''}>
+            <Button type="submit" size="sm" disabled={updateMutation.isPending || draft.trim() === ''}>
               {updateMutation.isPending ? '저장 중...' : '저장'}
             </Button>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="rounded-[2px]"
+             
               onClick={() => {
                 setEditing(false)
                 setDraft(answer.content)

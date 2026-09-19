@@ -13,7 +13,7 @@ const UNCHECKED = { label: '미확인', className: 'bg-neutral-bg text-neutral' 
 export function AttendanceStatusBadge({ status, className }: { status: AttendanceStatus | null; className?: string }) {
   const meta = status === null ? UNCHECKED : STATUS_META[status]
   return (
-    <span className={cn('inline-block rounded-[2px] px-2 py-0.5 text-xs font-bold', meta.className, className)}>
+    <span className={cn('inline-block rounded-md px-2 py-0.5 text-xs font-bold', meta.className, className)}>
       {meta.label}
     </span>
   )

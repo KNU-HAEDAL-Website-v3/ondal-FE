@@ -12,7 +12,7 @@ export default function HelpPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="flex items-center gap-2 text-2xl font-bold">
+        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
           <CircleHelp className="size-6 text-primary" />
           도움말
         </h1>
@@ -70,7 +70,7 @@ export default function HelpPage() {
       </Section>
 
       <section className="rounded-lg border bg-card p-4">
-        <h2 className="text-sm font-bold">문제가 생기면</h2>
+        <h2 className="text-base font-bold">문제가 생기면</h2>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6">
           <li>로그인이 풀려 로그인 화면으로 갔다면, 다시 로그인하면 원래 화면으로 돌아오고 쓰던 내용이 남아 있어요.</li>
           <li>화면이 이상하거나 값이 틀리면 운영진 채널에 알려 주세요. 역할 · 화면 주소 · 한 일 순서 · 기대한 것과 실제 · 시각을 함께 적어 주면 바로 찾을 수 있어요.</li>
@@ -84,7 +84,7 @@ export default function HelpPage() {
 function Section({ icon: Icon, title, children }: { icon: typeof GraduationCap; title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-lg border bg-card p-4">
-      <h2 className="flex items-center gap-2 text-sm font-bold">
+      <h2 className="flex items-center gap-2 text-base font-bold">
         <Icon className="size-4 text-primary" />
         {title}
       </h2>

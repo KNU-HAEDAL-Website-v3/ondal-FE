@@ -114,13 +114,13 @@ export default function CohortMembersPage() {
       </header>
 
       {archived && (
-        <p className="rounded-[2px] border bg-muted px-3 py-2 text-sm text-muted-foreground">
+        <p className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground">
           보관된 분반이에요. 명부 열람만 가능하고 배정·해제는 보관을 해제한 뒤에 할 수 있어요.
         </p>
       )}
 
       <section className="space-y-3">
-        <h2 className="font-bold">운영진</h2>
+        <h2 className="text-lg font-bold tracking-tight">운영진</h2>
         <MemberTable
           members={operators}
           emptyText="지정된 운영진이 없어요."
@@ -130,7 +130,7 @@ export default function CohortMembersPage() {
                   <Button
                     variant="outline"
                     size="xs"
-                    className="rounded-[2px] text-destructive"
+                    className="text-destructive"
                     onClick={() => handleRemoveOperator(m)}
                     disabled={removeOperatorMutation.isPending}
                   >
@@ -145,7 +145,7 @@ export default function CohortMembersPage() {
           <p className="text-sm text-destructive">{(removeOperatorMutation.error as Error).message}</p>
         )}
         {canManageOperators && (
-          <form onSubmit={handleAssignOperator} className="flex flex-wrap items-end gap-2 rounded-lg border bg-card/40 p-4">
+          <form onSubmit={handleAssignOperator} className="flex flex-wrap items-end gap-2 rounded-lg border bg-card p-4">
             <div className="min-w-56 flex-1 space-y-2">
               <Label htmlFor="operator-login-id">운영진 지정 (관리자)</Label>
               <Input
@@ -157,7 +157,7 @@ export default function CohortMembersPage() {
                 className="font-mono"
               />
             </div>
-            <Button type="submit" size="sm" className="rounded-[2px]" disabled={!operatorLoginId.trim() || assignOperatorMutation.isPending}>
+            <Button type="submit" size="sm" disabled={!operatorLoginId.trim() || assignOperatorMutation.isPending}>
               <UserPlus data-icon="inline-start" />
               {assignOperatorMutation.isPending ? '지정 중...' : '운영진 지정'}
             </Button>
@@ -169,7 +169,7 @@ export default function CohortMembersPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-bold">수강생</h2>
+        <h2 className="text-lg font-bold tracking-tight">수강생</h2>
         <MemberTable
           members={students}
           emptyText="아직 배정된 수강생이 없어요."
@@ -179,7 +179,7 @@ export default function CohortMembersPage() {
                   <Button
                     variant="outline"
                     size="xs"
-                    className="rounded-[2px] text-destructive"
+                    className="text-destructive"
                     onClick={() => handleRemoveStudent(m)}
                     disabled={removeStudentMutation.isPending}
                   >
@@ -196,9 +196,9 @@ export default function CohortMembersPage() {
       </section>
 
       {canManage && (
-        <section className="space-y-3 rounded-lg border bg-card/40 p-4">
+        <section className="space-y-3 rounded-lg border bg-card p-4">
           <div>
-            <h2 className="font-bold">수강생 배정</h2>
+            <h2 className="text-lg font-bold tracking-tight">수강생 배정</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               홈페이지(Keycloak) 아이디 명단을 붙여 넣으세요 - 줄바꿈·쉼표·공백 구분. 아직 로그인한 적 없는 부원도 선등록되고, 이미
               소속된 수강생은 건너뜁니다. 운영진 아이디가 섞여 있으면 전체가 거부돼요.
@@ -212,11 +212,11 @@ export default function CohortMembersPage() {
               onChange={(e) => setLoginIdsText(e.target.value)}
               rows={5}
               placeholder={'hong\nkim, lee\n...'}
-              className="w-full rounded-[6px] border border-input bg-transparent px-3 py-2 font-mono text-sm shadow-xs outline-none placeholder:font-sans placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="w-full rounded-lg border border-input bg-transparent px-3 py-2 font-mono text-sm shadow-xs outline-none placeholder:font-sans placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
             {assignMutation.error && <p className="text-sm text-destructive">{(assignMutation.error as Error).message}</p>}
             <div className="flex flex-wrap items-center gap-3">
-              <Button type="submit" size="sm" className="rounded-[2px]" disabled={parsedIds.length === 0 || assignMutation.isPending}>
+              <Button type="submit" size="sm" disabled={parsedIds.length === 0 || assignMutation.isPending}>
                 <UserPlus data-icon="inline-start" />
                 {assignMutation.isPending ? '배정 중...' : parsedIds.length === 0 ? '배정' : `${parsedIds.length}명 배정`}
               </Button>
@@ -242,12 +242,12 @@ function MemberTable({
   action?: (m: MemberResponse) => ReactNode
 }) {
   if (members.length === 0) {
-    return <p className="rounded-[2px] border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">{emptyText}</p>
+    return <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">{emptyText}</p>
   }
   return (
-    <div className="overflow-x-auto rounded-[2px] border bg-card">
+    <div className="overflow-x-auto rounded-lg border bg-card">
       <table className="w-full text-sm">
-        <thead className="bg-muted/50 text-xs text-muted-foreground">
+        <thead className="bg-muted text-xs text-muted-foreground">
           <tr>
             <th className="px-3 py-2 text-left font-semibold">이름</th>
             <th className="px-3 py-2 text-left font-semibold">아이디</th>
