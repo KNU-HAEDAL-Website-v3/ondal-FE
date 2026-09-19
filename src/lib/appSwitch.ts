@@ -9,9 +9,10 @@
  */
 export type AppMode = 'ondal' | 'hoj'
 
+/** 확인 팝업 제목에 쓰는 이름 - "HOJ로 이동할까요?" (2026-09-19 PM: 괄호 설명 없이 짧게) */
 export const MODE_LABEL: Record<AppMode, string> = {
-  ondal: 'Ondal(과제)',
-  hoj: 'HOJ(문제 은행)',
+  ondal: 'Ondal',
+  hoj: 'HOJ',
 }
 
 /** 기억된 화면이 없을 때 가는 곳 */
