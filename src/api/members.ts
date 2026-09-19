@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from './client'
 import { cohortKeys } from './cohorts'
 import type { MemberResponse, StudentAssignPayload } from './types'
+import { userKeys } from './users'
 
 export const memberKeys = {
   list: (cohortId: number) => ['cohorts', 'members', cohortId] as const,
@@ -32,6 +33,8 @@ function useRefreshAfterRosterChange(cohortId: number) {
     void queryClient.invalidateQueries({ queryKey: cohortKeys.detail(cohortId) })
     void queryClient.invalidateQueries({ queryKey: cohortKeys.mine() })
     void queryClient.invalidateQueries({ queryKey: ['cohorts', 'list'] })
+    // 부원 목록(소속 요약·승인 상태)도 바뀐다 - 배정 모달·부원 관리가 옛 값을 보이지 않게 (배정 = 자동 승인)
+    void queryClient.invalidateQueries({ queryKey: userKeys.all })
   }
 }
 
