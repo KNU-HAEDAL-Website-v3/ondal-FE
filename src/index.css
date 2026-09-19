@@ -62,7 +62,7 @@
     --color-info-bg: var(--info-bg);
     --color-neutral: var(--neutral);
     --color-neutral-bg: var(--neutral-bg);
-    /* HOJ 모드 브랜드색 - 로고·워드마크만. 같은 앱 안에서 "지금 문제 은행에 있다"를 한눈에 알리는 용도 (lib/appSwitch.ts) */
+    /* HOJ 모드 브랜드색 - 로고·워드마크만. 같은 앱 안에서 "지금 HOJ에 있다"를 한눈에 알리는 용도 (lib/appSwitch.ts) */
     --color-hoj-brand: var(--hoj-brand);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);

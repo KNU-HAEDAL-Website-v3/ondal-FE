@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
     throw new Error('VITE_AUTH_MODE=oidc 에는 VITE_API_BASE_URL 절대 주소(https://...)가 필요합니다 - .env.example 참고')
   }
 
-  // 앱은 하나다 - HOJ(문제 은행)는 같은 빌드 안의 모드(라우트별 셸)라 별도 산출 폴더·탭 제목 치환이 없다 (src/lib/appSwitch.ts).
+  // 앱은 하나다 - HOJ는 같은 빌드 안의 모드(라우트별 셸)라 별도 산출 폴더·탭 제목 치환이 없다 (src/lib/appSwitch.ts).
   // HOJ 화면의 탭 제목은 HojShell 이 런타임에 바꾼다
   return {
     plugins: [react(), tailwindcss()],

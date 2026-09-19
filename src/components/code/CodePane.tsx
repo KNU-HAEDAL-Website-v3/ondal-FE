@@ -26,9 +26,22 @@ function EditorSkeleton({ height, label }: { height: string; label: string }) {
   )
 }
 
-export function CodeEditor(props: { value: string; onChange: (value: string) => void; language: string | null }) {
+export interface CodeEditorProps {
+  value: string
+  onChange: (value: string) => void
+  language: string | null
+  /** 편집기 높이(CSS 길이) - 기본 224px. 분할 화면은 clamp(), 전체 화면은 svh 기준 */
+  height?: string
+  /** 초기화 버튼 - 주면 도구 줄에 생긴다 */
+  onReset?: () => void
+  fullscreen?: boolean
+  /** 전체 화면 토글 버튼 - 주면 도구 줄에 생긴다. 실제 덮개는 호출자가 그린다 (FullscreenPane) */
+  onToggleFullscreen?: () => void
+}
+
+export function CodeEditor(props: CodeEditorProps) {
   return (
-    <Suspense fallback={<EditorSkeleton height="248px" label="편집기 불러오는 중..." />}>
+    <Suspense fallback={<EditorSkeleton height={props.height ?? '248px'} label="편집기 불러오는 중..." />}>
       <CodeEditorImpl {...props} />
     </Suspense>
   )

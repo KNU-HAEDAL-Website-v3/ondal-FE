@@ -10,7 +10,7 @@
 # 동작:
 #   - main push          → Ondal: https://haedal-ondal-fe.pages.dev (예비 사본 - 실 BE(ondal-api) + 홈페이지(Keycloak) 로그인 빌드, .env.production)
 #                          사용자 진입 주소 ondal.haedal-sos-man-in-the-mirror.com 은 Worker `ondal-fe` (README "배포" 절).
-#                          HOJ(문제 은행)는 같은 앱 안의 모드라 별도 배포가 없다 (docs 결정 9 - 2026-09-19, deploy-hoj 잡 삭제)
+#                          HOJ는 같은 앱 안의 모드라 별도 배포가 없다 (docs 결정 9 - 2026-09-19, deploy-hoj 잡 삭제)
 #   - PR(같은 레포 브랜치) → 미리보기 https://<브랜치명>.haedal-ondal-fe.pages.dev + PR 코멘트 - mock(MSW) 빌드
 #
 # 필요한 레포 시크릿: CLOUDFLARE_API_TOKEN (Account · Cloudflare Pages · Edit), CLOUDFLARE_ACCOUNT_ID

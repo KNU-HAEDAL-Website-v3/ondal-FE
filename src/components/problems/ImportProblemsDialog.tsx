@@ -17,7 +17,7 @@ import { formatKst } from '@/lib/datetime'
 
 /**
  * [관리자] 문제 가져오기 - 두 경로.
- * 1. 깃허브에서 가져오기(기본): 서버가 문제 은행 레포(ondal-problems) 의 브랜치를 직접 받아 problems/* 를 읽는다 - 로컬 빌드·파일 선택 없음.
+ * 1. 깃허브에서 가져오기(기본): 서버가 HOJ 레포(ondal-problems) 의 브랜치를 직접 받아 problems/* 를 읽는다 - 로컬 빌드·파일 선택 없음.
  *    수 초~수십 초 걸려서 서버는 작업을 띄우고(202) 상태만 돌려준다 - 여기서는 끝날 때까지 상태를 폴링해 단계·진행 수를 보여 준다.
  *    서버에 레포 토큰이 없으면(configured=false) 안내만 하고 아래 파일 경로를 쓴다.
  * 2. 번들 파일(보조): 레포의 tools/build.py 산출물(bank.json)을 골라 IMPORT_CHUNK_SIZE 개씩 나눠 POST /api/problems/import.
@@ -99,7 +99,7 @@ export function ImportProblemsDialog({ open, onOpenChange }: { open: boolean; on
         <DialogHeader>
           <DialogTitle>문제 가져오기</DialogTitle>
           <DialogDescription>
-            문제 은행 레포에서 바로 가져오거나 번들 파일을 올려요. 번호가 같은 문제는 건너뛰고, 덮어쓰기를 켜면 본문·태그·제한·테스트케이스를 교체해요. 없는 태그는 새로 만들어요.
+            HOJ 레포에서 바로 가져오거나 번들 파일을 올려요. 번호가 같은 문제는 건너뛰고, 덮어쓰기를 켜면 본문·태그·제한·테스트케이스를 교체해요. 없는 태그는 새로 만들어요.
           </DialogDescription>
         </DialogHeader>
 

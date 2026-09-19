@@ -38,14 +38,17 @@ export function EmptyState({
   title,
   description,
   children,
+  compact = false,
 }: {
   icon?: ReactNode
   title: string
   description?: string
   children?: ReactNode
+  /** 패널 안(표 자리)에서 쓸 때 - 화면 높이의 40% 를 차지하지 않게 */
+  compact?: boolean
 }) {
   return (
-    <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-center">
+    <div className={compact ? 'flex flex-col items-center justify-center gap-3 px-4 py-8 text-center' : 'flex min-h-[40vh] flex-col items-center justify-center gap-3 text-center'}>
       {icon && <div className="text-muted-foreground">{icon}</div>}
       <div className="space-y-1">
         <p className="font-semibold">{title}</p>
