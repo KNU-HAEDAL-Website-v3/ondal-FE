@@ -18,6 +18,7 @@ import HomePage from '@/pages/HomePage'
 import LoginPage from '@/pages/LoginPage'
 import MembersPage from '@/pages/MembersPage'
 import MyCohortsPage from '@/pages/MyCohortsPage'
+import MyPage from '@/pages/MyPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 import NoticeDetailPage from '@/pages/NoticeDetailPage'
 import NoticeFormPage from '@/pages/NoticeFormPage'
@@ -59,6 +60,7 @@ import QuestionsPage from '@/pages/QuestionsPage'
  *   /notices/:noticeId         - 공지 상세 (수정·삭제 버튼은 서버 canEdit·canDelete)
  *   /notices/:noticeId/edit    - 공지 수정 (대상 고정)
  *   /help                      - 도움말 (역할별 할 수 있는 일·문제 보고 방법) - 사이드바·상단 아이콘에서 진입
+ *   /me                        - 마이페이지 (내 정보·활동·소속 분반·에디터 테마) - 상단 바의 내 이름에서 진입
  * [HOJ 모드 - HojShell] 문제는 분반과 무관하므로 메뉴가 다르다 (2026-09-19 PM, docs 결정 9)
  *   /problems                  - 문제 목록 (로그인 누구나 - 태그 필터)
  *   /problems/:problemId       - 문제 상세 - 본문·예시·풀이 제출·내 기록 (로그인 누구나)
@@ -79,6 +81,7 @@ export function AppRoutes() {
           <Route index element={<HomePage />} />
           <Route path="attendance" element={<AttendancePage />} />
           <Route path="help" element={<HelpPage />} />
+          <Route path="me" element={<MyPage />} />
           <Route path="assignments" element={<AssignmentsPage />} />
           <Route path="assignments/new" element={<AssignmentFormPage />} />
           <Route path="assignments/:assignmentId" element={<AssignmentDetailPage />} />
