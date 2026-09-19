@@ -6,6 +6,7 @@ import { useMe } from '@/api/auth'
 import { useCohort, useMyCohorts } from '@/api/cohorts'
 import { Button } from '@/components/ui/button'
 import { ApiErrorView, EmptyState } from '@/components/ApiErrorView'
+import { isAdminRole } from '@/lib/roles'
 import { JudgeSamplesSection } from '@/components/judge/JudgeSamplesSection'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { MarkdownView } from '@/components/MarkdownView'
@@ -55,7 +56,7 @@ export default function AssignmentDetailPage() {
   const canManage = cohort?.canManage ?? false
   const archived = cohort?.status === 'ARCHIVED'
   // 현황판 열람은 보관 분반에서도 유지 - canManage(ACTIVE 전용 쓰기 판정)가 아니라 역할로 판단
-  const canSeeBoard = me?.globalRole === 'ADMIN' || cohort?.myRole === 'OPERATOR'
+  const canSeeBoard = isAdminRole(me?.globalRole) || cohort?.myRole === 'OPERATOR'
   const overdue = isOverdue(assignment.dueAt)
 
   const handleDelete = () => {

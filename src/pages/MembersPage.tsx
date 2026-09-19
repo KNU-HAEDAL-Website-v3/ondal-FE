@@ -6,6 +6,7 @@ import type { UserDirectoryEntry, UserStatus } from '@/api/types'
 import { ApiErrorView, EmptyState } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { Badge } from '@/components/ui/badge'
+import { isAdminRole, globalRoleLabel } from '@/lib/roles'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatKst } from '@/lib/datetime'
@@ -96,9 +97,9 @@ export default function MembersPage() {
                 <tr key={u.id} className={u.status === 'PENDING' ? 'bg-warning-soft' : undefined}>
                   <td className="px-3 py-2 font-medium">
                     {u.name}
-                    {u.globalRole === 'ADMIN' && (
+                    {isAdminRole(u.globalRole) && (
                       <Badge variant="secondary" className="ml-1.5">
-                        해구르르
+                        {globalRoleLabel(u.globalRole)}
                       </Badge>
                     )}
                   </td>

@@ -7,6 +7,7 @@ import { AppSwitchButton } from '@/components/AppSwitchButton'
 import { rememberPath } from '@/lib/appSwitch'
 import { cn } from '@/lib/utils'
 
+import { isAdminRole, globalRoleLabel } from '@/lib/roles'
 /**
  * HOJ 모드의 틀 - 상단 가로 네비 하나뿐인 가벼운 셸. 같은 앱 안에서 /problems·/admin/tags 에만 씌워진다 (routes.tsx, 2026-09-19 PM 결정 - docs 결정 9).
  *
@@ -65,7 +66,7 @@ export function HojShell() {
           </Link>
 
           <nav className="flex items-center gap-1">
-            {NAV.filter((item) => !('adminOnly' in item && item.adminOnly) || me?.globalRole === 'ADMIN').map((item) => {
+            {NAV.filter((item) => !('adminOnly' in item && item.adminOnly) || isAdminRole(me?.globalRole)).map((item) => {
               const active = isActive(item.to)
               return (
                 <Link
@@ -94,7 +95,7 @@ export function HojShell() {
               Ondal로 이동하기
             </AppSwitchButton>
             {me && (
-              <span className="flex items-center gap-2" title={me.globalRole === 'ADMIN' ? '해구르르(관리자)' : '부원'}>
+              <span className="flex items-center gap-2" title={globalRoleLabel(me.globalRole)}>
                 <span className="flex size-8 items-center justify-center rounded-full border bg-secondary text-xs font-semibold">
                   {me.name?.charAt(0) ?? '?'}
                 </span>

@@ -7,6 +7,7 @@ import { useMe } from '@/api/auth'
 import { useCohorts } from '@/api/cohorts'
 import { useNotices } from '@/api/notices'
 import { useSessions } from '@/api/sessions'
+import { isAdminRole } from '@/lib/roles'
 import { useStatusBoard } from '@/api/submissions'
 import type { AssignmentResponse, CohortResponse } from '@/api/types'
 import { Button } from '@/components/ui/button'
@@ -27,7 +28,7 @@ const DUE_SOON_DAYS = 7
  */
 export function OperatorDashboard({ cohorts }: { cohorts: CohortResponse[] }) {
   const { data: me } = useMe()
-  const isAdmin = me?.globalRole === 'ADMIN'
+  const isAdmin = isAdminRole(me?.globalRole)
   const adminCohortsQuery = useCohorts('ACTIVE', isAdmin)
   const options = isAdmin ? (adminCohortsQuery.data ?? []) : cohorts.filter((c) => c.canManage)
   const [selectedCohortId, setSelectedCohortId] = useState<number | null>(null)

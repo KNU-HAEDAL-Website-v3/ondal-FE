@@ -31,6 +31,8 @@ export interface MockEnrollment {
 
 export const users: MockUser[] = [
   { id: 1, loginId: 'admin', name: '관리자', globalRole: 'ADMIN', status: 'ACTIVE' },
+  // 관리자(MAINTAINER) - 유지보수 팀. 해구르르와 같은 권한, 표시만 다름 (BE LocalDataSeeder 와 동일, docs 결정 12)
+  { id: 7, loginId: 'maintainer', name: '유지보수', globalRole: 'MAINTAINER', status: 'ACTIVE' },
   { id: 2, loginId: 'operator1', name: 'operator1', globalRole: 'MEMBER', status: 'ACTIVE' },
   { id: 3, loginId: 'student1', name: 'student1', globalRole: 'MEMBER', status: 'ACTIVE' },
   { id: 4, loginId: 'student2', name: 'student2', globalRole: 'MEMBER', status: 'ACTIVE' },

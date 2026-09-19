@@ -8,6 +8,7 @@ import { useTags } from '@/api/tags'
 import type { ProblemSummary } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { isAdminRole } from '@/lib/roles'
 import { Input } from '@/components/ui/input'
 import { ApiErrorView, EmptyState } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
@@ -40,7 +41,7 @@ export default function ProblemsPage() {
     .filter((problem) => term === '' || problem.title.toLowerCase().includes(term) || String(problem.problemNo).includes(term))
     .filter((problem) => tier === null || tierOf(problem.difficulty) === tier)
   // 출제 권한 = ADMIN 이거나 어느 분반에서든 운영진 (BE @OperatorAnywhere 와 같은 조건). 최종 판정은 서버(403)
-  const canCreate = me?.globalRole === 'ADMIN' || (myCohortsQuery.data ?? []).some((cohort) => cohort.canManage)
+  const canCreate = isAdminRole(me?.globalRole) || (myCohortsQuery.data ?? []).some((cohort) => cohort.canManage)
 
   return (
     <div className="space-y-6">
@@ -53,7 +54,7 @@ export default function ProblemsPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {/* 번들 가져오기는 관리자만 - 태그 어휘까지 만들기 때문 (BE @AdminOnly) */}
-          {me?.globalRole === 'ADMIN' && (
+          {isAdminRole(me?.globalRole) && (
             <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
               <Upload data-icon="inline-start" />
               문제 가져오기

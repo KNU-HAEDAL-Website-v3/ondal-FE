@@ -6,6 +6,7 @@ import { ApiError } from '@/api/client'
 import { useCohort } from '@/api/cohorts'
 import { useMembers, useRemoveOperator, useRemoveStudent } from '@/api/members'
 import type { MemberResponse } from '@/api/types'
+import { isAdminRole } from '@/lib/roles'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ApiErrorView } from '@/components/ApiErrorView'
@@ -40,7 +41,7 @@ export default function CohortMembersPage() {
   const cohort = cohortQuery.data
   const members = membersQuery.data
   const archived = cohort.status === 'ARCHIVED'
-  const isAdmin = me?.globalRole === 'ADMIN'
+  const isAdmin = isAdminRole(me?.globalRole)
   const canManage = cohort.canManage // ACTIVE && (ADMIN || OPERATOR) - 서버 판정값
   const canManageOperators = isAdmin && !archived
   const operators = members.filter((m) => m.role === 'OPERATOR')

@@ -9,7 +9,7 @@ Ondal(온달, 해달 온라인 저지) 프론트엔드 - 학생·운영진 웹 �
 ```bash
 npm install        # 의존성 설치
 npm run dev        # 개발 서버 (http://localhost:5173) - /api 는 로컬 백엔드(:8080)로 프록시. BE 레포의 `docker compose up -d && ./gradlew bootRun` 먼저
-npm run dev:mock   # 백엔드 없이 화면만 볼 때 - MSW mock 서버 (계정: admin / operator1 / student1~3, 또는 아무 아이디)
+npm run dev:mock   # 백엔드 없이 화면만 볼 때 - MSW mock 서버 (계정: admin(해구르르) / maintainer(관리자) / operator1 / student1~3 / newbie(승인 대기), 또는 아무 아이디)
 npm run build      # 타입 체크 + 프로덕션 빌드
 npm run lint       # 린트 (oxlint)
 ```

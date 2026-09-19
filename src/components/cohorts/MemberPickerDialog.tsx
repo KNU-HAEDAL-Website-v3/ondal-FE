@@ -5,6 +5,7 @@ import { useUsers } from '@/api/users'
 import type { MemberResponse, UserDirectoryEntry } from '@/api/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { Button } from '@/components/ui/button'
+import { isAdminRole, globalRoleLabel } from '@/lib/roles'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { clearDraft, readDraft, writeDraft } from '@/lib/draft'
@@ -243,7 +244,7 @@ export function MemberPickerDialog({
                           </td>
                           <td className="px-2 py-2 font-medium">
                             {u.name}
-                            {u.globalRole === 'ADMIN' && <span className="ml-1 text-xs font-normal text-muted-foreground">해구르르</span>}
+                            {isAdminRole(u.globalRole) && <span className="ml-1 text-xs font-normal text-muted-foreground">{globalRoleLabel(u.globalRole)}</span>}
                           </td>
                           <td className="px-2 py-2 font-mono text-xs break-all">{u.loginId}</td>
                           <td className="px-2 py-2">

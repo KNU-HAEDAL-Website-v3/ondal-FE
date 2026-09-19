@@ -5,6 +5,7 @@ import { useMyCohorts } from '@/api/cohorts'
 import { ApiErrorView } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
 
+import { isAdminRole } from '@/lib/roles'
 /**
  * 문제 출제·수정 화면의 울타리 - RequireAuth 안쪽에서만 쓴다(me 가 이미 로드된 상태).
  *
@@ -20,7 +21,7 @@ export function RequireOperator() {
   const { data: me } = useMe()
   const myCohortsQuery = useMyCohorts()
 
-  if (me?.globalRole === 'ADMIN') {
+  if (isAdminRole(me?.globalRole)) {
     return <Outlet />
   }
   // 소속을 받아야 판정할 수 있다 - 받기 전에 막으면 운영진도 잠깐 튕긴다

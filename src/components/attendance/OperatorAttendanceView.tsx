@@ -4,6 +4,7 @@ import { Archive, ArrowDownUp, CheckCheck, CircleCheckBig, CircleX, Clock, Downl
 import { attendanceKeys, fetchRoster, useMarkAttendance, useRoster } from '@/api/attendances'
 import { useMe } from '@/api/auth'
 import { useCohorts } from '@/api/cohorts'
+import { isAdminRole } from '@/lib/roles'
 import { useCreateSession, useDeleteSession, useSessions, useUpdateSession } from '@/api/sessions'
 import type { AttendanceRow, AttendanceStatus, CohortResponse, SessionResponse } from '@/api/types'
 import { AttendanceStatCard } from '@/components/attendance/AttendanceStatCard'
@@ -62,7 +63,7 @@ function sortRows(rows: AttendanceRow[], sort: RosterSort): AttendanceRow[] {
  */
 export function OperatorAttendanceView({ cohorts }: { cohorts: CohortResponse[] }) {
   const { data: me } = useMe()
-  const isAdmin = me?.globalRole === 'ADMIN'
+  const isAdmin = isAdminRole(me?.globalRole)
   const adminCohortsQuery = useCohorts('ACTIVE', isAdmin)
   const options = isAdmin ? (adminCohortsQuery.data ?? []) : cohorts.filter((c) => c.canManage)
 

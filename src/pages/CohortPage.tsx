@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ApiErrorView } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { isAdminRole } from '@/lib/roles'
 import { OperatorName } from '@/components/cohorts/OperatorName'
 
 /**
@@ -26,7 +27,7 @@ export default function CohortPage() {
 
   const archived = cohort.status === 'ARCHIVED'
   // 명부 열람은 보관 분반에서도 유지 - canManage(ACTIVE 전용 쓰기 판정)가 아니라 역할로 판단 (현황판과 같은 규칙)
-  const canSeeRoster = me?.globalRole === 'ADMIN' || cohort.myRole === 'OPERATOR'
+  const canSeeRoster = isAdminRole(me?.globalRole) || cohort.myRole === 'OPERATOR'
 
   return (
     <div className="space-y-6">

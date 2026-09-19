@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { ApiErrorView, EmptyState } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
 
+import { isAdminRole } from '@/lib/roles'
 /**
  * Q&A 진입 - /questions. 사이드바에서 들어오는 분반 선택 화면 (2026-09-15).
  * Q&A 자체는 분반 스코프(/cohorts/:cohortId/questions)라 먼저 분반을 고르게 하고, 고르면 그 분반 목록으로 넘긴다.
@@ -16,7 +17,7 @@ import { LoadingScreen } from '@/components/LoadingScreen'
 export default function QuestionsEntryPage() {
   const navigate = useNavigate()
   const { data: me } = useMe()
-  const isAdmin = me?.globalRole === 'ADMIN'
+  const isAdmin = isAdminRole(me?.globalRole)
   const myCohortsQuery = useMyCohorts()
   const adminCohortsQuery = useCohorts('ACTIVE', isAdmin)
 
