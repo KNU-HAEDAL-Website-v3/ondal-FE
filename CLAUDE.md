@@ -17,7 +17,7 @@
 - HOJ(문제 은행)는 같은 앱 안의 **모드**(2026-09-19 PM, docs 결정 9 - 별도 앱 분리(결정 8)는 철회): `/problems/*`·`/admin/tags` 는 `HojShell`(상단 가로 메뉴: 문제 · 태그 관리(관리자)), 나머지는 `AppShell`(사이드바). 서로 오가는 버튼은 `AppSwitchButton` - "~로 이동할까요?" 확인 뒤 이동, 돌아올 때는 그 모드에서 마지막에 보던 화면(`lib/appSwitch`). 별도 빌드·도메인·환경 변수 없음
 - 승인 게이트(2026-09-19, docs 결정 10): 첫 홈페이지 로그인 계정은 `me.status === 'PENDING'` - `RequireAuth` 가 어느 주소에서든 `PendingApprovalPage`(사이드바 없음)만 그린다. 어느 API 에서든 403 `USER_PENDING` 을 받으면 `api/client.ts` 의 pending 핸들러가 me.status 를 PENDING 으로 바꿔 같은 화면으로. 승인은 `/members`(부원 관리, `RequireOperator`)의 승인 버튼 또는 분반 배정(자동 승인). 운영진 대시보드 상단 `PendingApprovalBanner`. mock 은 `newbie` 가 승인 대기
 - 문제 은행 지원(2026-09-19, BE V9): 문제에 **난이도**(`difficulty` 1~25, 표기 "대분류-소분류" `lib/difficulty` · `DifficultyBadge`)와 **허용 언어**(`allowedLanguages`, `lib/languages`)가 있다. 목록은 난이도 열·대분류 필터, 출제 폼은 대분류/소분류 셀렉트 + 언어 칩, 제출 폼(HOJ 연습·과제 `SubmissionForm`)은 허용 언어로 선택지를 좁힌다(서버도 400). 본문은 **마크다운**(`MarkdownView`, react-markdown + remark-gfm, HTML 미렌더). 관리자 "문제 가져오기"(`ImportProblemsDialog`)는 **깃허브에서 가져오기**가 기본 - `GET/POST /api/problems/import/github`, 서버가 문제 은행 레포(ondal-problems) main 을 직접 읽음(`useProblemBankSource`·`useImportFromGithub`, configured=false 면 버튼 비활성 + 안내). 번들 JSON 파일 업로드(`POST /api/problems/import`)는 보조 경로 - `api/problemImport` 가 번호순 **10문제씩 나눠 순차 전송**(묶음마다 서버 트랜잭션, 도중 실패는 `ImportChunkError` 로 어디까지 저장됐는지 안내 - 같은 파일 재업로드로 이어짐). 과제 상세의 자동 채점 안내(`JudgeSamplesSection`)도 허용 언어만 표시
-- 마이페이지(2026-09-19 신설, 원안에 없던 화면): `/me` - 상단 바의 내 이름(`AppShell`)에서 진입. 내 정보(`/api/auth/me`)·활동(`GET /api/me/stats` - 과제 제출·연습 제출·맞힌 문제)·소속 분반(`/api/me/cohorts`)·코드 에디터 테마(`lib/editorTheme`, 브라우저 저장)·로그아웃. 이름·아이디 수정 없음(홈페이지가 원본)
+- 마이페이지(2026-09-19 신설, 원안에 없던 화면 - 화면 정의는 docs `screens/my-page.md`): `/me` - 상단 바의 내 이름(`AppShell`)에서 진입. 홈 대시보드와 같은 문법 = 헤더(아바타·이름·직책) → 활동 KPI `StatCard` 4장(`GET /api/me/stats` 과제 제출·연습 제출·맞힌 문제 + 소속 분반 수) → 1:2 그리드(내 정보 `/api/auth/me` 이름·아이디·가입일 / 코드 에디터 테마 `EditorThemeGallery` - 테마별 미리보기 카드, `lib/editorTheme` 브라우저 저장) → 소속 분반(`/api/me/cohorts`, 직책 배지는 `CohortCard` 와 같은 `Badge`). 로그아웃 버튼 없음(사이드바에 있음), 이름·아이디 수정 없음(홈페이지가 원본)
 - 전역 역할(2026-09-19, docs 결정 12): `ADMIN`(해구르르) · `MAINTAINER`(관리자 - 유지보수 팀, **권한은 해구르르와 동일**) · `MEMBER`. 화면의 권한 분기는 `lib/roles` `isAdminRole()` 만, 표시는 `globalRoleLabel()` - `globalRole === 'ADMIN'` 직접 비교 금지. 분반 안 직책은 서버 `RoleTitle` 문자열 그대로. mock 계정 `maintainer`
 - 기준본: docs 레포의 와이어프레임 v2.1
 - 용어: UI는 "분반"(내부 모델명 Cohort), "과제/문제"(내부 Assignment)
@@ -40,6 +40,8 @@
   - 색은 토큰만(`text-muted-foreground`, `bg-primary`, 상태색 `success/warning/caution/danger/info/neutral`) - `text-[#464555]` 같은 hex 직접 지정 금지
 - **모서리는 `--radius` 스케일만**: 버튼·입력·패널·표 = 컴포넌트 기본값(`rounded-lg`) / 상태 칩·작은 토글·로고 = `rounded-md` / 아바타 = `rounded-full`. `rounded-[Npx]` 직접 지정 금지, `Button` 에 모서리 오버라이드 금지
 - **제목 2단**: 페이지 제목 `h1 text-2xl font-bold tracking-tight` / 섹션 제목 `h2 text-lg font-bold tracking-tight` / 패널 안 제목 `h2 text-base font-bold` / 소제목(eyebrow) `text-xs font-bold tracking-[0.55px] text-muted-foreground`. 그 밖의 조합을 새로 만들지 않는다
+- **화면 문법은 홈 대시보드를 따른다**: 헤더(`border-b pb-2.5`) → KPI 는 `StatCard` → 패널 그리드(2:1 또는 1:2) → 전체 폭 패널. 숫자 타일·키-값 표 같은 부품을 페이지마다 새로 만들지 않는다 - 키-값은 `dl grid-cols-[6rem_1fr]` 왼쪽 정렬
+- **푸터 고정**: `SiteFooter` 는 셸(`AppShell`·`HojShell`)과 전체 화면(로그인·승인 대기)의 맨 아래 한 곳 - 바깥 상자 `flex min-h-svh flex-col`, 본문 `flex-1`. 페이지 안에서 푸터를 그리지 않는다
 
 ## 문서 작성 규칙
 

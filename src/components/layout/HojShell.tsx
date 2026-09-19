@@ -52,7 +52,7 @@ export function HojShell() {
   const isActive = (to: string) => pathname === to || pathname.startsWith(`${to}/`)
 
   return (
-    <div className="min-h-svh bg-background">
+    <div className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-10 border-b bg-sidebar">
         <div className="mx-auto flex h-14 max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4">
           <Link to="/problems" className="flex items-center gap-2">
@@ -115,10 +115,11 @@ export function HojShell() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6">
+      {/* AppShell 과 같은 규칙 - 본문이 남는 높이를 채우고 푸터는 맨 아래 */}
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
         <Outlet />
       </main>
-      <SiteFooter />
+      <SiteFooter className="mx-auto w-full max-w-6xl px-4 pb-6" />
     </div>
   )
 }

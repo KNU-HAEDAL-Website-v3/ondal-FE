@@ -193,7 +193,8 @@ export function AppShell() {
         </div>
       </aside>
 
-      <div className="md:pl-60">
+      {/* 본문 기둥은 화면 높이를 채우고 푸터는 늘 맨 아래 - 짧은 화면에서 푸터가 본문 바로 밑에 떠다니지 않게 (main flex-1) */}
+      <div className="flex min-h-svh flex-col md:pl-60">
         <header className="sticky top-0 z-10 flex h-12 items-center border-b bg-card px-4">
           <button
             type="button"
@@ -225,7 +226,7 @@ export function AppShell() {
             </Link>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-[1280px] p-4 md:p-10">
+        <main className="mx-auto w-full max-w-[1280px] flex-1 p-4 md:p-10">
           <Outlet />
         </main>
         <SiteFooter className="mx-auto w-full max-w-[1280px] px-4 pb-6 md:px-10" />
