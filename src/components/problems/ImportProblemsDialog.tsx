@@ -1,41 +1,65 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { FileJson, GitBranch, Upload } from 'lucide-react'
-import { IMPORT_CHUNK_SIZE, ImportChunkError, useImportFromGithub, useImportProblems, useProblemBankSource, type ImportProgress } from '@/api/problemImport'
-import type { ProblemImportItem, ProblemImportResult } from '@/api/types'
+import {
+  IMPORT_CHUNK_SIZE,
+  ImportChunkError,
+  useGithubImportStatus,
+  useImportProblems,
+  useProblemBankSource,
+  useStartGithubImport,
+  type ImportProgress,
+} from '@/api/problemImport'
+import type { ProblemBankSyncStatus, ProblemImportItem, ProblemImportResult } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { formatKst } from '@/lib/datetime'
 
 /**
  * [관리자] 문제 가져오기 - 두 경로.
  * 1. 깃허브에서 가져오기(기본): 서버가 문제 은행 레포(ondal-problems) 의 브랜치를 직접 받아 problems/* 를 읽는다 - 로컬 빌드·파일 선택 없음.
+ *    수 초~수십 초 걸려서 서버는 작업을 띄우고(202) 상태만 돌려준다 - 여기서는 끝날 때까지 상태를 폴링해 단계·진행 수를 보여 준다.
  *    서버에 레포 토큰이 없으면(configured=false) 안내만 하고 아래 파일 경로를 쓴다.
  * 2. 번들 파일(보조): 레포의 tools/build.py 산출물(bank.json)을 골라 IMPORT_CHUNK_SIZE 개씩 나눠 POST /api/problems/import.
  * 둘 다 규칙은 같다 - 번호가 키, 같은 번호는 기본 건너뛰고 "덮어쓰기"를 켜면 본문·태그·제한·테스트케이스 교체(재채점 없음).
  */
 export function ImportProblemsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const queryClient = useQueryClient()
   const sourceQuery = useProblemBankSource(open)
-  const githubMutation = useImportFromGithub()
+  const source = sourceQuery.data
+  const statusQuery = useGithubImportStatus(open && source?.configured === true)
+  const startMutation = useStartGithubImport()
   const fileMutation = useImportProblems()
   const [items, setItems] = useState<ProblemImportItem[] | null>(null)
   const [fileName, setFileName] = useState('')
   const [parseError, setParseError] = useState<string | null>(null)
   const [overwrite, setOverwrite] = useState(false)
   const [progress, setProgress] = useState<ImportProgress | null>(null)
-  const [result, setResult] = useState<{ from: string; summary: ProblemImportResult } | null>(null)
+  const [fileResult, setFileResult] = useState<{ from: string; summary: ProblemImportResult } | null>(null)
 
-  const busy = githubMutation.isPending || fileMutation.isPending
-  const source = sourceQuery.data
+  const status = statusQuery.data
+  const running = status?.state === 'RUNNING'
+  const busy = startMutation.isPending || fileMutation.isPending || running
 
-  const importFromGithub = () => {
-    setResult(null)
+  // 작업이 끝나는 순간 문제 목록·태그 캐시를 비운다 (RUNNING → DONE/FAILED 전이를 잡는다)
+  const previousState = useRef<ProblemBankSyncStatus['state'] | undefined>(undefined)
+  useEffect(() => {
+    const now = status?.state
+    if (previousState.current === 'RUNNING' && (now === 'DONE' || now === 'FAILED')) {
+      void queryClient.invalidateQueries({ queryKey: ['problems'] })
+      void queryClient.invalidateQueries({ queryKey: ['tags'] })
+    }
+    previousState.current = now
+  }, [status?.state, queryClient])
+
+  const startGithub = () => {
+    setFileResult(null)
     fileMutation.reset()
-    githubMutation.mutate(overwrite, {
-      onSuccess: (r) => setResult({ from: `${r.repo}@${r.ref} · 커밋 ${r.commitSha.slice(0, 7)} · 레포 문제 ${r.problemsInRepo}개`, summary: r.result }),
-    })
+    startMutation.mutate(overwrite)
   }
 
   const handleFile = async (file: File | undefined) => {
-    setResult(null)
+    setFileResult(null)
     setParseError(null)
     setItems(null)
     fileMutation.reset()
@@ -56,17 +80,18 @@ export function ImportProblemsDialog({ open, onOpenChange }: { open: boolean; on
 
   const importFile = () => {
     if (!items) return
-    setResult(null)
-    githubMutation.reset()
+    setFileResult(null)
+    startMutation.reset()
     fileMutation.mutate(
       { problems: items, overwrite, onProgress: setProgress },
-      { onSuccess: (r) => setResult({ from: fileName, summary: r }), onSettled: () => setProgress(null) },
+      { onSuccess: (r) => setFileResult({ from: fileName, summary: r }), onSettled: () => setProgress(null) },
     )
   }
 
   const chunkCount = items ? Math.ceil(items.length / IMPORT_CHUNK_SIZE) : 0
   const fileError = fileMutation.error
   const savedBeforeFailure = fileError instanceof ImportChunkError ? fileError.done.created + fileError.done.updated + fileError.done.skipped : 0
+  const percent = status && status.total > 0 ? Math.min(100, Math.round((status.processed / status.total) * 100)) : 0
 
   return (
     <Dialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
@@ -91,8 +116,8 @@ export function ImportProblemsDialog({ open, onOpenChange }: { open: boolean; on
               깃허브에서 가져오기
               {source && <span className="font-mono text-xs font-normal text-muted-foreground">{source.repo}@{source.ref}</span>}
             </p>
-            <Button size="sm" onClick={importFromGithub} disabled={busy || !source?.configured}>
-              {githubMutation.isPending ? '레포에서 받는 중...' : `${source?.ref ?? 'main'} 가져오기`}
+            <Button size="sm" onClick={startGithub} disabled={busy || !source?.configured}>
+              {running ? '가져오는 중...' : startMutation.isPending ? '시작하는 중...' : `${source?.ref ?? 'main'} 가져오기`}
             </Button>
           </div>
           {sourceQuery.isPending && <p className="text-xs text-muted-foreground">레포 설정을 확인하는 중...</p>}
@@ -100,10 +125,44 @@ export function ImportProblemsDialog({ open, onOpenChange }: { open: boolean; on
           {source && !source.configured && (
             <p className="text-xs text-muted-foreground">서버에 레포 읽기 토큰이 없어요 (.env PROBLEM_BANK_GITHUB_TOKEN). 아래 파일로 가져올 수 있어요.</p>
           )}
-          {source?.configured && !githubMutation.isPending && (
+          {source?.configured && !status && !statusQuery.error && (
             <p className="text-xs text-muted-foreground">서버가 레포의 problems/ 폴더를 읽어 넣어요. 머지된 최신 내용이 기준이라 로컬 빌드가 필요 없어요.</p>
           )}
-          {githubMutation.error && <p className="text-xs text-destructive">{githubMutation.error.message}</p>}
+          {statusQuery.error && <p className="text-xs text-destructive">진행 상태를 읽지 못했어요: {statusQuery.error.message}</p>}
+          {startMutation.error && <p className="text-xs text-destructive">{startMutation.error.message}</p>}
+
+          {status?.state === 'RUNNING' && (
+            <div className="space-y-1" role="status">
+              <p className="text-xs">
+                {status.step} {status.total > 0 && `· ${status.processed}/${status.total}`}
+                {status.requestedBy && <span className="text-muted-foreground"> · {status.requestedBy} 시작</span>}
+              </p>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-border" aria-hidden>
+                <div className="h-full bg-primary transition-[width] duration-500" style={{ width: `${status.total > 0 ? percent : 15}%` }} />
+              </div>
+            </div>
+          )}
+          {status?.state === 'DONE' && status.outcome && (
+            <p className="rounded-lg border bg-success-soft px-3 py-2 text-sm" role="status">
+              추가 <strong>{status.outcome.result.created}</strong> · 갱신 <strong>{status.outcome.result.updated}</strong> · 건너뜀{' '}
+              <strong>{status.outcome.result.skipped}</strong>
+              {status.outcome.result.createdTags.length > 0 && ` · 새 태그: ${status.outcome.result.createdTags.join(', ')}`}
+              <span className="mt-1 block text-xs text-muted-foreground">
+                {status.outcome.repo}@{status.outcome.ref} · 커밋 {status.outcome.commitSha.slice(0, 7)} · 레포 문제 {status.outcome.problemsInRepo}개
+                {status.fetchMs !== null && status.importMs !== null && ` · 받기 ${(status.fetchMs / 1000).toFixed(1)}초 · 넣기 ${(status.importMs / 1000).toFixed(1)}초`}
+                {status.finishedAt && ` · ${formatKst(status.finishedAt)}`}
+              </span>
+            </p>
+          )}
+          {status?.state === 'FAILED' && status.error && (
+            <p className="rounded-lg border border-destructive/40 px-3 py-2 text-sm text-destructive" role="alert">
+              실패: {status.error.message}
+              <span className="mt-1 block text-xs text-muted-foreground">
+                {status.step && `${status.step} 단계`}
+                {status.finishedAt && ` · ${formatKst(status.finishedAt)}`} · 고친 뒤 다시 누르면 처음부터 다시 해요
+              </span>
+            </p>
+          )}
         </section>
 
         {/* 2. 파일 - 보조 경로 */}
@@ -115,7 +174,7 @@ export function ImportProblemsDialog({ open, onOpenChange }: { open: boolean; on
           <input type="file" accept="application/json,.json" className="sr-only" disabled={busy} onChange={(e) => void handleFile(e.target.files?.[0])} />
         </label>
         {parseError && <p className="text-sm text-destructive">{parseError}</p>}
-        {items && !result && (
+        {items && !fileResult && (
           <p className="text-sm">
             문제 <strong>{items.length}개</strong> - 번호 {Math.min(...items.map((i) => i.problemNo))} ~ {Math.max(...items.map((i) => i.problemNo))}
             {' · '}테스트케이스 {items.reduce((n, i) => n + (i.testCases?.length ?? 0), 0)}개
@@ -138,20 +197,19 @@ export function ImportProblemsDialog({ open, onOpenChange }: { open: boolean; on
             )}
           </div>
         )}
-
-        {result && (
+        {fileResult && (
           <p className="rounded-lg border bg-success-soft px-3 py-2 text-sm" role="status">
-            추가 <strong>{result.summary.created}</strong> · 갱신 <strong>{result.summary.updated}</strong> · 건너뜀 <strong>{result.summary.skipped}</strong>
-            {result.summary.createdTags.length > 0 && ` · 새 태그: ${result.summary.createdTags.join(', ')}`}
-            <span className="mt-1 block text-xs text-muted-foreground">{result.from}</span>
+            추가 <strong>{fileResult.summary.created}</strong> · 갱신 <strong>{fileResult.summary.updated}</strong> · 건너뜀 <strong>{fileResult.summary.skipped}</strong>
+            {fileResult.summary.createdTags.length > 0 && ` · 새 태그: ${fileResult.summary.createdTags.join(', ')}`}
+            <span className="mt-1 block text-xs text-muted-foreground">{fileResult.from}</span>
           </p>
         )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-            {result ? '닫기' : '취소'}
+            {fileResult || status?.state === 'DONE' ? '닫기' : '취소'}
           </Button>
-          {!result && (
+          {!fileResult && (
             <Button variant="outline" onClick={importFile} disabled={!items || busy}>
               <Upload data-icon="inline-start" />
               {fileMutation.isPending ? '가져오는 중...' : items ? `파일 ${items.length}문제 가져오기` : '파일 가져오기'}
