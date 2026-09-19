@@ -12,7 +12,7 @@ import { clearDraft, readDraft, writeDraft } from '@/lib/draft'
 
 const COMMENT_MAX = 5000
 const TEXTAREA_CLASS =
-  'w-full rounded-[2px] border bg-background px-3 py-2 text-sm leading-6 outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'w-full rounded-lg border bg-background px-3 py-2 text-sm leading-6 outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 /**
  * 제출 단건(#20) 펼침 뷰 - 내 이력 행과 현황판(운영진) 열람이 공용한다.
@@ -137,7 +137,7 @@ function CommentBox({
   }
 
   return (
-    <section aria-label="운영진 코멘트" className="rounded-[2px] border bg-card p-3">
+    <section aria-label="운영진 코멘트" className="rounded-lg border bg-card p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span className="flex items-center gap-1 font-bold tracking-[0.55px]">
@@ -157,7 +157,7 @@ function CommentBox({
             <Button
               variant="ghost"
               size="xs"
-              className="rounded-[2px]"
+             
               onClick={() => {
                 setContent(comment.content)
                 setEditing(true)
@@ -166,7 +166,7 @@ function CommentBox({
               <Pencil data-icon="inline-start" />
               수정
             </Button>
-            <Button variant="ghost" size="xs" className="rounded-[2px] text-destructive" onClick={handleClear} disabled={clearMutation.isPending}>
+            <Button variant="ghost" size="xs" className="text-destructive" onClick={handleClear} disabled={clearMutation.isPending}>
               <Trash2 data-icon="inline-start" />
               {clearMutation.isPending ? '지우는 중...' : '지우기'}
             </Button>
@@ -188,7 +188,7 @@ function CommentBox({
           />
           {commentMutation.error && <p className="text-sm text-destructive">{(commentMutation.error as Error).message}</p>}
           <div className="flex items-center gap-2">
-            <Button type="submit" size="sm" className="rounded-[2px]" disabled={commentMutation.isPending || content.trim() === ''}>
+            <Button type="submit" size="sm" disabled={commentMutation.isPending || content.trim() === ''}>
               {commentMutation.isPending ? '저장 중...' : comment === null ? '코멘트 남기기' : '저장'}
             </Button>
             {comment !== null && (
@@ -196,7 +196,7 @@ function CommentBox({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="rounded-[2px]"
+               
                 onClick={() => {
                   setEditing(false)
                   setContent(comment.content)

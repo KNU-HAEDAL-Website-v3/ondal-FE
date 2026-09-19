@@ -52,7 +52,7 @@ export function OperatorDashboard({ cohorts }: { cohorts: CohortResponse[] }) {
               value={cohort?.id ?? ''}
               onChange={(e) => setSelectedCohortId(Number(e.target.value))}
               aria-label="분반 선택"
-              className="h-8 rounded-[2px] border bg-card px-2 text-sm"
+              className="h-8 rounded-lg border bg-card px-2 text-sm"
             >
               {options.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -62,7 +62,7 @@ export function OperatorDashboard({ cohorts }: { cohorts: CohortResponse[] }) {
             </select>
           )}
           {cohort && (
-            <Button className="rounded-[2px]" asChild>
+            <Button asChild>
               <Link to={`/assignments/new?cohort=${cohort.id}`}>
                 <Plus data-icon="inline-start" />
                 과제 내기
@@ -144,7 +144,7 @@ function CohortOverview({ cohort }: { cohort: CohortResponse }) {
         <section className="rounded-lg border bg-card p-4 lg:col-span-2">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-xl font-bold">제출 현황</h2>
+              <h2 className="text-lg font-bold tracking-tight">제출 현황</h2>
               <p className="mt-0.5 text-sm text-muted-foreground">과제별 수강생 제출 · 미제출 · 지각 (서버 판정값)</p>
             </div>
             {assignments.length > 0 && (
@@ -152,7 +152,7 @@ function CohortOverview({ cohort }: { cohort: CohortResponse }) {
                 value={boardTarget?.id ?? ''}
                 onChange={(e) => setSelectedAssignmentId(Number(e.target.value))}
                 aria-label="현황 과제 선택"
-                className="h-8 max-w-full rounded-[2px] border bg-card px-2 text-sm"
+                className="h-8 max-w-full rounded-lg border bg-card px-2 text-sm"
               >
                 {[...assignments].sort((a, b) => a.dueAt.localeCompare(b.dueAt)).map((a) => (
                   <option key={a.id} value={a.id}>
@@ -214,7 +214,7 @@ function CohortOverview({ cohort }: { cohort: CohortResponse }) {
                 </div>
               )}
               <div className="mt-3 text-right">
-                <Button variant="outline" size="sm" className="rounded-[2px]" asChild>
+                <Button variant="outline" size="sm" asChild>
                   <Link to={`/assignments/${boardTarget.id}?cohort=${cohortId}`}>
                     <Eye data-icon="inline-start" />
                     과제 상세·제출물 열람
@@ -227,7 +227,7 @@ function CohortOverview({ cohort }: { cohort: CohortResponse }) {
 
         <div className="space-y-4">
           <section className="rounded-lg border bg-card p-4">
-            <h2 className="text-xl font-bold">빠른 이동</h2>
+            <h2 className="text-lg font-bold tracking-tight">빠른 이동</h2>
             <ul className="mt-3 grid gap-2 text-sm">
               {[
                 { to: `/cohorts/${cohortId}`, label: '분반 페이지' },
@@ -248,7 +248,7 @@ function CohortOverview({ cohort }: { cohort: CohortResponse }) {
 
           <section className="rounded-lg border bg-card p-4">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-xl font-bold">공지</h2>
+              <h2 className="text-lg font-bold tracking-tight">공지</h2>
               <Button variant="link" size="sm" asChild>
                 <Link to="/notices">전체 보기</Link>
               </Button>

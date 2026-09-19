@@ -104,7 +104,7 @@ export default function ProblemDetailPage() {
             <span className="font-mono text-primary">#{problem.problemNo}</span>
             {problem.title}
             {problem.solved && (
-              <span className="inline-flex items-center gap-1 rounded-[2px] bg-success-bg px-2 py-0.5 text-xs font-bold text-success">
+              <span className="inline-flex items-center gap-1 rounded-md bg-success-bg px-2 py-0.5 text-xs font-bold text-success">
                 <Check className="size-3" />
                 해결
               </span>
@@ -125,7 +125,7 @@ export default function ProblemDetailPage() {
         </div>
         {problem.canEdit && (
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="rounded-[2px]" asChild>
+            <Button variant="outline" size="sm" asChild>
               <Link to={`/problems/${problem.id}/edit`}>
                 <Pencil data-icon="inline-start" />
                 수정
@@ -134,7 +134,7 @@ export default function ProblemDetailPage() {
             <Button
               variant="outline"
               size="sm"
-              className="rounded-[2px] text-destructive"
+              className="text-destructive"
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
             >
@@ -164,7 +164,7 @@ export default function ProblemDetailPage() {
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
             aria-label="제출 언어"
-            className="h-8 rounded-[2px] border bg-card px-2 text-sm"
+            className="h-8 rounded-lg border bg-card px-2 text-sm"
           >
             <option value="">언어 선택 (필수)</option>
             {LANGUAGES.map((lang) => (
@@ -182,7 +182,7 @@ export default function ProblemDetailPage() {
               <p className="text-xs text-muted-foreground">
                 연습 제출이에요 - 분반 과제와 따로 기록되고, 마감·지각은 없어요. 여러 번 내도 괜찮아요.
               </p>
-              <Button className="rounded-[2px]" onClick={handleSubmit} disabled={!canSubmit}>
+              <Button onClick={handleSubmit} disabled={!canSubmit}>
                 <Send data-icon="inline-start" />
                 {submitMutation.isPending ? '제출 중...' : '제출하기'}
               </Button>
@@ -190,7 +190,7 @@ export default function ProblemDetailPage() {
             {submitMutation.error && <p className="text-sm text-destructive">{(submitMutation.error as Error).message}</p>}
           </>
         ) : (
-          <p className="rounded-[2px] border bg-muted px-3 py-2 text-sm text-muted-foreground">
+          <p className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground">
             아직 채점 기준(테스트케이스)이 없는 문제예요. 운영진이 등록하면 풀 수 있어요.
           </p>
         )}

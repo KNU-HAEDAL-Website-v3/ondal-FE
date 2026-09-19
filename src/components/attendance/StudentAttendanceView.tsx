@@ -47,7 +47,7 @@ export function StudentAttendanceView({ cohorts }: { cohorts: CohortResponse[] }
               value={cohort.id}
               onChange={(e) => setSelectedId(Number(e.target.value))}
               aria-label="분반 선택"
-              className="h-8 rounded-[2px] border bg-card px-2 text-sm"
+              className="h-8 rounded-lg border bg-card px-2 text-sm"
             >
               {cohorts.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -115,7 +115,7 @@ export function StudentAttendanceView({ cohorts }: { cohorts: CohortResponse[] }
                 {records.map((r) => (
                   <tr key={r.session.id} className="border-b last:border-0">
                     <td className="px-4 py-3.5 font-mono">{formatKstDate(r.session.heldOn)}</td>
-                    <td className="px-2 py-3.5 text-center text-[#464555]">{weekdayLabel(r.session.heldOn)}</td>
+                    <td className="px-2 py-3.5 text-center text-muted-foreground">{weekdayLabel(r.session.heldOn)}</td>
                     <td className="px-2 py-3.5">
                       <span className="font-semibold">{r.session.sessionNo}차시</span>
                       {r.session.title && <span className="ml-1.5 text-muted-foreground">{r.session.title}</span>}

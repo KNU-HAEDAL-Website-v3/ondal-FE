@@ -150,7 +150,7 @@ export function SubmissionForm({
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
             aria-label="제출 언어"
-            className="h-8 rounded-[2px] border bg-card px-2 text-sm"
+            className="h-8 rounded-lg border bg-card px-2 text-sm"
           >
             <option value="">언어 선택 (필수)</option>
             {LANGUAGES.map((lang) => (
@@ -167,7 +167,7 @@ export function SubmissionForm({
           <CodeEditor value={codeText} onChange={setCodeText} language={language === '' ? null : language} />
         )}
         {tab === 'FILE' && (
-          <div className="flex h-56 flex-col items-center justify-center gap-2 rounded-[2px] border border-dashed p-6 text-center">
+          <div className="flex h-56 flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-6 text-center">
             <FileArchive className="size-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">zip 파일 1개, 최대 10MB</p>
             <input
@@ -176,7 +176,7 @@ export function SubmissionForm({
               accept=".zip"
               aria-label="제출 파일"
               onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-              className="max-w-full text-sm file:mr-3 file:rounded-[2px] file:border file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-semibold"
+              className="max-w-full text-sm file:mr-3 file:rounded-md file:border file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-semibold"
             />
             {file && (
               <p className="text-xs text-muted-foreground">
@@ -187,7 +187,7 @@ export function SubmissionForm({
           </div>
         )}
         {tab === 'LINK' && (
-          <div className="min-h-56 space-y-2 rounded-[2px] border p-4">
+          <div className="min-h-56 space-y-2 rounded-lg border p-4">
             <p className="text-sm text-muted-foreground">GitHub·배포 URL 등을 1~5개 제출할 수 있어요. 입력 순서대로 저장됩니다.</p>
             {linkUrls.map((url, index) => (
               // index key 사용: 순서가 곧 의미(position)라 재정렬이 없다
@@ -199,7 +199,7 @@ export function SubmissionForm({
                   onChange={(e) => setLinkAt(index, e.target.value)}
                   placeholder="https://"
                   aria-label={`제출 링크 ${index + 1}`}
-                  className="h-9 flex-1 rounded-[2px] border bg-card px-3 text-sm outline-none focus:border-primary"
+                  className="h-9 flex-1 rounded-lg border bg-card px-3 text-sm outline-none focus:border-primary"
                 />
                 <button
                   type="button"
@@ -215,7 +215,7 @@ export function SubmissionForm({
               <button
                 type="button"
                 onClick={() => setLinkUrls((prev) => [...prev, ''])}
-                className="flex items-center gap-1 rounded-[2px] border border-dashed px-3 py-1.5 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary"
+                className="flex items-center gap-1 rounded-lg border border-dashed px-3 py-1.5 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary"
               >
                 <Plus className="size-4" />
                 링크 추가 ({linkUrls.length}/{MAX_LINKS})
@@ -230,7 +230,7 @@ export function SubmissionForm({
               ? '자동 채점 문제예요. 코드 제출은 바로 채점되고, zip·링크는 운영진이 확인합니다. 재제출은 이력으로 쌓여요.'
               : '코드 / 파일 / 링크 중 한 형태를 골라 제출해요. 재제출은 이력으로 쌓입니다.'}
           </p>
-          <Button className="rounded-[2px]" onClick={handleSubmit} disabled={!canSubmit}>
+          <Button onClick={handleSubmit} disabled={!canSubmit}>
             <Send data-icon="inline-start" />
             {mutation.isPending ? '제출 중...' : '제출하기'}
           </Button>

@@ -44,7 +44,7 @@ export default function AdminCohortsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div role="group" aria-label="분반 상태" className="flex overflow-hidden rounded-[2px] border text-sm">
+          <div role="group" aria-label="분반 상태" className="flex overflow-hidden rounded-lg border text-sm">
             <button
               type="button"
               aria-pressed={status === 'ACTIVE'}
@@ -62,7 +62,7 @@ export default function AdminCohortsPage() {
               보관함
             </button>
           </div>
-          <Button size="sm" className="rounded-[2px]" asChild>
+          <Button size="sm" asChild>
             <Link to="/admin/cohorts/new">
               <Plus data-icon="inline-start" />
               분반 만들기
@@ -84,7 +84,7 @@ export default function AdminCohortsPage() {
           description={status === 'ACTIVE' ? '"분반 만들기"로 첫 분반을 만들고 운영진을 지정하세요.' : '보관하면 여기에 모입니다.'}
         />
       ) : (
-        <ul className="divide-y overflow-hidden rounded-[2px] border bg-card">
+        <ul className="divide-y overflow-hidden rounded-lg border bg-card">
           {query.data.map((cohort) => (
             <CohortRow
               key={cohort.id}
@@ -137,14 +137,14 @@ function CohortRow({
         </p>
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" className="rounded-[2px]" asChild>
+        <Button variant="outline" size="sm" asChild>
           <Link to={`/cohorts/${cohort.id}/members`}>
             <ClipboardList data-icon="inline-start" />
             명부·배정
           </Link>
         </Button>
         {!archived && (
-          <Button variant="outline" size="sm" className="rounded-[2px]" asChild>
+          <Button variant="outline" size="sm" asChild>
             <Link to={`/admin/cohorts/${cohort.id}/edit`}>
               <Pencil data-icon="inline-start" />
               수정
@@ -152,12 +152,12 @@ function CohortRow({
           </Button>
         )}
         {archived ? (
-          <Button variant="outline" size="sm" className="rounded-[2px]" onClick={onRestore} disabled={busy}>
+          <Button variant="outline" size="sm" onClick={onRestore} disabled={busy}>
             <ArchiveRestore data-icon="inline-start" />
             보관 해제
           </Button>
         ) : (
-          <Button variant="outline" size="sm" className="rounded-[2px] text-destructive" onClick={onArchive} disabled={busy}>
+          <Button variant="outline" size="sm" className="text-destructive" onClick={onArchive} disabled={busy}>
             <Archive data-icon="inline-start" />
             보관
           </Button>

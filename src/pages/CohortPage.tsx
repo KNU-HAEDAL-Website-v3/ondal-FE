@@ -65,7 +65,7 @@ export default function CohortPage() {
 
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-6">
         <div>
-          <h2 className="font-bold">과제</h2>
+          <h2 className="text-lg font-bold tracking-tight">과제</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             이 분반의 차시별 과제 목록{cohort.canManage && ' - 등록·수정·삭제 가능'}
           </p>
@@ -77,7 +77,7 @@ export default function CohortPage() {
 
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-6">
         <div>
-          <h2 className="font-bold">Q&A</h2>
+          <h2 className="text-lg font-bold tracking-tight">Q&A</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             이 분반의 질문 게시판 - 소속이면 누구나 질문·열람{archived && ' (보관됨 - 열람만 가능)'}
           </p>
@@ -90,7 +90,7 @@ export default function CohortPage() {
       {canSeeRoster && (
         <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-6">
           <div>
-            <h2 className="font-bold">명부 · 수강생 배정</h2>
+            <h2 className="text-lg font-bold tracking-tight">명부 · 수강생 배정</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               운영진·수강생 명단 확인
               {cohort.canManage && ', 아이디 명단 붙여넣기로 일괄 배정·제외'}

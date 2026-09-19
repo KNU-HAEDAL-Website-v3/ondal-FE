@@ -66,7 +66,7 @@ function isNavActive(item: NavMatch, pathname: string): boolean {
 
 const navItemClass = (isActive: boolean) =>
   cn(
-    'flex items-center gap-4 rounded-[4px] border-l-4 py-2 pl-3 pr-2 text-sm transition-colors',
+    'flex items-center gap-4 rounded-md border-l-4 py-2 pl-3 pr-2 text-sm transition-colors',
     isActive
       ? 'border-sidebar-primary bg-sidebar-accent font-medium text-sidebar-accent-foreground'
       : 'border-transparent text-sidebar-foreground hover:bg-secondary',
@@ -128,7 +128,7 @@ export function AppShell() {
         )}
       >
         <Link to="/" className="mb-6 flex items-center gap-2 px-2">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-[2px] bg-sidebar-primary">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-primary">
             <GraduationCap className="size-5 text-white" />
           </span>
           <span className="flex flex-col">
@@ -181,13 +181,13 @@ export function AppShell() {
       </aside>
 
       <div className="md:pl-60">
-        <header className="sticky top-0 z-10 flex h-12 items-center border-b bg-background px-4">
+        <header className="sticky top-0 z-10 flex h-12 items-center border-b bg-card px-4">
           <button
             type="button"
             onClick={() => setNavOpen(true)}
             aria-label="메뉴 열기"
             aria-expanded={navOpen}
-            className="-ml-1 flex size-8 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary md:hidden"
+            className="-ml-1 flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary md:hidden"
           >
             <Menu className="size-5" />
           </button>
@@ -195,13 +195,13 @@ export function AppShell() {
             <Link
               to="/help"
               aria-label="도움말"
-              className="flex size-8 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary"
+              className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary"
             >
               <CircleHelp className="size-5" />
             </Link>
             {/* 누구로 로그인했는지 - 역할을 바꿔 가며 테스트할 때 헷갈리지 않도록 이름을 그대로 보여 준다 */}
             <span className="ml-1 flex items-center gap-2" title={me?.globalRole === 'ADMIN' ? '해구르르(관리자)' : '부원'}>
-              <span className="flex size-8 items-center justify-center rounded-xl border bg-neutral-bg text-xs font-semibold text-foreground">
+              <span className="flex size-8 items-center justify-center rounded-full border bg-neutral-bg text-xs font-semibold text-foreground">
                 {me?.name?.charAt(0) ?? '?'}
               </span>
               <span className="text-sm font-medium">{me?.name}</span>

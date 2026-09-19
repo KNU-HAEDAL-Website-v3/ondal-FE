@@ -50,7 +50,7 @@ export default function NoticeDetailPage() {
           {(notice.canEdit || notice.canDelete) && (
             <div className="flex shrink-0 items-center gap-2">
               {notice.canEdit && (
-                <Button variant="outline" size="sm" className="rounded-[2px]" asChild>
+                <Button variant="outline" size="sm" asChild>
                   <Link to={`/notices/${notice.id}/edit`}>
                     <Pencil data-icon="inline-start" />
                     수정
@@ -61,7 +61,7 @@ export default function NoticeDetailPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="rounded-[2px] text-destructive"
+                  className="text-destructive"
                   onClick={handleDelete}
                   disabled={deleteMutation.isPending}
                 >

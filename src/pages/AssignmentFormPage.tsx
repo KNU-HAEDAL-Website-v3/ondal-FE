@@ -134,7 +134,7 @@ export default function AssignmentFormPage() {
       </header>
 
       {archived && (
-        <p className="rounded-[2px] border bg-muted px-3 py-2 text-sm text-muted-foreground">
+        <p className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground">
           보관된 분반은 과제를 변경할 수 없어요. 보관을 해제한 뒤 다시 시도해 주세요.
         </p>
       )}
@@ -143,7 +143,7 @@ export default function AssignmentFormPage() {
         <section className="space-y-3 rounded-lg border bg-card p-4" aria-label="문제 고르기">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Label className="text-base font-bold">1. 문제 고르기</Label>
-            <Button type="button" variant="outline" size="sm" className="rounded-[2px]" asChild>
+            <Button type="button" variant="outline" size="sm" asChild>
               <Link to="/problems/new">
                 <Plus data-icon="inline-start" />
                 새 문제 출제
@@ -152,7 +152,7 @@ export default function AssignmentFormPage() {
           </div>
 
           {selected && (
-            <div className="flex flex-wrap items-center gap-2 rounded-[2px] border border-primary bg-secondary px-3 py-2 text-sm">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary bg-secondary px-3 py-2 text-sm">
               <Check className="size-4 text-primary" />
               <span className="font-mono font-semibold text-primary">#{selected.problemNo}</span>
               <span className="font-medium">{selected.title}</span>
@@ -186,11 +186,11 @@ export default function AssignmentFormPage() {
           {problemsQuery.isPending ? (
             <p className="text-sm text-muted-foreground">문제 목록 불러오는 중...</p>
           ) : problems.length === 0 ? (
-            <p className="rounded-[2px] border bg-muted px-3 py-2 text-sm text-muted-foreground">
+            <p className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground">
               아직 출제된 문제가 없어요. "새 문제 출제"로 먼저 문제를 만들어 주세요.
             </p>
           ) : (
-            <ul className="max-h-72 divide-y overflow-y-auto rounded-[2px] border">
+            <ul className="max-h-72 divide-y overflow-y-auto rounded-lg border">
               {visible.map((problem) => (
                 <ProblemChoice
                   key={problem.id}
@@ -237,10 +237,10 @@ export default function AssignmentFormPage() {
         {mutation.error && <p className="text-sm text-destructive">{(mutation.error as Error).message}</p>}
 
         <div className="flex items-center gap-2">
-          <Button type="submit" disabled={saving || archived || problemId === null || dueAt === ''} className="rounded-[2px]">
+          <Button type="submit" disabled={saving || archived || problemId === null || dueAt === ''}>
             {saving ? '저장 중...' : editing ? '저장' : '배정하기'}
           </Button>
-          <Button type="button" variant="outline" className="rounded-[2px]" asChild>
+          <Button type="button" variant="outline" asChild>
             <Link to={editing ? `/assignments/${aid}?cohort=${cohortId}` : `/assignments?cohort=${cohortId}`}>취소</Link>
           </Button>
         </div>

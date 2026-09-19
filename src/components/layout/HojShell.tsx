@@ -55,7 +55,7 @@ export function HojShell() {
       <header className="sticky top-0 z-10 border-b bg-sidebar">
         <div className="mx-auto flex h-14 max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4">
           <Link to="/problems" className="flex items-center gap-2">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-[2px] bg-hoj-brand">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-hoj-brand">
               <Code2 className="size-5 text-white" />
             </span>
             <span className="flex flex-col leading-none">
@@ -73,7 +73,7 @@ export function HojShell() {
                   to={item.to}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'flex items-center gap-1.5 rounded-[4px] px-3 py-1.5 text-sm transition-colors',
+                    'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
                     active ? 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground' : 'text-sidebar-foreground hover:bg-secondary',
                   )}
                 >
@@ -95,7 +95,7 @@ export function HojShell() {
             </AppSwitchButton>
             {me && (
               <span className="flex items-center gap-2" title={me.globalRole === 'ADMIN' ? '해구르르(관리자)' : '부원'}>
-                <span className="flex size-8 items-center justify-center rounded-xl border bg-secondary text-xs font-semibold">
+                <span className="flex size-8 items-center justify-center rounded-full border bg-secondary text-xs font-semibold">
                   {me.name?.charAt(0) ?? '?'}
                 </span>
                 <span className="hidden text-sm font-medium sm:inline">{me.name}</span>
@@ -105,7 +105,7 @@ export function HojShell() {
               type="button"
               onClick={handleLogout}
               disabled={logoutMutation.isPending}
-              className="flex items-center gap-1.5 rounded-[4px] px-2 py-1.5 text-sm text-sidebar-foreground hover:bg-secondary disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-sidebar-foreground hover:bg-secondary disabled:opacity-50"
             >
               <LogOut className="size-4 shrink-0" />
               로그아웃

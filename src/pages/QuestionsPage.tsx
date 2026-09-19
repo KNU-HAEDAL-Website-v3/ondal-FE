@@ -45,12 +45,12 @@ export default function QuestionsPage() {
           <p className="mt-1 text-sm text-muted-foreground">{cohort.name} - 질문 게시판. 소속이면 누구나 질문하고 볼 수 있어요.</p>
         </div>
         {archived ? (
-          <Button size="sm" className="rounded-[2px]" disabled>
+          <Button size="sm" disabled>
             <Plus data-icon="inline-start" />
             질문하기
           </Button>
         ) : (
-          <Button size="sm" className="rounded-[2px]" asChild>
+          <Button size="sm" asChild>
             <Link to={`/cohorts/${cohortId}/questions/new`}>
               <Plus data-icon="inline-start" />
               질문하기
@@ -60,7 +60,7 @@ export default function QuestionsPage() {
       </header>
 
       {archived && (
-        <p className="rounded-[2px] border bg-muted px-3 py-2 text-sm text-muted-foreground">
+        <p className="rounded-lg border bg-muted px-3 py-2 text-sm text-muted-foreground">
           보관된 분반이에요. 질문 열람만 가능합니다.
         </p>
       )}
@@ -76,7 +76,7 @@ export default function QuestionsPage() {
           description={archived ? '보관된 분반이라 새 질문은 올릴 수 없어요.' : '첫 질문을 올려 보세요.'}
         />
       ) : (
-        <ul className="divide-y overflow-hidden rounded-[2px] border bg-card">
+        <ul className="divide-y overflow-hidden rounded-lg border bg-card">
           {questionsQuery.data.map((q) => (
             <QuestionRow key={q.id} question={q} cohortId={cohortId} />
           ))}
@@ -100,7 +100,7 @@ function QuestionRow({ question, cohortId }: { question: QuestionResponse; cohor
         </span>
         <span className="ml-auto flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
           <span
-            className={`inline-flex items-center gap-1 rounded-[2px] px-1.5 py-0.5 font-semibold ${question.answerCount > 0 ? 'bg-secondary text-primary' : 'bg-muted'}`}
+            className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-semibold ${question.answerCount > 0 ? 'bg-secondary text-primary' : 'bg-muted'}`}
             aria-label={`답변 ${question.answerCount}개`}
           >
             <MessageSquare className="size-3" />

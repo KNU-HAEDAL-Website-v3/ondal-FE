@@ -37,13 +37,13 @@ export function StudentDashboard({ cohorts }: { cohorts: CohortResponse[] }) {
       <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-2.5">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">안녕하세요, {me?.name}님</h1>
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-[#464555]">
+          <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
             <GraduationCap className="size-4" />
             {activeCohort ? activeCohort.name : '소속된 분반이 없어요'}
           </p>
         </div>
         {activeCohort && (
-          <Button className="rounded-[2px]" asChild>
+          <Button asChild>
             <Link to={nearest ? `/assignments/${nearest.id}?cohort=${cohortId}` : `/assignments?cohort=${cohortId}`}>
               <Play data-icon="inline-start" />
               {nearest ? '가장 급한 과제로' : '과제 보기'}
@@ -81,7 +81,7 @@ export function StudentDashboard({ cohorts }: { cohorts: CohortResponse[] }) {
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="rounded-lg border bg-card p-4 lg:col-span-2">
           <div className="flex items-baseline justify-between">
-            <h2 className="text-xl font-bold">마감 임박 과제</h2>
+            <h2 className="text-lg font-bold tracking-tight">마감 임박 과제</h2>
             {activeCohort && (
               <Button variant="link" size="sm" asChild>
                 <Link to={`/assignments?cohort=${cohortId}`}>전체 과제</Link>
@@ -108,7 +108,7 @@ export function StudentDashboard({ cohorts }: { cohorts: CohortResponse[] }) {
                     <span className="font-semibold">{a.title}</span>
                     {a.myStatus !== null && <SubmissionStatusBadge status={a.myStatus} />}
                     <span className="ml-auto flex items-center gap-2 font-mono text-xs text-muted-foreground">
-                      <span className="rounded-[2px] bg-success-bg px-1.5 py-0.5 font-semibold text-success">{ddayLabel(a.dueAt)}</span>
+                      <span className="rounded-md bg-success-bg px-1.5 py-0.5 font-semibold text-success">{ddayLabel(a.dueAt)}</span>
                       {formatKst(a.dueAt)}
                     </span>
                   </Link>
@@ -120,7 +120,7 @@ export function StudentDashboard({ cohorts }: { cohorts: CohortResponse[] }) {
 
         <section className="rounded-lg border bg-card p-4">
           <div className="flex items-baseline justify-between">
-            <h2 className="text-xl font-bold">공지</h2>
+            <h2 className="text-lg font-bold tracking-tight">공지</h2>
             <Button variant="link" size="sm" asChild>
               <Link to="/notices">전체 보기</Link>
             </Button>
@@ -137,7 +137,7 @@ export function StudentDashboard({ cohorts }: { cohorts: CohortResponse[] }) {
                     <Megaphone className={`mt-0.5 size-4 shrink-0 ${n.pinned ? 'text-danger' : 'text-primary'}`} />
                     <span className="min-w-0">
                       <span className="flex items-center gap-1.5">
-                        {n.pinned && <span className="rounded-[2px] bg-danger-bg px-1.5 py-0.5 text-[11px] font-bold text-danger">필독</span>}
+                        {n.pinned && <span className="rounded-md bg-danger-bg px-1.5 py-0.5 text-[11px] font-bold text-danger">필독</span>}
                         <span className="truncate font-semibold">{n.title}</span>
                       </span>
                       <span className="mt-0.5 block text-xs text-muted-foreground">{n.cohort?.name ?? '전체 공지'} · {n.author.name}</span>

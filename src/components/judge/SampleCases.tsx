@@ -52,7 +52,7 @@ function SampleBlock({ label, value }: { label: string; value: string }) {
           {copied ? '복사됨' : '복사'}
         </button>
       </div>
-      <pre className="mt-0.5 min-h-10 overflow-auto rounded-[2px] border bg-muted/40 p-2 font-mono text-sm leading-5 whitespace-pre-wrap">
+      <pre className="mt-0.5 min-h-10 overflow-auto rounded-lg border bg-muted p-2 font-mono text-sm leading-5 whitespace-pre-wrap">
         {value === '' ? <span className="text-muted-foreground">(입력 없음)</span> : value}
       </pre>
     </div>
