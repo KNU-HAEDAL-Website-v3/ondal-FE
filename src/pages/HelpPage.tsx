@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import { CircleHelp, GraduationCap, ShieldCheck, UserCog } from 'lucide-react'
 import { useMe } from '@/api/auth'
 
+import { globalRoleLabel } from '@/lib/roles'
 /**
  * 도움말 - 역할별 "여기서 무엇을 할 수 있나"와 문제 보고 방법. 테스트 주간(9/19~25)·부트캠프 첫 주에 처음 들어온 사람이 읽는 한 장.
  * 기능 목록은 운영 반영된 것만 적는다 - 준비 중인 것은 마지막 절에 따로.
@@ -19,7 +20,7 @@ export default function HelpPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Ondal 은 해달 부트캠프의 과제 제출·출석·공지·Q&A 를 한곳에서 다루는 곳이에요.
           {me?.name ? ` ${me.name} 님은 ` : ' 지금은 '}
-          {me?.globalRole === 'ADMIN' ? '해구르르(관리자)' : '부원'} 계정으로 로그인해 있어요. 분반 안에서의 역할(교육운영진 / 수강생)은 분반마다 달라요.
+          {globalRoleLabel(me?.globalRole)} 계정으로 로그인해 있어요. 분반 안에서의 역할(교육운영진 / 수강생)은 분반마다 달라요.
         </p>
       </header>
 
@@ -58,11 +59,11 @@ export default function HelpPage() {
         </li>
         <li>과제 상세의 제출 현황판에서 수강생 전원의 상태와 "코멘트" 열(남김 / 아직)을 보고, 열람(눈 아이콘)으로 최신 제출을 펼쳐 코드 확인 · 파일 다운로드 · 코멘트 남기기를 해요. 점수는 없어요.</li>
         <li>출석에서 차시를 등록하고 명부에 출석 · 지각 · 결석을 표시해요. 출석률은 서버가 계산해요.</li>
-        <li>내 분반 공지를 쓰고 관리해요. 전체 공지는 해구르르만 써요.</li>
+        <li>내 분반 공지를 쓰고 관리해요. 전체 공지는 해구르르·관리자만 써요.</li>
         <li>수강생 배정(명단 붙여넣기) · 제외는 내 분반의 명부에서 해요.</li>
       </Section>
 
-      <Section icon={ShieldCheck} title="해구르르 (관리자)">
+      <Section icon={ShieldCheck} title="해구르르 · 관리자">
         <li>
           <Link to="/admin/cohorts" className="font-semibold text-primary hover:underline">분반 관리</Link>에서 분반 생성 · 수정 · 보관 · 복원과 운영진 지정을 해요. 보관된 분반은 열람만 되고 새 글 · 제출이 막혀요.
         </li>

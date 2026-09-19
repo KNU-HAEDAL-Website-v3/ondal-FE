@@ -7,6 +7,7 @@ import { ApiErrorView, EmptyState } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { CohortSection } from '@/components/cohorts/CohortSection'
 
+import { isAdminRole } from '@/lib/roles'
 /**
  * 내 수업 - 소속 분반 목록. (구 홈 화면 내용, flows 1.1절 UC-S2)
  * GET /api/me/cohorts 를 status로 나눠 "현재 소속(ACTIVE)" / "지난 소속(ARCHIVED)" 두 접이식 섹션.
@@ -14,7 +15,7 @@ import { CohortSection } from '@/components/cohorts/CohortSection'
 export default function MyCohortsPage() {
   const { data: me } = useMe()
   const { data: cohorts, isPending, error, refetch } = useMyCohorts()
-  const isAdmin = me?.globalRole === 'ADMIN'
+  const isAdmin = isAdminRole(me?.globalRole)
 
   return (
     <div className="space-y-6">

@@ -74,6 +74,7 @@ import {
   toJudgeConfigResponse,
   toSamplesResponse,
 } from './judge'
+import { isAdminRole, globalRoleLabel } from '@/lib/roles'
 
 const SESSION_KEY = 'ondal-mock-session' // 새로고침해도 로그인이 유지되도록 sessionStorage에 loginId 보관
 
@@ -110,9 +111,9 @@ function toDirectoryEntry(u: MockUser): UserDirectoryEntry {
   }
 }
 
-/** BE RoleTitle.of - ADMIN이면 어디서든 해구르르 → OPERATOR면 교육운영진 → 나머지 */
+/** BE RoleTitle.of - MAINTAINER 면 관리자, ADMIN 이면 어디서든 해구르르 → OPERATOR 면 교육운영진 → 나머지 */
 function titleOf(user: MockUser, cohortId: number): string {
-  if (user.globalRole === 'ADMIN') return '해구르르'
+  if (isAdminRole(user.globalRole)) return globalRoleLabel(user.globalRole)
   const e = enrollments.find((x) => x.cohortId === cohortId && x.loginId === user.loginId)
   return e?.role === 'OPERATOR' ? '교육운영진' : '일반 수강생'
 }
@@ -120,7 +121,7 @@ function titleOf(user: MockUser, cohortId: number): string {
 /** BE CohortResponseAssembler - 보는 사람(viewer)에 따라 studentCount·myRole·canManage가 달라진다 */
 function toCohortResponse(cohort: MockCohort, viewer: MockUser): CohortResponse {
   const mine = enrollments.find((e) => e.cohortId === cohort.id && e.loginId === viewer.loginId)
-  const isAdmin = viewer.globalRole === 'ADMIN'
+  const isAdmin = isAdminRole(viewer.globalRole)
   const isOperator = mine?.role === 'OPERATOR'
   const operators: UserSummary[] = enrollments
     .filter((e) => e.cohortId === cohort.id && e.role === 'OPERATOR')
@@ -149,7 +150,7 @@ function cohortGuard(
 ): { cohort: MockCohort } | { fail: HttpResponse<ErrorResponse> } {
   if (!Number.isInteger(cohortId)) return { fail: error(400, 'INVALID_INPUT', '잘못된 분반 id 입니다.') }
   const cohort = cohorts.find((c) => c.id === cohortId)
-  if (user.globalRole !== 'ADMIN') {
+  if (!isAdminRole(user.globalRole)) {
     const mine = enrollments.find((e) => e.cohortId === cohortId && e.loginId === user.loginId)
     if (!mine || (requireOperator && mine.role !== 'OPERATOR')) {
       return { fail: error(403, 'FORBIDDEN', '이 분반에 접근할 권한이 없습니다.') }
@@ -189,7 +190,7 @@ function tagsOf(p: MockProblem): TagResponse[] {
  */
 function toAssignmentResponse(a: MockAssignment, viewer: MockUser): AssignmentResponse {
   const mine = enrollments.find((e) => e.cohortId === a.cohortId && e.loginId === viewer.loginId)
-  const canSeeCount = viewer.globalRole === 'ADMIN' || mine?.role === 'OPERATOR'
+  const canSeeCount = isAdminRole(viewer.globalRole) || mine?.role === 'OPERATOR'
   const problem = problemOfAssignment(a)
   return {
     id: a.id,
@@ -229,7 +230,7 @@ function toProblemSummary(p: MockProblem, viewer: MockUser): ProblemSummary {
 
 /** 출제 권한 - BE @OperatorAnywhere: ADMIN 이거나 어느 분반에서든 운영진 */
 function isOperatorAnywhere(viewer: MockUser): boolean {
-  return viewer.globalRole === 'ADMIN' || enrollments.some((e) => e.loginId === viewer.loginId && e.role === 'OPERATOR')
+  return isAdminRole(viewer.globalRole) || enrollments.some((e) => e.loginId === viewer.loginId && e.role === 'OPERATOR')
 }
 
 function toProblemResponse(p: MockProblem, viewer: MockUser): ProblemResponse {
@@ -383,16 +384,16 @@ function requireActiveCohort(cohortId: number): { cohort: MockCohort } | { fail:
 
 /** BE NoticeService.requireManage / Assembler canManage - 전체: 관리자 / 분반: ACTIVE && (관리자 || 그 분반 운영진) */
 function canManageNotice(n: MockNotice, viewer: MockUser): boolean {
-  if (n.cohortId === null) return viewer.globalRole === 'ADMIN'
+  if (n.cohortId === null) return isAdminRole(viewer.globalRole)
   const cohort = cohorts.find((c) => c.id === n.cohortId)
   if (!cohort || cohort.status !== 'ACTIVE') return false
   const mine = enrollments.find((e) => e.cohortId === n.cohortId && e.loginId === viewer.loginId)
-  return viewer.globalRole === 'ADMIN' || mine?.role === 'OPERATOR'
+  return isAdminRole(viewer.globalRole) || mine?.role === 'OPERATOR'
 }
 
 /** 가시성 - 전체 공지는 누구나, 분반 공지는 소속자·관리자 */
 function canViewNotice(n: MockNotice, viewer: MockUser): boolean {
-  if (n.cohortId === null || viewer.globalRole === 'ADMIN') return true
+  if (n.cohortId === null || isAdminRole(viewer.globalRole)) return true
   return enrollments.some((e) => e.cohortId === n.cohortId && e.loginId === viewer.loginId)
 }
 
@@ -512,7 +513,7 @@ function parseSessionBody(
 function toQuestionResponse(q: MockQuestion, cohort: MockCohort, viewer: MockUser): QuestionResponse {
   const active = cohort.status === 'ACTIVE'
   const mine = enrollments.find((e) => e.cohortId === cohort.id && e.loginId === viewer.loginId)
-  const canModerate = active && (viewer.globalRole === 'ADMIN' || mine?.role === 'OPERATOR')
+  const canModerate = active && (isAdminRole(viewer.globalRole) || mine?.role === 'OPERATOR')
   const canEdit = active && q.loginId === viewer.loginId
   return {
     id: q.id,
@@ -530,7 +531,7 @@ function toQuestionResponse(q: MockQuestion, cohort: MockCohort, viewer: MockUse
 function toAnswerResponse(a: MockAnswer, cohort: MockCohort, viewer: MockUser): AnswerResponse {
   const active = cohort.status === 'ACTIVE'
   const mine = enrollments.find((e) => e.cohortId === cohort.id && e.loginId === viewer.loginId)
-  const canModerate = active && (viewer.globalRole === 'ADMIN' || mine?.role === 'OPERATOR')
+  const canModerate = active && (isAdminRole(viewer.globalRole) || mine?.role === 'OPERATOR')
   const canEdit = active && a.loginId === viewer.loginId
   return { id: a.id, content: a.content, author: toUserSummary(a.loginId, cohort.id), createdAt: a.createdAt, canEdit, canDelete: canEdit || canModerate }
 }
@@ -625,7 +626,7 @@ function toSubmissionSummary(s: MockSubmission, a: MockAssignment): SubmissionSu
 function toPracticeResponse(s: MockSubmission, viewer: MockUser): SubmissionResponse {
   return {
     id: s.id,
-    user: { id: viewer.id, name: viewer.name, title: viewer.globalRole === 'ADMIN' ? '해구르르' : '일반 수강생' },
+    user: { id: viewer.id, name: viewer.name, title: isAdminRole(viewer.globalRole) ? globalRoleLabel(viewer.globalRole) : '일반 수강생' },
     type: s.type,
     codeText: s.codeText,
     language: s.language,
@@ -688,7 +689,7 @@ function findViewableSubmission(
 ): MockSubmission | null {
   const found = submissions.find((s) => s.id === submissionId && s.assignmentId === assignmentId)
   if (!found) return null
-  if (found.loginId === user.loginId || user.globalRole === 'ADMIN') return found
+  if (found.loginId === user.loginId || isAdminRole(user.globalRole)) return found
   const mine = enrollments.find((e) => e.cohortId === cohortId && e.loginId === user.loginId)
   return mine?.role === 'OPERATOR' ? found : null
 }
@@ -794,7 +795,7 @@ export const handlers = [
     const cohort = cohorts.find((c) => c.id === id)
     const isMember = enrollments.some((e) => e.cohortId === id && e.loginId === user.loginId)
     // 권한 판정 순서(BE): ADMIN이 아니고 소속도 아니면 존재 여부와 무관하게 403 (존재 비노출) / ADMIN인데 없으면 404
-    if (user.globalRole !== 'ADMIN' && !isMember) return error(403, 'FORBIDDEN', '이 분반에 접근할 권한이 없습니다.')
+    if (!isAdminRole(user.globalRole) && !isMember) return error(403, 'FORBIDDEN', '이 분반에 접근할 권한이 없습니다.')
     if (!cohort) return error(404, 'NOT_FOUND', '분반을 찾을 수 없습니다.')
     return HttpResponse.json(toCohortResponse(cohort, user))
   }),
@@ -805,7 +806,7 @@ export const handlers = [
     await delay(300)
     const user = currentUser()
     if (!user) return unauthenticated()
-    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    if (!isAdminRole(user.globalRole)) return forbiddenAdmin()
     const status = (new URL(request.url).searchParams.get('status') ?? 'ACTIVE') as CohortStatus
     if (status !== 'ACTIVE' && status !== 'ARCHIVED') return error(400, 'INVALID_INPUT', '잘못된 status 값입니다.')
     const list = cohorts.filter((c) => c.status === status).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -816,7 +817,7 @@ export const handlers = [
     await delay(400)
     const user = currentUser()
     if (!user) return unauthenticated()
-    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    if (!isAdminRole(user.globalRole)) return forbiddenAdmin()
     const body = ((await request.json().catch(() => null)) ?? {}) as { name?: unknown; description?: unknown; operatorLoginIds?: unknown }
     const name = typeof body.name === 'string' ? body.name.trim() : ''
     if (!name) return error(400, 'INVALID_INPUT', '분반 이름은 비어 있을 수 없습니다.')
@@ -844,7 +845,7 @@ export const handlers = [
     await delay(400)
     const user = currentUser()
     if (!user) return unauthenticated()
-    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    if (!isAdminRole(user.globalRole)) return forbiddenAdmin()
     const body = ((await request.json().catch(() => null)) ?? {}) as { name?: unknown; description?: unknown }
     const name = typeof body.name === 'string' ? body.name.trim() : ''
     if (!name) return error(400, 'INVALID_INPUT', '분반 이름은 비어 있을 수 없습니다.')
@@ -861,7 +862,7 @@ export const handlers = [
     await delay(300)
     const user = currentUser()
     if (!user) return unauthenticated()
-    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    if (!isAdminRole(user.globalRole)) return forbiddenAdmin()
     const cohort = cohorts.find((c) => c.id === Number(params.cohortId))
     if (!cohort) return error(404, 'NOT_FOUND', '분반을 찾을 수 없습니다.')
     cohort.status = 'ARCHIVED' // 멱등
@@ -872,7 +873,7 @@ export const handlers = [
     await delay(300)
     const user = currentUser()
     if (!user) return unauthenticated()
-    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    if (!isAdminRole(user.globalRole)) return forbiddenAdmin()
     const cohort = cohorts.find((c) => c.id === Number(params.cohortId))
     if (!cohort) return error(404, 'NOT_FOUND', '분반을 찾을 수 없습니다.')
     cohort.status = 'ACTIVE' // 멱등
@@ -923,7 +924,7 @@ export const handlers = [
     await delay(400)
     const user = currentUser()
     if (!user) return unauthenticated()
-    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    if (!isAdminRole(user.globalRole)) return forbiddenAdmin()
     const loginId = decodeURIComponent(String(params.loginId))
     if (loginId.length > 50) return error(400, 'INVALID_INPUT', 'loginId는 50자 이하여야 합니다.')
     const target = requireActiveCohort(Number(params.cohortId))
@@ -943,7 +944,7 @@ export const handlers = [
     await delay(300)
     const user = currentUser()
     if (!user) return unauthenticated()
-    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    if (!isAdminRole(user.globalRole)) return forbiddenAdmin()
     const target = requireActiveCohort(Number(params.cohortId))
     if ('fail' in target) return target.fail
     const loginId = decodeURIComponent(String(params.loginId))
@@ -977,7 +978,7 @@ export const handlers = [
     await delay(400)
     const user = currentUser()
     if (!user) return unauthenticated()
-    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    if (!isAdminRole(user.globalRole)) return forbiddenAdmin()
     const parsed = parseNoticeBody(await request.json().catch(() => null))
     if ('fail' in parsed) return parsed.fail
     const created: MockNotice = {
@@ -1251,7 +1252,7 @@ export const handlers = [
     const index = questions.findIndex((q) => q.id === Number(params.questionId) && q.cohortId === guard.cohort.id)
     if (index < 0) return error(404, 'NOT_FOUND', '질문을 찾을 수 없습니다.')
     const mine = enrollments.find((e) => e.cohortId === guard.cohort.id && e.loginId === user.loginId)
-    const isModerator = user.globalRole === 'ADMIN' || mine?.role === 'OPERATOR'
+    const isModerator = isAdminRole(user.globalRole) || mine?.role === 'OPERATOR'
     if (questions[index].loginId !== user.loginId && !isModerator) {
       return error(403, 'FORBIDDEN', '작성자 또는 운영진만 삭제할 수 있습니다.')
     }
@@ -1330,7 +1331,7 @@ export const handlers = [
     const index = answers.findIndex((a) => a.id === Number(params.answerId) && a.questionId === question.id)
     if (index < 0) return error(404, 'NOT_FOUND', '답변을 찾을 수 없습니다.')
     const mine = enrollments.find((e) => e.cohortId === guard.cohort.id && e.loginId === user.loginId)
-    const isModerator = user.globalRole === 'ADMIN' || mine?.role === 'OPERATOR'
+    const isModerator = isAdminRole(user.globalRole) || mine?.role === 'OPERATOR'
     if (answers[index].loginId !== user.loginId && !isModerator) return error(403, 'FORBIDDEN', '작성자 또는 운영진만 삭제할 수 있습니다.')
     answers.splice(index, 1)
     return new HttpResponse(null, { status: 204 })
@@ -1720,7 +1721,7 @@ export const handlers = [
     await delay(250)
     const user = currentUser()
     if (!user) return unauthenticated()
-    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    if (!isAdminRole(user.globalRole)) return forbiddenAdmin()
     const body = (await request.json().catch(() => null)) as { name?: unknown } | null
     const name = typeof body?.name === 'string' ? body.name.trim() : ''
     if (name === '') return error(400, 'INVALID_INPUT', '태그 이름은 비어 있을 수 없습니다.')
@@ -1735,7 +1736,7 @@ export const handlers = [
     await delay(250)
     const user = currentUser()
     if (!user) return unauthenticated()
-    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    if (!isAdminRole(user.globalRole)) return forbiddenAdmin()
     const tag = tags.find((t) => t.id === Number(params.tagId))
     if (!tag) return error(404, 'NOT_FOUND', '태그를 찾을 수 없습니다.')
     const body = (await request.json().catch(() => null)) as { name?: unknown } | null
@@ -1751,7 +1752,7 @@ export const handlers = [
     await delay(250)
     const user = currentUser()
     if (!user) return unauthenticated()
-    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    if (!isAdminRole(user.globalRole)) return forbiddenAdmin()
     const index = tags.findIndex((t) => t.id === Number(params.tagId))
     if (index === -1) return error(404, 'NOT_FOUND', '태그를 찾을 수 없습니다.')
     const used = problems.filter((pr) => pr.tagIds.includes(tags[index].id)).length
@@ -1777,7 +1778,7 @@ export const handlers = [
     await delay(600)
     const user = currentUser()
     if (!user) return unauthenticated()
-    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    if (!isAdminRole(user.globalRole)) return forbiddenAdmin()
     const body = (await request.json().catch(() => null)) as { problems?: unknown; overwrite?: unknown } | null
     const items = Array.isArray(body?.problems) ? (body!.problems as Record<string, unknown>[]) : []
     if (items.length === 0) return error(400, 'INVALID_INPUT', 'problems 는 비어 있을 수 없습니다.')

@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ApiErrorView } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { OperatorDashboard } from '@/components/dashboard/OperatorDashboard'
+import { isAdminRole } from '@/lib/roles'
 import { StudentDashboard } from '@/components/dashboard/StudentDashboard'
 
 /**
@@ -22,7 +23,7 @@ export default function HomePage() {
   if (isPending) return <LoadingScreen label="대시보드 불러오는 중..." />
   if (error) return <ApiErrorView error={error} onRetry={() => void refetch()} />
 
-  const isOperator = me?.globalRole === 'ADMIN' || cohorts.some((c) => c.canManage)
+  const isOperator = isAdminRole(me?.globalRole) || cohorts.some((c) => c.canManage)
 
   return (
     <div className="space-y-6">

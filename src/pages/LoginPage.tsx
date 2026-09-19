@@ -146,7 +146,7 @@ function StubLoginForm({ returnTo }: { returnTo: string }) {
 
       <p className="mt-4 text-center text-xs text-muted-foreground">
         {IS_MOCK
-          ? '미리보기(mock) 모드 - admin · operator1 · student1~3 또는 아무 아이디로 로그인해 보세요.'
+          ? '미리보기(mock) 모드 - admin · maintainer · operator1 · student1~3 · newbie 또는 아무 아이디로 로그인해 보세요.'
           : '개발용 스텁 로그인 - 아이디만 입력하면 통과합니다. 운영에서는 해달 홈페이지 계정으로 로그인합니다.'}
       </p>
     </>

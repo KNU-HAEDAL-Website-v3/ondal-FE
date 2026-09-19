@@ -6,6 +6,7 @@ import { ApiError } from '@/api/client'
 import { useCohorts, useMyCohorts } from '@/api/cohorts'
 import { useCreateNotice, useNotice, useUpdateNotice } from '@/api/notices'
 import { Button } from '@/components/ui/button'
+import { isAdminRole } from '@/lib/roles'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ApiErrorView } from '@/components/ApiErrorView'
@@ -41,7 +42,7 @@ export default function NoticeFormPage() {
   const cohortParam = parseId(searchParams.get('cohort') ?? undefined)
   const navigate = useNavigate()
   const { data: me } = useMe()
-  const isAdmin = me?.globalRole === 'ADMIN'
+  const isAdmin = isAdminRole(me?.globalRole)
 
   const myCohortsQuery = useMyCohorts()
   const adminCohortsQuery = useCohorts('ACTIVE', isAdmin && !editing)

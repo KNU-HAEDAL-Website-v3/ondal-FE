@@ -6,6 +6,7 @@ import { useMyCohorts } from '@/api/cohorts'
 import { useMyStats } from '@/api/me'
 import { ApiErrorView } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { isAdminRole, globalRoleLabel } from '@/lib/roles'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatKst } from '@/lib/datetime'
@@ -30,8 +31,8 @@ export default function MyPage() {
 
   const cohorts = cohortsQuery.data
   const stats = statsQuery.data
-  const isAdmin = me?.globalRole === 'ADMIN'
-  const roleLabel = isAdmin ? '해구르르 (관리자)' : cohorts.some((c) => c.canManage) ? '교육운영진' : '부원'
+  const isAdmin = isAdminRole(me?.globalRole)
+  const roleLabel = isAdmin ? globalRoleLabel(me?.globalRole) : cohorts.some((c) => c.canManage) ? '교육운영진' : '부원'
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {

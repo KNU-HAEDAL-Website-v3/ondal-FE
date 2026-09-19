@@ -7,6 +7,7 @@ import { useNotices } from '@/api/notices'
 import type { NoticeResponse } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { ApiErrorView, EmptyState } from '@/components/ApiErrorView'
+import { isAdminRole } from '@/lib/roles'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { formatKst } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
@@ -29,7 +30,7 @@ export default function NoticesPage() {
   if (cohortsQuery.error) return <ApiErrorView error={cohortsQuery.error} onRetry={() => void cohortsQuery.refetch()} />
 
   const notices = noticesQuery.data
-  const canWrite = me?.globalRole === 'ADMIN' || cohortsQuery.data.some((c) => c.canManage)
+  const canWrite = isAdminRole(me?.globalRole) || cohortsQuery.data.some((c) => c.canManage)
   const cohortOptions = uniqueCohorts(notices)
   const visible = notices.filter((n) => (target === 'all' ? true : target === 'global' ? n.cohort === null : n.cohort?.id === target))
 

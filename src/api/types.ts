@@ -1,12 +1,13 @@
 // 백엔드 DTO 미러 - 계약의 기준은 BE springdoc(OpenAPI). 여기 타입은 그 요약본이다.
 // 필드가 필요하면 프론트에서 조합하지 말고 BE에 API 변경을 요청한다 (CLAUDE.md).
 
-export type GlobalRole = 'ADMIN' | 'MEMBER'
+/** 전역 역할 - ADMIN(해구르르)과 MAINTAINER(관리자, 유지보수 팀)는 권한이 같다. 화면 판정은 lib/roles isAdminRole 로만 (docs 결정 12) */
+export type GlobalRole = 'ADMIN' | 'MAINTAINER' | 'MEMBER'
 export type EnrollmentRole = 'OPERATOR' | 'STUDENT'
 export type CohortStatus = 'ACTIVE' | 'ARCHIVED'
 
 /**
- * 직책 명칭 - 서버(RoleTitle)가 정한 표시 문자열을 그대로 쓴다: '해구르르' | '교육운영진' | '일반 수강생'.
+ * 직책 명칭 - 서버(RoleTitle)가 정한 표시 문자열을 그대로 쓴다: '해구르르' | '관리자' | '교육운영진' | '일반 수강생'.
  * 프론트는 자체 매핑을 갖지 않는다 (명칭이 바뀌어도 서버만 고치면 됨).
  */
 export type RoleTitle = string

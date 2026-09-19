@@ -18,6 +18,7 @@ import {
 import { useLogout, useMe } from '@/api/auth'
 import { useMyCohorts } from '@/api/cohorts'
 import { SiteFooter } from '@/components/SiteFooter'
+import { isAdminRole, globalRoleLabel } from '@/lib/roles'
 import { AppSwitchButton } from '@/components/AppSwitchButton'
 import { rememberPath } from '@/lib/appSwitch'
 import { cn } from '@/lib/utils'
@@ -92,7 +93,7 @@ export function AppShell() {
   const [navOpen, setNavOpen] = useState(false)
   // 운영진 메뉴 노출 판정 - HomePage·RequireOperator 와 같은 규칙(ADMIN 이거나 canManage 분반이 하나라도). 소속을 받기 전에는 숨긴다
   const myCohortsQuery = useMyCohorts()
-  const isAdmin = me?.globalRole === 'ADMIN'
+  const isAdmin = isAdminRole(me?.globalRole)
   const isOperator = isAdmin || (myCohortsQuery.data ?? []).some((cohort) => cohort.canManage)
 
   // 메뉴를 고르면 화면이 넘어가므로 서랍은 닫는다 - 안 닫으면 새 화면이 서랍에 가려진다
@@ -215,7 +216,7 @@ export function AppShell() {
             <Link
               to="/me"
               className="ml-1 flex items-center gap-2 rounded-lg py-1 pr-2 pl-1 hover:bg-secondary"
-              title={`마이페이지 - ${me?.globalRole === 'ADMIN' ? '해구르르(관리자)' : '부원'}`}
+              title={`마이페이지 - ${globalRoleLabel(me?.globalRole)}`}
             >
               <span className="flex size-8 items-center justify-center rounded-full border bg-neutral-bg text-xs font-semibold text-foreground">
                 {me?.name?.charAt(0) ?? '?'}
