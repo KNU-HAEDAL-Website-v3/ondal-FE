@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { Check, Code, Plus, Search } from 'lucide-react'
+import { Check, Code, Plus, Search, Upload } from 'lucide-react'
 import { useMe } from '@/api/auth'
 import { useMyCohorts } from '@/api/cohorts'
 import { useProblems } from '@/api/problems'
@@ -11,6 +11,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ApiErrorView, EmptyState } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { DifficultyBadge } from '@/components/problems/DifficultyBadge'
+import { ImportProblemsDialog } from '@/components/problems/ImportProblemsDialog'
+import { TIER_LABELS, tierOf } from '@/lib/difficulty'
 import { cn } from '@/lib/utils'
 
 /**
@@ -23,6 +26,8 @@ export default function ProblemsPage() {
   const { data: me } = useMe()
   const [selectedTags, setSelectedTags] = useState<number[]>([])
   const [keyword, setKeyword] = useState('')
+  const [tier, setTier] = useState<number | null>(null) // 난이도 대분류 필터 - 화면에서 거른다
+  const [importOpen, setImportOpen] = useState(false)
   const myCohortsQuery = useMyCohorts()
   const tagsQuery = useTags()
   const problemsQuery = useProblems(selectedTags)
@@ -31,9 +36,9 @@ export default function ProblemsPage() {
     setSelectedTags((prev) => (prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]))
 
   const term = keyword.trim().toLowerCase()
-  const problems = (problemsQuery.data ?? []).filter(
-    (problem) => term === '' || problem.title.toLowerCase().includes(term) || String(problem.problemNo).includes(term),
-  )
+  const problems = (problemsQuery.data ?? [])
+    .filter((problem) => term === '' || problem.title.toLowerCase().includes(term) || String(problem.problemNo).includes(term))
+    .filter((problem) => tier === null || tierOf(problem.difficulty) === tier)
   // 출제 권한 = ADMIN 이거나 어느 분반에서든 운영진 (BE @OperatorAnywhere 와 같은 조건). 최종 판정은 서버(403)
   const canCreate = me?.globalRole === 'ADMIN' || (myCohortsQuery.data ?? []).some((cohort) => cohort.canManage)
 
@@ -46,15 +51,25 @@ export default function ProblemsPage() {
             해달 온라인 저지 - 지금까지 만든 문제를 모아 둔 곳이에요. 과제와 무관하게 풀어 보고 바로 채점받을 수 있어요.
           </p>
         </div>
-        {canCreate && (
-          <Button size="sm" asChild>
-            <Link to="/problems/new">
-              <Plus data-icon="inline-start" />
-              문제 출제
-            </Link>
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* 번들 가져오기는 관리자만 - 태그 어휘까지 만들기 때문 (BE @AdminOnly) */}
+          {me?.globalRole === 'ADMIN' && (
+            <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+              <Upload data-icon="inline-start" />
+              문제 가져오기
+            </Button>
+          )}
+          {canCreate && (
+            <Button size="sm" asChild>
+              <Link to="/problems/new">
+                <Plus data-icon="inline-start" />
+                문제 출제
+              </Link>
+            </Button>
+          )}
+        </div>
       </header>
+      {importOpen && <ImportProblemsDialog open onOpenChange={(open) => !open && setImportOpen(false)} />}
 
       <section className="space-y-3 rounded-lg border bg-card p-3" aria-label="문제 찾기">
         <div className="relative max-w-sm">
@@ -66,6 +81,27 @@ export default function ProblemsPage() {
             aria-label="문제 검색"
             className="pl-8"
           />
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 text-xs" aria-label="난이도 필터">
+          <span className="mr-1 font-semibold text-muted-foreground">난이도</span>
+          {TIER_LABELS.map((label, index) => {
+            const value = index + 1
+            const selected = tier === value
+            return (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setTier(selected ? null : value)}
+                className={cn(
+                  'rounded-md border px-2.5 py-1 transition-colors',
+                  selected ? 'border-primary bg-secondary font-semibold text-primary' : 'hover:bg-secondary/50',
+                )}
+              >
+                {label}
+              </button>
+            )
+          })}
         </div>
         {(tagsQuery.data ?? []).length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
@@ -121,6 +157,7 @@ export default function ProblemsPage() {
               <thead>
                 <tr className="border-b bg-muted text-[13px] tracking-[0.55px] text-muted-foreground">
                   <th className="px-4 py-2 text-left font-bold">번호</th>
+                  <th className="px-2 py-2 text-left font-bold">난이도</th>
                   <th className="px-2 py-2 text-left font-bold">제목</th>
                   <th className="px-2 py-2 text-left font-bold">태그</th>
                   <th className="px-2 py-2 text-center font-bold">출제</th>
@@ -149,11 +186,17 @@ function ProblemRow({ problem }: { problem: ProblemSummary }) {
         </Link>
       </td>
       <td className="px-2 py-3">
+        <DifficultyBadge value={problem.difficulty} />
+      </td>
+      <td className="px-2 py-3">
         <Link to={`/problems/${problem.id}`} className="font-medium hover:underline">
           {problem.title}
         </Link>
         {!problem.judgeEnabled && (
           <span className="ml-2 text-xs text-muted-foreground">채점 기준 없음</span>
+        )}
+        {problem.allowedLanguages.length > 0 && (
+          <span className="ml-2 rounded-md bg-info-bg px-1.5 py-0.5 text-[11px] font-semibold text-info">{problem.allowedLanguages.join(' · ')} 전용</span>
         )}
       </td>
       <td className="px-2 py-3">

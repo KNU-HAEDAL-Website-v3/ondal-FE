@@ -214,6 +214,8 @@ function toProblemSummary(p: MockProblem, viewer: MockUser): ProblemSummary {
     problemNo: p.problemNo,
     title: p.title,
     tags: tagsOf(p),
+    difficulty: p.difficulty ?? null,
+    allowedLanguages: p.allowedLanguages ?? [],
     judgeEnabled: isJudged(p.id),
     assignedCount: assignments.filter((a) => a.problemId === p.id).length,
     solved: judgeResults.some(
@@ -264,7 +266,7 @@ function parseAssignmentBody(
 /** BE ProblemPayload 검증 - 제목 필수·200자, 본문 10000자, 번호 1000 이상(선택), 태그 존재 확인 */
 function parseProblemBody(
   raw: unknown,
-): { payload: { problemNo: number | null; title: string; description: string | null; tagIds: number[] } } | { fail: HttpResponse<ErrorResponse> } {
+): { payload: { problemNo: number | null; title: string; description: string | null; tagIds: number[]; difficulty: number | null; allowedLanguages: string[] } } | { fail: HttpResponse<ErrorResponse> } {
   const body = (raw ?? {}) as Record<string, unknown>
   const title = typeof body.title === 'string' ? body.title : ''
   if (title.trim() === '') return { fail: error(400, 'INVALID_INPUT', '문제 제목은 비어 있을 수 없습니다.') }
@@ -282,7 +284,17 @@ function parseProblemBody(
   if (tagIds.some((id) => !tags.some((t) => t.id === id))) {
     return { fail: error(400, 'INVALID_INPUT', '없는 태그가 있습니다. 목록을 새로고침한 뒤 다시 선택해 주세요.') }
   }
-  return { payload: { problemNo, title: title.trim(), description, tagIds } }
+  const difficulty = body.difficulty === null || body.difficulty === undefined ? null : Number(body.difficulty)
+  if (difficulty !== null && (!Number.isInteger(difficulty) || difficulty < 1 || difficulty > 25)) {
+    return { fail: error(400, 'INVALID_INPUT', '난이도는 1 이상 25 이하여야 합니다.') }
+  }
+  const rawLanguages = Array.isArray(body.allowedLanguages) ? body.allowedLanguages.map(String) : []
+  const allowedLanguages = [...new Set(rawLanguages.map((l) => l.trim()).filter((l) => l !== ''))]
+  const unsupported = allowedLanguages.find((l) => !JUDGE_LANGUAGES.includes(l))
+  if (unsupported) {
+    return { fail: error(400, 'INVALID_INPUT', `지원하지 않는 언어입니다: ${unsupported} (지원: ${JUDGE_LANGUAGES.join(', ')})`) }
+  }
+  return { payload: { problemNo, title: title.trim(), description, tagIds, difficulty, allowedLanguages } }
 }
 
 const archivedError = () =>
@@ -1741,6 +1753,84 @@ export const handlers = [
     return HttpResponse.json(rows)
   }),
 
+  // [관리자] 문제 번들 가져오기 - BE ProblemImportService. 번호가 키, 태그는 이름으로(없으면 생성), 테스트케이스는 통째 교체
+  http.post('/api/problems/import', async ({ request }) => {
+    await delay(600)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (user.globalRole !== 'ADMIN') return forbiddenAdmin()
+    const body = (await request.json().catch(() => null)) as { problems?: unknown; overwrite?: unknown } | null
+    const items = Array.isArray(body?.problems) ? (body!.problems as Record<string, unknown>[]) : []
+    if (items.length === 0) return error(400, 'INVALID_INPUT', 'problems 는 비어 있을 수 없습니다.')
+    const overwrite = body?.overwrite === true
+    const createdTags: string[] = []
+    const problemNos: number[] = []
+    let created = 0
+    let updated = 0
+    let skipped = 0
+    const seen = new Set<number>()
+    for (const item of items) {
+      const problemNo = Number(item.problemNo)
+      if (!Number.isInteger(problemNo) || problemNo < 1000) return error(400, 'INVALID_INPUT', '문제 번호는 1000 이상이어야 합니다.')
+      if (seen.has(problemNo)) return error(400, 'INVALID_INPUT', `번들 안에 같은 문제 번호가 두 번 있습니다: ${problemNo}`)
+      seen.add(problemNo)
+      const title = typeof item.title === 'string' ? item.title.trim() : ''
+      if (title === '') return error(400, 'INVALID_INPUT', '문제 제목은 비어 있을 수 없습니다.')
+      const names = Array.isArray(item.tags) ? item.tags.map(String).map((n) => n.trim()).filter((n) => n !== '') : []
+      const tagIds = [...new Set(names)].map((name) => {
+        let tag = tags.find((t) => t.name === name)
+        if (!tag) {
+          tag = { id: Math.max(0, ...tags.map((t) => t.id)) + 1, name, createdAt: new Date().toISOString() }
+          tags.push(tag)
+          createdTags.push(name)
+        }
+        return tag.id
+      })
+      const languages = Array.isArray(item.allowedLanguages) ? item.allowedLanguages.map(String).filter((l) => JUDGE_LANGUAGES.includes(l)) : []
+      const difficulty = item.difficulty === null || item.difficulty === undefined ? null : Number(item.difficulty)
+      const testCases = Array.isArray(item.testCases)
+        ? (item.testCases as { input?: unknown; expectedOutput?: unknown; isPublic?: unknown }[]).map((tc) => ({
+            input: String(tc.input ?? ''),
+            expectedOutput: String(tc.expectedOutput ?? ''),
+            isPublic: tc.isPublic === true,
+          }))
+        : []
+      const stamp = new Date().toISOString()
+      let problem = problems.find((pr) => pr.problemNo === problemNo)
+      if (problem) {
+        if (!overwrite) {
+          skipped += 1
+          continue
+        }
+        problem.title = title
+        problem.description = typeof item.description === 'string' ? item.description : null
+        problem.updatedAt = stamp
+        updated += 1
+      } else {
+        problem = {
+          id: Math.max(0, ...problems.map((pr) => pr.id)) + 1,
+          problemNo,
+          title,
+          description: typeof item.description === 'string' ? item.description : null,
+          tagIds: [],
+          createdBy: user.name,
+          createdAt: stamp,
+          updatedAt: stamp,
+        }
+        problems.push(problem)
+        created += 1
+      }
+      problem.tagIds = tagIds
+      problem.difficulty = difficulty
+      problem.allowedLanguages = languages
+      problem.timeLimitMs = item.timeLimitMs === undefined ? null : (item.timeLimitMs as number | null)
+      problem.memoryLimitMb = item.memoryLimitMb === undefined ? null : (item.memoryLimitMb as number | null)
+      replaceTestCases(problem, testCases)
+      problemNos.push(problemNo)
+    }
+    return HttpResponse.json({ created, updated, skipped, createdTags, problemNos })
+  }),
+
   http.post('/api/problems', async ({ request }) => {
     await delay(350)
     const user = currentUser()
@@ -1758,6 +1848,8 @@ export const handlers = [
       title: parsed.payload.title,
       description: parsed.payload.description,
       tagIds: parsed.payload.tagIds,
+      difficulty: parsed.payload.difficulty,
+      allowedLanguages: parsed.payload.allowedLanguages,
       createdBy: user.name,
       createdAt: stamp,
       updatedAt: stamp,
@@ -1795,6 +1887,8 @@ export const handlers = [
     problem.title = parsed.payload.title
     problem.description = parsed.payload.description
     problem.tagIds = parsed.payload.tagIds
+    problem.difficulty = parsed.payload.difficulty
+    problem.allowedLanguages = parsed.payload.allowedLanguages
     problem.updatedAt = new Date().toISOString()
     return HttpResponse.json(toProblemResponse(problem, user))
   }),
@@ -1860,6 +1954,10 @@ export const handlers = [
     const language = typeof body?.language === 'string' ? body.language.trim() : ''
     if (codeText.trim() === '') return error(400, 'INVALID_INPUT', '코드는 비어 있을 수 없습니다.')
     if (language === '') return error(400, 'INVALID_INPUT', '언어를 선택해야 합니다.')
+    const allowed = problem.allowedLanguages ?? []
+    if (allowed.length > 0 && !allowed.includes(language)) {
+      return error(400, 'INVALID_INPUT', `이 문제는 ${allowed.join(', ')} 로만 제출할 수 있습니다.`)   // BE JudgeService.validateSubmittable ①
+    }
     if (!JUDGE_LANGUAGES.includes(language)) {
       return error(400, 'INVALID_INPUT', `이 문제는 자동 채점 문제입니다. 지원 언어로 제출하세요: ${JUDGE_LANGUAGES.join(', ')}`)
     }

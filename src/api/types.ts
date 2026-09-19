@@ -171,6 +171,10 @@ export interface ProblemSummary {
   assignedCount: number
   /** 요청자가 맞힌 적이 있는가 - 과제 제출·HOJ 연습 어느 쪽이든 */
   solved: boolean
+  /** 난이도 1~25 - 표기 "대분류-소분류"(lib/difficulty). null = 미지정 (V9) */
+  difficulty: number | null
+  /** 제출 허용 언어 - 빈 배열이면 제한 없음. 제출 폼의 언어 선택지를 이 목록으로 좁힌다 (V9) */
+  allowedLanguages: string[]
 }
 
 /** GET /api/problems/{id} - 목록 행 + 본문·제한·권한 판정값 */
@@ -195,6 +199,10 @@ export interface ProblemPayload {
   description: string | null
   /** 통째 교체 - 빈 배열이면 태그 없음 */
   tagIds: number[]
+  /** 난이도 1~25 ((대분류-1)*5+소분류). null = 미지정 */
+  difficulty: number | null
+  /** 제출 허용 언어 (lib/languages LANGUAGES 의 값). 빈 배열 = 제한 없음 */
+  allowedLanguages: string[]
 }
 
 /** POST /api/problems/{id}/submissions 요청 - HOJ 연습 제출은 코드만 */
@@ -530,4 +538,35 @@ export interface JudgeSamplesResponse {
 /** POST .../judge/rejudge (#51) - 202 */
 export interface RejudgeResponse {
   queued: number
+}
+
+// ---- 문제 번들 가져오기 (관리자) - 문제 은행 레포 ondal-problems 의 빌드 산출물 ----------------------
+
+/** 번들의 문제 한 건 - 번호가 키. 서버 ProblemImportRequest.ImportProblem 미러 */
+export interface ProblemImportItem {
+  problemNo: number
+  title: string
+  description?: string | null
+  difficulty?: number | null
+  allowedLanguages?: string[]
+  /** 태그 이름 - 없으면 서버가 만든다 */
+  tags?: string[]
+  timeLimitMs?: number | null
+  memoryLimitMb?: number | null
+  testCases?: TestCasePayload[]
+}
+
+/** POST /api/problems/import */
+export interface ProblemImportRequest {
+  problems: ProblemImportItem[]
+  /** 같은 번호가 있을 때 덮어쓸지 - false 면 건너뜀 */
+  overwrite: boolean
+}
+
+export interface ProblemImportResult {
+  created: number
+  updated: number
+  skipped: number
+  createdTags: string[]
+  problemNos: number[]
 }

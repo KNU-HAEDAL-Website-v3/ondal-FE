@@ -18,11 +18,13 @@ import { JudgeSamplesSection } from '@/components/judge/JudgeSamplesSection'
 import { VerdictBadge } from '@/components/judge/VerdictBadge'
 import { ApiErrorView, EmptyState } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { MarkdownView } from '@/components/MarkdownView'
+import { DifficultyBadge } from '@/components/problems/DifficultyBadge'
+import { selectableLanguages } from '@/lib/languages'
 import { formatKst } from '@/lib/datetime'
 import { clearDraft, readDraft, writeDraft } from '@/lib/draft'
 import { parseId } from '@/lib/params'
 
-const LANGUAGES = ['C', 'C++', 'Java', 'Python 3', 'JavaScript', 'TypeScript'] as const
 
 const DRAFT_PREFIX = 'ondal-practice-draft'
 const draftKey = (problemId: number) => `${DRAFT_PREFIX}:${problemId}`
@@ -148,8 +150,15 @@ export default function ProblemDetailPage() {
       {deleteMutation.error && <p className="text-sm text-destructive">{(deleteMutation.error as Error).message}</p>}
 
       <section aria-label="문제 본문" className="rounded-lg border bg-card p-4">
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="font-semibold text-muted-foreground">난이도</span>
+          <DifficultyBadge value={problem.difficulty} />
+          {problem.allowedLanguages.length > 0 && (
+            <span className="rounded-md bg-info-bg px-1.5 py-0.5 font-semibold text-info">{problem.allowedLanguages.join(' · ')} 전용 문제</span>
+          )}
+        </div>
         {problem.description ? (
-          <p className="text-sm leading-7 whitespace-pre-wrap">{problem.description}</p>
+          <MarkdownView source={problem.description} />
         ) : (
           <p className="text-sm text-muted-foreground">문제 본문이 아직 없어요.</p>
         )}
@@ -167,12 +176,15 @@ export default function ProblemDetailPage() {
             className="h-8 rounded-lg border bg-card px-2 text-sm"
           >
             <option value="">언어 선택 (필수)</option>
-            {LANGUAGES.map((lang) => (
+            {selectableLanguages(problem.allowedLanguages).map((lang) => (
               <option key={lang} value={lang}>
                 {lang}
               </option>
             ))}
           </select>
+          {problem.allowedLanguages.length > 0 && (
+            <p className="basis-full text-xs text-muted-foreground">이 문제는 {problem.allowedLanguages.join(', ')} 로만 제출할 수 있어요.</p>
+          )}
         </div>
 
         {problem.judgeEnabled ? (

@@ -62,6 +62,9 @@ export interface MockProblem {
   /** 자동 채점 제한 - 없으면(undefined/null) 서버 기본값. PUT .../judge 로만 바뀐다 */
   timeLimitMs?: number | null
   memoryLimitMb?: number | null
+  /** V9 난이도 1~25 (없으면 미지정) · 허용 언어 (없으면 제한 없음) */
+  difficulty?: number | null
+  allowedLanguages?: string[]
   createdBy: string | null
   createdAt: string
   updatedAt: string
@@ -99,6 +102,7 @@ export const problems: MockProblem[] = [
     id: 1,
     problemNo: 1000,
     title: '두 수의 합',
+    difficulty: 1,
     description: '두 정수 A와 B를 한 줄에 공백으로 구분해 입력받아 A+B를 출력하는 프로그램을 작성해 제출하세요.',
     tagIds: [1, 3],
     createdBy: '관리자',
@@ -109,6 +113,8 @@ export const problems: MockProblem[] = [
     id: 2,
     problemNo: 1001,
     title: '조건문과 반복문',
+    difficulty: 4,
+    allowedLanguages: ['C'],
     description: '정수 N을 입력받아 N단 구구단을 출력하는 문제와, 점수를 입력받아 등급(A~F)을 출력하는 문제를 풀어 제출하세요.',
     tagIds: [1],
     createdBy: '관리자',
