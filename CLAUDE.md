@@ -14,6 +14,7 @@
 - 홈 대시보드는 전부 실데이터(2026-09-14): 학생 = 진행 중 과제·가까운 마감·제출 수·출석률 + 마감 임박 과제·공지 / 운영진 = 수강생 수·최근 차시 출석률·마감 임박·미제출 + 과제별 제출 현황판·빠른 이동·공지. **견본(SAMPLE_) 데이터 화면은 더 두지 않는다** - 문제 페이지(P3)는 "준비 중" 안내만
 - 제출 코멘트(P2, 2026-09-14, docs submission/design.md 결정 18): 제출 단건 펼침 뷰(`SubmissionDetailView`) 하단 `운영진 코멘트` 상자 - 운영진(`canManage`)만 남기기·수정·지우기(PUT/DELETE `.../submissions/{id}/comment`), 학생은 읽기 + 내 기록 행 배지(`hasComment`), 현황판 `코멘트` 열(`latestCommented`). **점수 없음** - 결과는 채점 엔진이 말한다
 - 자동 채점(P2, 2026-09-14, docs judge/): 출제 = 과제 폼 아래 `JudgeConfigSection`(테스트케이스 표·제한·정답 코드로 기대 출력 채우기·출제 검증·예시 미리보기, 저장은 과제 → `PUT .../judge` 순서, 기존 제출 있으면 재채점 확인) / 학생 = 상세 헤더 "자동 채점" 배지 + `JudgeSamplesSection`(공개 케이스 예시) / 결과 = `VerdictBadge`(내 기록 "채점 결과" 열·현황판 "판정" 열) + 펼침 뷰 `JudgeResultView`. **판정·통과 수는 서버 값 그대로**, 채점 중(PENDING/RUNNING)이면 2초 폴링(`api/submissions.ts`). mock 가짜 엔진(`mocks/judge.ts`) = BE FakeJudgeEngine 규칙(지시 주석·echo)
+- HOJ(문제 은행)는 같은 앱 안의 **모드**(2026-09-19 PM, docs 결정 9 - 별도 앱 분리(결정 8)는 철회): `/problems/*`·`/admin/tags` 는 `HojShell`(상단 가로 메뉴: 문제 · 태그 관리(관리자)), 나머지는 `AppShell`(사이드바). 서로 오가는 버튼은 `AppSwitchButton` - "~로 이동할까요?" 확인 뒤 이동, 돌아올 때는 그 모드에서 마지막에 보던 화면(`lib/appSwitch`). 별도 빌드·도메인·환경 변수 없음
 - 기준본: docs 레포의 와이어프레임 v2.1
 - 용어: UI는 "분반"(내부 모델명 Cohort), "과제/문제"(내부 Assignment)
 

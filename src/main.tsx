@@ -5,8 +5,6 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { meQueryKey } from '@/api/auth'
 import { setUnauthenticatedHandler } from '@/api/client'
 import { queryClient } from '@/lib/queryClient'
-import { HojRoutes } from '@/hojRoutes'
-import { IS_HOJ } from '@/lib/apps'
 import { AppRoutes } from '@/routes'
 import './index.css'
 
@@ -25,8 +23,7 @@ enableMocking().then(() => {
     <StrictMode>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          {/* 같은 코드베이스에서 두 앱이 나온다 - VITE_APP 이 고른다 (lib/apps.ts) */}
-          {IS_HOJ ? <HojRoutes /> : <AppRoutes />}
+          <AppRoutes />
         </BrowserRouter>
       </QueryClientProvider>
     </StrictMode>,

@@ -62,6 +62,8 @@
     --color-info-bg: var(--info-bg);
     --color-neutral: var(--neutral);
     --color-neutral-bg: var(--neutral-bg);
+    /* HOJ 모드 브랜드색 - 로고·워드마크만. 같은 앱 안에서 "지금 문제 은행에 있다"를 한눈에 알리는 용도 (lib/appSwitch.ts) */
+    --color-hoj-brand: var(--hoj-brand);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -130,6 +132,7 @@
     --info-bg: #e0f2fe;
     --neutral: #5d5e66;        /* = --muted-foreground. 미확인·중립 표면 */
     --neutral-bg: #e3e1ec;
+    --hoj-brand: #0f766e;      /* HOJ 로고·워드마크 (청록) - Ondal 의 남보라(primary)와 나란히 놓여도 구분되는 색 */
 }
 
 .dark {

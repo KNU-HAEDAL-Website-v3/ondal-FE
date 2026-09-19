@@ -1,12 +1,14 @@
+import { useEffect } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router'
-import { ArrowUpRight, Code2, ListChecks, LogOut, Tags } from 'lucide-react'
+import { Code2, LayoutGrid, ListChecks, LogOut, Tags } from 'lucide-react'
 import { useLogout, useMe } from '@/api/auth'
 import { SiteFooter } from '@/components/SiteFooter'
-import { crossAppLinkProps, ondalHref } from '@/lib/apps'
+import { AppSwitchButton } from '@/components/AppSwitchButton'
+import { rememberPath } from '@/lib/appSwitch'
 import { cn } from '@/lib/utils'
 
 /**
- * HOJ 전용 틀 - 상단 가로 네비 하나뿐인 가벼운 셸 (2026-09-15 PM 결정으로 Ondal 과 분리).
+ * HOJ 모드의 틀 - 상단 가로 네비 하나뿐인 가벼운 셸. 같은 앱 안에서 /problems·/admin/tags 에만 씌워진다 (routes.tsx, 2026-09-19 PM 결정 - docs 결정 9).
  *
  * Ondal 의 AppShell(좌측 사이드바 + 분반 운영 메뉴)과 일부러 다르게 생겼다:
  * HOJ 는 "문제를 골라 푼다"가 거의 전부라 좌측에 상시 메뉴를 둘 만큼 화면이 많지 않고,
@@ -19,8 +21,21 @@ const NAV = [
 
 export function HojShell() {
   const { data: me } = useMe()
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   const navigate = useNavigate()
+
+  // 같은 앱이라 탭 제목은 index.html 하나뿐 - HOJ 모드에 있는 동안만 바꾼다
+  useEffect(() => {
+    document.title = 'HOJ - 해달 온라인 저지'
+    return () => {
+      document.title = 'Ondal - 해달 부트캠프 과제 플랫폼'
+    }
+  }, [])
+
+  // 이 모드에서 마지막으로 본 화면 - Ondal 에 갔다가 "HOJ로 이동하기" 로 돌아올 때 여기로 온다 (lib/appSwitch)
+  useEffect(() => {
+    rememberPath('hoj', `${pathname}${search}`)
+  }, [pathname, search])
   const logoutMutation = useLogout()
 
   const handleLogout = () => {
@@ -40,11 +55,11 @@ export function HojShell() {
       <header className="sticky top-0 z-10 border-b bg-sidebar">
         <div className="mx-auto flex h-14 max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4">
           <Link to="/problems" className="flex items-center gap-2">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-[2px] bg-sidebar-primary">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-[2px] bg-hoj-brand">
               <Code2 className="size-5 text-white" />
             </span>
             <span className="flex flex-col leading-none">
-              <span className="text-xl font-black tracking-tight text-primary">HOJ</span>
+              <span className="text-xl font-black tracking-tight text-hoj-brand">HOJ</span>
               <span className="text-[11px] font-semibold tracking-[0.55px] text-sidebar-foreground">해달 온라인 저지</span>
             </span>
           </Link>
@@ -70,15 +85,14 @@ export function HojShell() {
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
-            {/* 두 앱은 성격이 달라 화면을 나눴다 - 여기서 과제 플랫폼으로 건너간다 */}
-            <a
-              href={ondalHref('/')}
-              {...crossAppLinkProps(ondalHref('/') !== '/')}
-              className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary"
+            {/* 같은 앱의 다른 모드(과제 플랫폼)로 - 메뉴가 바뀌므로 확인을 받고 넘어간다 (lib/appSwitch) */}
+            <AppSwitchButton
+              to="ondal"
+              className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold text-sidebar-foreground transition-colors hover:border-primary hover:text-primary"
             >
-              Ondal(과제)로
-              <ArrowUpRight className="size-3.5" />
-            </a>
+              <LayoutGrid className="size-3.5 shrink-0" />
+              Ondal로 이동하기
+            </AppSwitchButton>
             {me && (
               <span className="flex items-center gap-2" title={me.globalRole === 'ADMIN' ? '해구르르(관리자)' : '부원'}>
                 <span className="flex size-8 items-center justify-center rounded-xl border bg-secondary text-xs font-semibold">

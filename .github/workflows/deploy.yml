@@ -1,4 +1,4 @@
-# Cloudflare Pages 배포 (Direct Upload 방식) - Ondal 과 HOJ 두 앱 모두 이 워크플로가 올린다
+# Cloudflare Pages 배포 (Direct Upload 방식) - Ondal 의 예비 사본과 PR 미리보기를 이 워크플로가 올린다
 #
 # 왜 이 방식인가:
 #   Cloudflare가 레포를 읽어가는 Git 연동(Workers Builds)은 org에 GitHub App 설치(owner 승인)가 필요하다.
@@ -9,8 +9,8 @@
 #
 # 동작:
 #   - main push          → Ondal: https://haedal-ondal-fe.pages.dev (예비 사본 - 실 BE(ondal-api) + 홈페이지(Keycloak) 로그인 빌드, .env.production)
-#                          HOJ:   https://haedal-hoj-fe.pages.dev   (deploy-hoj 잡, .env.hoj)
-#                          사용자 진입 주소: ondal.haedal-sos-man-in-the-mirror.com 은 Worker `ondal-fe`, oj.… 는 Pages `haedal-hoj-fe` 의 커스텀 도메인 (README "배포" 절)
+#                          사용자 진입 주소 ondal.haedal-sos-man-in-the-mirror.com 은 Worker `ondal-fe` (README "배포" 절).
+#                          HOJ(문제 은행)는 같은 앱 안의 모드라 별도 배포가 없다 (docs 결정 9 - 2026-09-19, deploy-hoj 잡 삭제)
 #   - PR(같은 레포 브랜치) → 미리보기 https://<브랜치명>.haedal-ondal-fe.pages.dev + PR 코멘트 - mock(MSW) 빌드
 #
 # 필요한 레포 시크릿: CLOUDFLARE_API_TOKEN (Account · Cloudflare Pages · Edit), CLOUDFLARE_ACCOUNT_ID
@@ -35,7 +35,6 @@ concurrency:
 
 env:
   PROJECT_NAME: haedal-ondal-fe        # Ondal 앱 Pages 프로젝트명 = pages.dev 서브도메인 (소문자만). 예전 haedal-online-judge-fe 는 2026-09-16 부터 계정 토큰에게 보이지 않아 교체
-  HOJ_PROJECT_NAME: haedal-hoj-fe        # HOJ 앱용 별도 Pages 프로젝트 - 커스텀 도메인 oj.… 를 여기에 붙인다
 
 jobs:
   deploy:
@@ -109,46 +108,3 @@ jobs:
           # 봇 코멘트가 이미 있으면 수정, 없으면 새로 작성 (PR당 코멘트 1개 유지)
           gh pr comment "$PR_NUMBER" --body "$body" --edit-last \
             || gh pr comment "$PR_NUMBER" --body "$body"
-
-  # HOJ(문제 은행) 배포 - 같은 레포에서 VITE_APP=hoj 로 빌드한 별도 앱 (docs 결정 8)
-  #
-  # 왜 Actions 로 하는가:
-  #   Cloudflare 대시보드의 Git 연동(Workers Builds)은 org 에 GitHub App 설치가 필요하고, 그건 org owner 만 할 수 있다
-  #   ("This action must be performed by an organization owner"). 위 Ondal 잡과 같은 이유로 여기서도 wrangler 로 직접 민다.
-  #   org owner 승인을 받으면 Workers Builds 로 옮겨도 된다 - 그때 이 잡을 지우면 됨
-  #
-  # 왜 Pages 인가 (Worker 가 아니라):
-  #   2026-09-16 #61 의 첫 실행이 Pages 프로젝트 haedal-hoj-fe 를 만들고 배포까지 성공했다 (https://haedal-hoj-fe.pages.dev).
-  #   #62 는 "Pages 프로젝트 생성이 막혔다"고 보고 Worker 로 바꿨지만 오판이었다 - 막힌 것은 위 Ondal 잡의 프로젝트 하나뿐이고,
-  #   Worker 배포는 레포 토큰에 Workers 권한이 없어 매번 실패했다. 그래서 Pages 로 되돌렸다.
-  #
-  # 커스텀 도메인(oj.haedal-sos-man-in-the-mirror.com)은 Pages 프로젝트에 한 번만 붙이면 된다 (대시보드, owner 권한 불필요).
-  # SPA 폴백은 Pages 기본 동작(404.html 이 없으면 모든 경로를 index.html 로) - 별도 _redirects 파일이 필요 없다
-  deploy-hoj:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      # .env.hoj 를 읽는다 (VITE_APP=hoj + Ondal 과 같은 BE) → dist-hoj/
-      - run: npm run build:hoj
-
-      - name: Deploy HOJ to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          # 프로젝트가 없으면 생성 - --yes 가 필요한 이유는 위 Ondal 잡의 주석 참고
-          preCommands: |
-            npx --yes wrangler pages project list | grep -q "${{ env.HOJ_PROJECT_NAME }}" || npx --yes wrangler pages project create "${{ env.HOJ_PROJECT_NAME }}" --production-branch main
-          command: >-
-            pages deploy dist-hoj
-            --project-name=${{ env.HOJ_PROJECT_NAME }}
-            --branch=main
-            --commit-hash=${{ github.sha }}
-            --commit-dirty=true
