@@ -8,6 +8,7 @@ import { LoadingScreen } from '@/components/LoadingScreen'
 import { EditorThemeGallery } from '@/components/code/CodePane'
 import { EditorSettingsFields } from '@/components/code/EditorSettingsFields'
 import { StatCard } from '@/components/dashboard/StatCard'
+import { UserAvatar } from '@/components/UserAvatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatKstDay } from '@/lib/datetime'
@@ -39,9 +40,8 @@ export default function MyPage() {
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-center gap-3 border-b pb-2.5">
-        <span className="flex size-12 items-center justify-center rounded-full border bg-neutral-bg text-lg font-bold text-foreground">
-          {me?.name?.charAt(0) ?? '?'}
-        </span>
+        <UserAvatar name={me?.name} avatarUrl={me?.avatarUrl} size="lg" />
+        {/* 사진은 홈페이지(구글) 프로필에서 따라온다 - Ondal 에 업로드 화면은 없다 (docs 결정 14) */}
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight">{me?.name}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">{roleLabel}</p>

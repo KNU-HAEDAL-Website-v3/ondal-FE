@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import {
   BookOpen,
+  ChevronDown,
   ChevronRight,
   CircleHelp,
   Code,
@@ -15,12 +16,15 @@ import {
   Settings2,
   SquarePen,
   UserCheck,
+  UserRound,
   Users,
 } from 'lucide-react'
 import { useLogout, useMe } from '@/api/auth'
 import { useMyCohorts } from '@/api/cohorts'
 import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { SiteFooter } from '@/components/SiteFooter'
+import { UserAvatar } from '@/components/UserAvatar'
 import { isAdminRole, globalRoleLabel } from '@/lib/roles'
 import { AppSwitchButton } from '@/components/AppSwitchButton'
 import { rememberPath } from '@/lib/appSwitch'
@@ -103,14 +107,16 @@ export function AppShell() {
   const { pathname, search } = useLocation()
   const logoutMutation = useLogout()
   const [navOpen, setNavOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
   // 운영진 메뉴 노출 판정 - HomePage·RequireOperator 와 같은 규칙(ADMIN 이거나 canManage 분반이 하나라도). 소속을 받기 전에는 숨긴다
   const myCohortsQuery = useMyCohorts()
   const isAdmin = isAdminRole(me?.globalRole)
   const isOperator = isAdmin || (myCohortsQuery.data ?? []).some((cohort) => cohort.canManage)
 
-  // 메뉴를 고르면 화면이 넘어가므로 서랍은 닫는다 - 안 닫으면 새 화면이 서랍에 가려진다
+  // 메뉴를 고르면 화면이 넘어가므로 서랍·계정 드롭다운은 닫는다 - 안 닫으면 새 화면이 그 아래에 가려진다
   useEffect(() => {
     setNavOpen(false)
+    setAccountOpen(false)
   }, [pathname])
 
   // 이 모드에서 마지막으로 본 화면 - HOJ 에 갔다가 "Ondal로 이동하기" 로 돌아올 때 여기로 온다 (lib/appSwitch)
@@ -246,17 +252,46 @@ export function AppShell() {
             >
               <CircleHelp className="size-5" />
             </Link>
-            {/* 누구로 로그인했는지 - 역할을 바꿔 가며 테스트할 때 헷갈리지 않도록 이름을 그대로 보여 준다. 누르면 마이페이지 */}
-            <Link
-              to="/me"
-              className="ml-1 flex items-center gap-2 rounded-lg py-1 pr-2 pl-1 hover:bg-secondary"
-              title={`마이페이지 - ${globalRoleLabel(me?.globalRole)}`}
-            >
-              <span className="flex size-8 items-center justify-center rounded-full border bg-neutral-bg text-xs font-semibold text-foreground">
-                {me?.name?.charAt(0) ?? '?'}
-              </span>
-              <span className="text-sm font-medium">{me?.name}</span>
-            </Link>
+            {/* 원안(ui-v1 상단 바)의 사진 아바타 · 이름 · 드롭다운 - 마이페이지·로그아웃. 사진은 홈페이지(구글) 프로필, 없으면 이름 첫 글자 (docs 결정 14) */}
+            <Popover open={accountOpen} onOpenChange={setAccountOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="ml-1 flex items-center gap-2 rounded-lg py-1 pr-1.5 pl-1 hover:bg-secondary"
+                  aria-label={`계정 메뉴 - ${me?.name ?? ''} (${globalRoleLabel(me?.globalRole)})`}
+                >
+                  <UserAvatar name={me?.name} avatarUrl={me?.avatarUrl} />
+                  <span className="text-sm font-medium">{me?.name}</span>
+                  <ChevronDown className="size-4 text-muted-foreground" aria-hidden />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-52 p-1">
+                <div className="px-2 py-1.5">
+                  <p className="text-sm font-semibold">{me?.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {globalRoleLabel(me?.globalRole)} · {me?.loginId}
+                  </p>
+                </div>
+                {/* Popover 는 DropdownMenu 와 달리 안쪽 클릭을 '항목 선택'으로 보지 않는다 - /me 는 AppShell 의 자식 라우트라 이동해도 이 패널이 안 닫히므로 직접 닫는다 */}
+                <Link
+                  to="/me"
+                  onClick={() => setAccountOpen(false)}
+                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-secondary"
+                >
+                  <UserRound className="size-4" aria-hidden />
+                  마이페이지
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={logoutMutation.isPending}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-secondary disabled:opacity-50"
+                >
+                  <LogOut className="size-4" aria-hidden />
+                  로그아웃
+                </button>
+              </PopoverContent>
+            </Popover>
           </div>
         </header>
         <main className="mx-auto w-full max-w-[1280px] flex-1 p-4 md:p-10">
