@@ -58,10 +58,10 @@ npm run lint       # 린트 (oxlint)
 
 ```
 src/
-  api/          서버 통신 - client.ts(fetch 래퍼·ApiError), types.ts(BE DTO 미러), auth.ts·cohorts.ts·members.ts·assignments.ts·submissions.ts·questions.ts·notices.ts·sessions.ts·attendances.ts(요청 함수 + React Query 훅)
-  components/   RequireAuth(로그인 울타리) · RequireAdmin(관리자 울타리) · ApiErrorView(403→홈, 404 안내, 재시도) · layout/AppShell(Ondal 모드 사이드바·상단 바) · layout/HojShell(HOJ 모드 상단 메뉴) · AppSwitchButton(모드 전환 확인 팝업) · cohorts/(분반 카드·섹션·운영진 팝업) · ui/(shadcn)
-  pages/        LoginPage · HomePage(역할별 대시보드 - dashboard/) · CohortPage · CohortMembersPage(명부·배정) · AdminCohortsPage·CohortFormPage(관리자 분반 관리) · Assignments*(목록·상세·폼) · AttendancePage(attendance/) · Questions*(Q&A 목록·상세·폼) · Notice*(공지 목록·상세·폼) · Problem*(HOJ 문제 목록·상세·출제 - HojShell 아래) · AdminTagsPage(태그 관리) · NotFoundPage
-  lib/          datetime(KST 표시) · draft(폼 임시 저장 - 세션 만료 대비) · loginIds(명단 붙여넣기 파싱) · params(경로 변수 검증) · appSwitch(Ondal↔HOJ 모드 판정·마지막 화면 기억)
+  api/          서버 통신 - client.ts(fetch 래퍼·ApiError), types.ts(BE DTO 미러), auth.ts·cohorts.ts·members.ts·assignments.ts·submissions.ts·questions.ts·notices.ts·sessions.ts·attendances.ts·problems.ts(문제·북마크·풀이·정답 코드·실행)·hoj.ts(채점 현황·랭킹·사용자 페이지)(요청 함수 + React Query 훅)
+  components/   RequireAuth(로그인 울타리) · RequireAdmin(관리자 울타리) · ApiErrorView(403→홈, 404 안내, 재시도) · layout/AppShell(Ondal 모드 사이드바·상단 바) · layout/HojShell(HOJ 모드 상단 메뉴) · AppSwitchButton(모드 전환 확인 팝업) · cohorts/(분반 카드·섹션·운영진 팝업) · problems/(북마크·내 상태 칩·다른 사람 풀이·정답 코드·실행 패널) · hoj/(제출 피드 표·활동 잔디·언어 비율) · ui/(shadcn)
+  pages/        LoginPage · HomePage(역할별 대시보드 - dashboard/) · CohortPage · CohortMembersPage(명부·배정) · AdminCohortsPage·CohortFormPage(관리자 분반 관리) · Assignments*(목록·상세·폼) · AttendancePage(attendance/) · Questions*(Q&A 목록·상세·폼) · Notice*(공지 목록·상세·폼) · Problem*(HOJ 문제 목록·상세·출제 - HojShell 아래) · Hoj*(채점 현황 /problems/status · 랭킹 /problems/ranking · 사용자 페이지 /problems/users/:userId) · AdminTagsPage(태그 관리) · NotFoundPage
+  lib/          datetime(KST 표시) · draft(폼 임시 저장 - 세션 만료 대비) · loginIds(명단 붙여넣기 파싱) · params(경로 변수 검증) · appSwitch(Ondal↔HOJ 모드 판정·마지막 화면 기억) · editorTheme·editorSettings(편집기 테마·글꼴·탭 폭 - 브라우저 저장) · codeTemplates(언어별 코드 뼈대)
   routes.tsx    라우트 한눈에 보기
   mocks/        MSW 핸들러 + 시드 데이터 (BE LocalDataSeeder 와 동일하게 유지)
 ```

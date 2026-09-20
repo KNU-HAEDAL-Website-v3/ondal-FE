@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
-import { ArrowLeft, Check, Pencil, Send, Trash2 } from 'lucide-react'
+import { ArrowLeft, KeyRound, Pencil, RotateCcw, Send, Trash2 } from 'lucide-react'
 import { ApiError } from '@/api/client'
+import { useJudgeSamples } from '@/api/judge'
 import {
   useMyPracticeSubmissions,
   usePracticeSubmission,
@@ -20,7 +21,13 @@ import { VerdictBadge } from '@/components/judge/VerdictBadge'
 import { ApiErrorView, EmptyState } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { MarkdownView } from '@/components/MarkdownView'
+import { AcceptedSolutionsSection } from '@/components/problems/AcceptedSolutionsSection'
+import { BookmarkButton } from '@/components/problems/BookmarkButton'
 import { DifficultyBadge } from '@/components/problems/DifficultyBadge'
+import { MyStatusBadge } from '@/components/problems/MyStatusBadge'
+import { RunPanel } from '@/components/problems/RunPanel'
+import { SolutionsDialog } from '@/components/problems/SolutionsDialog'
+import { codeTemplate, isUntouched } from '@/lib/codeTemplates'
 import { selectableLanguages } from '@/lib/languages'
 import { formatKst } from '@/lib/datetime'
 import { clearDraft, readDraft, writeDraft } from '@/lib/draft'
@@ -35,11 +42,31 @@ interface PracticeDraft {
   language: string
 }
 
+/** 마지막으로 제출 언어로 고른 것 - 문제를 옮겨 다녀도 같은 언어로 시작하게 (P3). 이 브라우저에만 */
+const LAST_LANGUAGE_KEY = 'ondal-hoj-last-language'
+function readLastLanguage(): string {
+  try {
+    return localStorage.getItem(LAST_LANGUAGE_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
+function writeLastLanguage(language: string) {
+  try {
+    if (language === '') localStorage.removeItem(LAST_LANGUAGE_KEY)
+    else localStorage.setItem(LAST_LANGUAGE_KEY, language)
+  } catch {
+    // 저장소를 못 쓰는 환경 - 기억 못 해도 동작에는 지장 없다
+  }
+}
+
 /**
  * HOJ 문제 상세 - 문제를 읽고 바로 풀어 채점받는 화면 (/problems/:problemId, V7).
  *
  * 분반 과제와 같은 채점 파이프라인을 쓰지만 마감·지각·운영진 코멘트가 없다(연습 제출).
  * 작성 중인 코드는 세션 만료에 대비해 임시 저장한다 (CLAUDE.md 규칙 1).
+ * P3(docs hoj/api.md 10절): 북마크 · 통계(푼 사람·제출·정답률) · 언어별 코드 템플릿 · 마지막 언어 기억 · Ctrl+Enter 제출 ·
+ * "내 입력으로 실행" · 내 기록의 "다시 편집" · "다른 사람 풀이"(맞힌 사람·운영진) · 운영진 "정답 코드 보기".
  */
 export default function ProblemDetailPage() {
   const { problemId: problemParam } = useParams()
@@ -50,6 +77,7 @@ export default function ProblemDetailPage() {
   const mineQuery = useMyPracticeSubmissions(problemId)
   const submitMutation = useSubmitPractice(problemId)
   const deleteMutation = useDeleteProblem()
+  const samplesQuery = useJudgeSamples(problemId, problemQuery.data?.judgeEnabled === true)
 
   const key = draftKey(problemId)
   const saved = readDraft<PracticeDraft>(key)
@@ -57,12 +85,27 @@ export default function ProblemDetailPage() {
   const [language, setLanguage] = useState(saved?.language ?? '')
   const [openId, setOpenId] = useState<number | null>(null)
   const [fullscreen, setFullscreen] = useState(false)
+  const [solutionsOpen, setSolutionsOpen] = useState(false)
+  const initializedRef = useRef(false)
+  const editorRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     // 코드가 비어 있으면 저장할 게 없다 - 언어만 남기면 제출 성공 뒤에도 임시 저장본이 되살아난다
     if (codeText.trim() === '') clearDraft(key)
     else writeDraft<PracticeDraft>(key, { codeText, language })
   }, [key, codeText, language])
+
+  // 임시 저장본이 없으면 마지막에 쓴 언어로 시작한다 - 이 문제의 허용 언어에 있을 때만. 편집기가 비어 있으면 그 언어의 뼈대까지
+  useEffect(() => {
+    const problem = problemQuery.data
+    if (!problem || initializedRef.current) return
+    initializedRef.current = true
+    if (language !== '') return
+    const last = readLastLanguage()
+    if (last === '' || !selectableLanguages(problem.allowedLanguages).includes(last)) return
+    setLanguage(last)
+    if (isUntouched(codeText)) setCodeText(codeTemplate(last))
+  }, [problemQuery.data, language, codeText])
 
   if (!Number.isFinite(problemId)) {
     return <ApiErrorView error={new ApiError(404, 'NOT_FOUND', '존재하지 않는 문제 주소예요.')} />
@@ -71,10 +114,12 @@ export default function ProblemDetailPage() {
   if (problemQuery.error) return <ApiErrorView error={problemQuery.error} onRetry={() => void problemQuery.refetch()} />
 
   const problem = problemQuery.data
+  const languages = selectableLanguages(problem.allowedLanguages)
   const canSubmit = problem.judgeEnabled && !submitMutation.isPending && codeText.trim() !== '' && language !== ''
 
   const handleSubmit = () => {
     if (!canSubmit) return
+    writeLastLanguage(language)
     submitMutation.mutate(
       { codeText, language },
       {
@@ -88,6 +133,24 @@ export default function ProblemDetailPage() {
     )
   }
 
+  /** 언어를 고르면 기억하고, 편집기가 비어 있거나 손대지 않은 뼈대뿐이면 그 언어의 뼈대로 갈아 끼운다 */
+  const handleLanguageChange = (next: string) => {
+    setLanguage(next)
+    writeLastLanguage(next)
+    if (isUntouched(codeText)) setCodeText(next === '' ? '' : codeTemplate(next))
+  }
+
+  /** 내 기록의 "다시 편집" - 그 제출의 코드·언어를 편집기로. 작성 중인 내용이 있으면 확인을 받는다 (규칙 1) */
+  const handleEditAgain = (code: string, lang: string | null) => {
+    if (!isUntouched(codeText) && codeText !== code && !window.confirm('작성 중인 코드를 이 제출의 코드로 바꿀까요? 지금 편집기의 내용은 사라져요.')) return
+    setCodeText(code)
+    if (lang !== null && languages.includes(lang)) {
+      setLanguage(lang)
+      writeLastLanguage(lang)
+    }
+    editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   const handleDelete = () => {
     if (!window.confirm(`#${problem.problemNo} ${problem.title} 문제를 삭제할까요? 되돌릴 수 없어요.`)) return
     deleteMutation.mutate(problem.id, { onSuccess: () => navigate('/problems', { replace: true }) })
@@ -99,6 +162,9 @@ export default function ProblemDetailPage() {
 
   // 원안(수강자 코드 과제 상세): 좌 문제 / 우 편집기. 채점 기준이 없는 문제는 편집기가 없으므로 위아래로
   const split = problem.judgeEnabled
+  const sampleInput = samplesQuery.data ? (samplesQuery.data.samples[0]?.input ?? '') : null
+  // 다른 사람 풀이는 맞힌 사람·운영진 이상만 (결정 13). canEdit = 운영진 이상(@OperatorAnywhere)과 같은 판정
+  const canSeeSolutions = problem.myStatus === 'SOLVED' || problem.canEdit
 
   const statement = (
     <section aria-label="문제 본문" className="rounded-lg border bg-card p-4">
@@ -120,12 +186,12 @@ export default function ProblemDetailPage() {
   const languageSelect = (
     <select
       value={language}
-      onChange={(e) => setLanguage(e.target.value)}
+      onChange={(e) => handleLanguageChange(e.target.value)}
       aria-label="제출 언어"
       className="h-8 rounded-lg border bg-card px-2 text-sm"
     >
       <option value="">언어 선택 (필수)</option>
-      {selectableLanguages(problem.allowedLanguages).map((lang) => (
+      {languages.map((lang) => (
         <option key={lang} value={lang}>
           {lang}
         </option>
@@ -142,6 +208,7 @@ export default function ProblemDetailPage() {
       onReset={handleReset}
       fullscreen={fullscreen}
       onToggleFullscreen={() => setFullscreen((v) => !v)}
+      onSubmit={handleSubmit}
     />
   )
 
@@ -150,15 +217,16 @@ export default function ProblemDetailPage() {
       <p className="text-xs text-muted-foreground">
         연습 제출이에요 - 분반 과제와 따로 기록되고, 마감·지각은 없어요. 여러 번 내도 괜찮아요.
       </p>
-      <Button onClick={handleSubmit} disabled={!canSubmit}>
+      <Button onClick={handleSubmit} disabled={!canSubmit} title="Ctrl+Enter (Mac: Cmd+Enter)">
         <Send data-icon="inline-start" />
         {submitMutation.isPending ? '제출 중...' : '제출하기'}
+        <kbd className="ml-1 hidden rounded-md border border-primary-foreground/40 px-1 font-mono text-[10px] font-normal sm:inline">Ctrl+Enter</kbd>
       </Button>
     </div>
   )
 
   const submitPanel = (
-    <section aria-label="풀이 제출" className="space-y-3 rounded-lg border bg-card p-4">
+    <section ref={editorRef} aria-label="풀이 제출" className="scroll-mt-20 space-y-3 rounded-lg border bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-base font-bold">풀이 제출</h2>
         {languageSelect}
@@ -176,6 +244,7 @@ export default function ProblemDetailPage() {
             {actionRow}
             {submitMutation.error && <p className="text-sm text-destructive">{(submitMutation.error as Error).message}</p>}
           </FullscreenPane>
+          {!fullscreen && <RunPanel problemId={problem.id} language={language} sourceCode={codeText} sampleInput={sampleInput} />}
           {!fullscreen && actionRow}
           {submitMutation.error && !fullscreen && <p className="text-sm text-destructive">{(submitMutation.error as Error).message}</p>}
         </>
@@ -201,12 +270,7 @@ export default function ProblemDetailPage() {
           <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold tracking-tight">
             <span className="font-mono text-primary">#{problem.problemNo}</span>
             {problem.title}
-            {problem.solved && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-success-bg px-2 py-0.5 text-xs font-bold text-success">
-                <Check className="size-3" />
-                해결
-              </span>
-            )}
+            <MyStatusBadge status={problem.myStatus} />
           </h1>
           <p className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             {problem.tags.map((tag) => (
@@ -217,31 +281,54 @@ export default function ProblemDetailPage() {
             <span className="font-mono">
               시간 {problem.timeLimitMs} ms · 메모리 {problem.memoryLimitMb} MB
             </span>
+            {/* P3 통계 - 서버 값 그대로 (정답률은 채점 0건이면 null) */}
+            <span>
+              푼 사람 {problem.solvedUserCount}명 · 제출 {problem.submissionCount}건 · 정답률 {problem.acceptedRate === null ? '-' : `${problem.acceptedRate}%`}
+            </span>
             {problem.assignedCount > 0 && <span>과제로 {problem.assignedCount}회 출제됨</span>}
             {problem.createdBy && <span>출제 {problem.createdBy}</span>}
           </p>
         </div>
-        {problem.canEdit && (
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link to={`/problems/${problem.id}/edit`}>
-                <Pencil data-icon="inline-start" />
-                수정
-              </Link>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-destructive"
-              onClick={handleDelete}
-              disabled={deleteMutation.isPending}
-            >
-              <Trash2 data-icon="inline-start" />
-              삭제
-            </Button>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <BookmarkButton problemId={problem.id} bookmarked={problem.bookmarked} withLabel />
+          {problem.canEdit && (
+            <>
+              {/* 정답 코드는 운영진 이상에게만 존재가 보인다 (P3 6절) - solutionLanguages 가 비어 있으면 안내만 */}
+              {problem.solutionLanguages.length > 0 ? (
+                <Button variant="outline" size="sm" onClick={() => setSolutionsOpen(true)}>
+                  <KeyRound data-icon="inline-start" />
+                  정답 코드 보기
+                  <span className="font-mono text-[11px] text-muted-foreground">{problem.solutionLanguages.join(' · ')}</span>
+                </Button>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  등록된 정답 코드 없음 -{' '}
+                  <Link to={`/problems/${problem.id}/edit`} className="underline hover:text-primary">
+                    문제 수정에서 추가
+                  </Link>
+                </span>
+              )}
+              <Button variant="outline" size="sm" asChild>
+                <Link to={`/problems/${problem.id}/edit`}>
+                  <Pencil data-icon="inline-start" />
+                  수정
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive"
+                onClick={handleDelete}
+                disabled={deleteMutation.isPending}
+              >
+                <Trash2 data-icon="inline-start" />
+                삭제
+              </Button>
+            </>
+          )}
+        </div>
       </header>
+      {problem.canEdit && solutionsOpen && <SolutionsDialog problemId={problem.id} open onOpenChange={(open) => !open && setSolutionsOpen(false)} />}
 
       {deleteMutation.error && <p className="text-sm text-destructive">{(deleteMutation.error as Error).message}</p>}
 
@@ -290,6 +377,7 @@ export default function ProblemDetailPage() {
                     order={mineQuery.data.length - index}
                     open={openId === row.id}
                     onToggle={() => setOpenId(openId === row.id ? null : row.id)}
+                    onEditAgain={problem.judgeEnabled ? handleEditAgain : undefined}
                   />
                 ))}
               </tbody>
@@ -297,23 +385,27 @@ export default function ProblemDetailPage() {
           </div>
         )}
       </section>
+
+      {canSeeSolutions && <AcceptedSolutionsSection problemId={problem.id} allowedLanguages={problem.allowedLanguages} />}
     </div>
   )
 }
 
-/** 한 줄 = 제출 1건. 누르면 코드 전문과 채점 결과가 펼쳐진다(단건 조회) */
+/** 한 줄 = 제출 1건. 누르면 코드 전문과 채점 결과가 펼쳐진다(단건 조회). "다시 편집"은 그 코드를 편집기로 */
 function PracticeRow({
   problemId,
   row,
   order,
   open,
   onToggle,
+  onEditAgain,
 }: {
   problemId: number
   row: SubmissionSummary
   order: number
   open: boolean
   onToggle: () => void
+  onEditAgain?: (code: string, language: string | null) => void
 }) {
   const detailQuery = usePracticeSubmission(problemId, row.id, open)
   return (
@@ -337,7 +429,21 @@ function PracticeRow({
               <>
                 {detailQuery.data.judge && <JudgeResultView judge={detailQuery.data.judge} />}
                 {detailQuery.data.codeText !== null && (
-                  <CodeViewer value={detailQuery.data.codeText} language={detailQuery.data.language} />
+                  <>
+                    {onEditAgain && (
+                      <div className="flex justify-end">
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          onClick={() => onEditAgain(detailQuery.data.codeText ?? '', detailQuery.data.language)}
+                        >
+                          <RotateCcw data-icon="inline-start" />
+                          다시 편집
+                        </Button>
+                      </div>
+                    )}
+                    <CodeViewer value={detailQuery.data.codeText} language={detailQuery.data.language} />
+                  </>
                 )}
               </>
             )}

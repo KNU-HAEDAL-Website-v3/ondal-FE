@@ -11,6 +11,9 @@ import AssignmentFormPage from '@/pages/AssignmentFormPage'
 import AssignmentsPage from '@/pages/AssignmentsPage'
 import AttendancePage from '@/pages/AttendancePage'
 import HelpPage from '@/pages/HelpPage'
+import HojRankingPage from '@/pages/HojRankingPage'
+import HojStatusPage from '@/pages/HojStatusPage'
+import HojUserPage from '@/pages/HojUserPage'
 import CohortFormPage from '@/pages/CohortFormPage'
 import CohortMembersPage from '@/pages/CohortMembersPage'
 import CohortPage from '@/pages/CohortPage'
@@ -62,9 +65,12 @@ import QuestionsPage from '@/pages/QuestionsPage'
  *   /help                      - 도움말 (역할별 할 수 있는 일·문제 보고 방법) - 사이드바·상단 아이콘에서 진입
  *   /me                        - 마이페이지 (내 정보·활동·소속 분반·에디터 테마) - 상단 바의 내 이름에서 진입
  * [HOJ 모드 - HojShell] 문제는 분반과 무관하므로 메뉴가 다르다 (2026-09-19 PM, docs 결정 9)
- *   /problems                  - 문제 목록 (로그인 누구나 - 태그 필터)
- *   /problems/:problemId       - 문제 상세 - 본문·예시·풀이 제출·내 기록 (로그인 누구나)
- *   /problems/new              - 문제 출제 (RequireOperator)
+ *   /problems                  - 문제 목록 (로그인 누구나 - 태그·난이도·내 상태 필터, 북마크, 랜덤 문제)
+ *   /problems/status           - 채점 현황 - 연습 제출 전체 피드 (P3, docs hoj/api.md 2절)
+ *   /problems/ranking          - 랭킹 - 푼 문제 수, 분반 필터 (P3, 4절)
+ *   /problems/users/:userId    - 사용자 페이지 - 통계·푼 문제·잔디·태그 숙련도·최근 제출 (P3, 3절). 메뉴 "내 페이지" = 내 id
+ *   /problems/:problemId       - 문제 상세 - 본문·예시·풀이 제출·내 기록·다른 사람 풀이 (로그인 누구나). 정적 경로들이 이보다 먼저다
+ *   /problems/new              - 문제 출제 (RequireOperator) - 정답 코드 절 포함
  *   /problems/:problemId/edit  - 문제 수정 (RequireOperator)
  *   /admin/tags                - [관리자] 문제 태그 관리 - 태그는 문제의 것이라 HOJ 메뉴에 있다
  * [그 외]
@@ -112,6 +118,10 @@ export function AppRoutes() {
 
         <Route element={<HojShell />}>
           <Route path="problems" element={<ProblemsPage />} />
+          {/* P3 정적 경로 - React Router 는 정적 세그먼트를 :problemId 보다 우선 매칭하지만, 읽는 순서대로 위에 둔다 */}
+          <Route path="problems/status" element={<HojStatusPage />} />
+          <Route path="problems/ranking" element={<HojRankingPage />} />
+          <Route path="problems/users/:userId" element={<HojUserPage />} />
           <Route path="problems/:problemId" element={<ProblemDetailPage />} />
           {/* 출제·수정은 운영진 이상 - BE @OperatorAnywhere 와 같은 조건 (CLAUDE.md 규칙 3) */}
           <Route element={<RequireOperator />}>

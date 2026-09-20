@@ -1,5 +1,5 @@
-import { useState, useSyncExternalStore } from 'react'
-import CodeMirror, { EditorView } from '@uiw/react-codemirror'
+import { useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import CodeMirror, { EditorState, EditorView, Prec, keymap } from '@uiw/react-codemirror'
 import type { Extension } from '@codemirror/state'
 import { cpp } from '@codemirror/lang-cpp'
 import { java } from '@codemirror/lang-java'
@@ -10,6 +10,7 @@ import { dracula } from '@uiw/codemirror-theme-dracula'
 import { githubLight } from '@uiw/codemirror-theme-github'
 import { solarizedLight } from '@uiw/codemirror-theme-solarized'
 import { Check, Copy, Maximize2, Minimize2, Palette, RotateCcw } from 'lucide-react'
+import { getEditorSettings, subscribeEditorSettings, type EditorSettings } from '@/lib/editorSettings'
 import {
   EDITOR_THEMES,
   getEditorTheme,
@@ -64,6 +65,16 @@ function useEditorTheme(): EditorThemeId {
   return useSyncExternalStore(subscribeEditorTheme, getEditorTheme, getEditorTheme)
 }
 
+/** 글꼴 크기·탭 폭 (마이페이지 "편집기 설정", lib/editorSettings) - 편집기·열람 뷰 모두 */
+function useEditorSettings(): EditorSettings {
+  return useSyncExternalStore(subscribeEditorSettings, getEditorSettings, getEditorSettings)
+}
+
+/** 탭 문자 표시 폭 - 자동 들여쓰기 단위(indentUnit)는 basicSetup.tabSize 가 같이 맞춘다 */
+function tabSizeExtension(tabSize: number): Extension {
+  return EditorState.tabSize.of(tabSize)
+}
+
 /** 테마 고르기 - 이 브라우저에만 저장된다 */
 function ThemePicker({ id }: { id: string }) {
   const theme = useEditorTheme()
@@ -101,6 +112,7 @@ export function CodeEditorImpl({
   onReset,
   fullscreen = false,
   onToggleFullscreen,
+  onSubmit,
 }: {
   value: string
   onChange: (value: string) => void
@@ -112,8 +124,33 @@ export function CodeEditorImpl({
   fullscreen?: boolean
   /** 전체 화면 토글 - 주면 도구 줄에 버튼이 생긴다 */
   onToggleFullscreen?: () => void
+  /** Ctrl+Enter(맥 Cmd+Enter) - 주면 편집기 안에서 그 키로 제출한다 (HOJ P3). 기본 키맵의 "빈 줄 삽입"보다 우선 */
+  onSubmit?: () => void
 }) {
   const theme = useEditorTheme()
+  const { fontSize, tabSize } = useEditorSettings()
+  // 최신 onSubmit 을 참조 - 확장은 한 번만 만들고 핸들러만 바꿔 끼운다 (매 렌더마다 확장을 새로 만들면 편집기 상태가 재구성된다)
+  const submitRef = useRef(onSubmit)
+  submitRef.current = onSubmit
+  const extensions = useMemo(
+    () => [
+      ...languageExtensions(language),
+      tabSizeExtension(tabSize),
+      Prec.highest(
+        keymap.of([
+          {
+            key: 'Mod-Enter',
+            run: () => {
+              if (!submitRef.current) return false
+              submitRef.current()
+              return true
+            },
+          },
+        ]),
+      ),
+    ],
+    [language, tabSize],
+  )
   const toolClass =
     'flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent'
   return (
@@ -136,12 +173,14 @@ export function CodeEditorImpl({
       <CodeMirror
         value={value}
         onChange={onChange}
-        extensions={languageExtensions(language)}
+        extensions={extensions}
+        basicSetup={{ tabSize }}
         theme={themeExtensions(theme)[0]}
         placeholder="코드를 붙여넣거나 작성하세요"
         height={height}
+        style={{ fontSize: `${fontSize}px` }}
         aria-label="제출 코드"
-        className="overflow-hidden rounded-lg border font-mono text-sm [&_.cm-content]:font-mono [&_.cm-gutters]:font-mono [&_.cm-editor]:h-full [&_.cm-editor.cm-focused]:outline-none"
+        className="overflow-hidden rounded-lg border font-mono [&_.cm-content]:font-mono [&_.cm-gutters]:font-mono [&_.cm-editor]:h-full [&_.cm-editor.cm-focused]:outline-none"
       />
     </div>
   )
@@ -206,6 +245,8 @@ export function EditorThemeGalleryImpl() {
 /** 코드 열람 - 같은 에디터의 read-only 모드(작성과 색 일관) + 복사 버튼 */
 export function CodeViewerImpl({ value, language }: { value: string; language: string | null }) {
   const theme = useEditorTheme()
+  const { fontSize, tabSize } = useEditorSettings()
+  const extensions = useMemo(() => [...languageExtensions(language), tabSizeExtension(tabSize)], [language, tabSize])
   const [copied, setCopied] = useState(false)
 
   const copy = async () => {
@@ -233,12 +274,13 @@ export function CodeViewerImpl({ value, language }: { value: string; language: s
         value={value}
         readOnly
         editable={false}
-        extensions={languageExtensions(language)}
+        extensions={extensions}
         theme={themeExtensions(theme)[0]}
         maxHeight="320px"
+        style={{ fontSize: `${fontSize}px` }}
         aria-label="제출 코드 열람"
-        basicSetup={{ highlightActiveLine: false, highlightActiveLineGutter: false, foldGutter: false }}
-        className="overflow-hidden rounded-lg border font-mono text-xs [&_.cm-content]:font-mono [&_.cm-gutters]:font-mono [&_.cm-editor.cm-focused]:outline-none"
+        basicSetup={{ highlightActiveLine: false, highlightActiveLineGutter: false, foldGutter: false, tabSize }}
+        className="overflow-hidden rounded-lg border font-mono [&_.cm-content]:font-mono [&_.cm-gutters]:font-mono [&_.cm-editor.cm-focused]:outline-none"
       />
     </div>
   )

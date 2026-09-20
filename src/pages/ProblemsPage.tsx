@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router'
-import { ArrowDownUp, Check, Code, Plus, Search, Upload } from 'lucide-react'
+import { Link, useNavigate } from 'react-router'
+import { ArrowDownUp, Check, Code, Plus, Search, Shuffle, Upload } from 'lucide-react'
 import { useMe } from '@/api/auth'
 import { useMyCohorts } from '@/api/cohorts'
 import { useProblems } from '@/api/problems'
@@ -13,8 +13,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ApiErrorView, EmptyState } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { BookmarkButton } from '@/components/problems/BookmarkButton'
 import { DifficultyBadge } from '@/components/problems/DifficultyBadge'
 import { ImportProblemsDialog } from '@/components/problems/ImportProblemsDialog'
+import { MyStatusBadge } from '@/components/problems/MyStatusBadge'
 import { TIER_LABELS, tierOf } from '@/lib/difficulty'
 import { cn } from '@/lib/utils'
 
@@ -22,12 +24,13 @@ import { cn } from '@/lib/utils'
  * HOJ - 지금까지 만든 문제를 모아 보는 곳 (/problems, V7).
  *
  * 분반과 무관하다: 로그인한 누구나 목록·상세를 보고 풀 수 있다. 출제·수정은 운영진 이상(서버가 canEdit 로 알려준다).
- * 태그 필터는 AND(고른 태그를 모두 가진 문제)이고 서버가 처리한다 - 번호·제목·태그 이름 검색, 난이도 필터, 정렬은 화면에서 한다.
- * 목록은 많아야 수백 개(문제 은행 100 + 출제분)라 서버 정렬·페이징 없이 통째로 받아 화면에서 거른다.
+ * 태그 필터는 AND(고른 태그를 모두 가진 문제)이고 서버가 처리한다 - 번호·제목·태그 이름 검색, 난이도·내 상태 필터, 정렬은 화면에서 한다.
+ * 목록은 많아야 수백 개(HOJ 레포 100 + 출제분)라 서버 정렬·페이징 없이 통째로 받아 화면에서 거른다.
+ * P3(docs hoj/api.md 1절·10절): 푼 사람·제출·정답률 열(서버 값 그대로), 내 상태 필터(myStatus·bookmarked), 북마크 별, 랜덤 문제(안 푼 문제 중).
  */
 
 /** 목록 정렬 - 서버는 번호 오름차순으로만 준다. 값이 같으면 번호 오름차순으로 묶어 순서가 흔들리지 않게 */
-type ProblemSort = 'no-asc' | 'no-desc' | 'difficulty-asc' | 'difficulty-desc' | 'unsolved-first' | 'assigned-desc'
+type ProblemSort = 'no-asc' | 'no-desc' | 'difficulty-asc' | 'difficulty-desc' | 'unsolved-first' | 'assigned-desc' | 'solved-desc' | 'rate-asc'
 
 const SORT_OPTIONS: ReadonlyArray<{ value: ProblemSort; label: string }> = [
   { value: 'no-asc', label: '번호 오름차순' },
@@ -36,7 +39,35 @@ const SORT_OPTIONS: ReadonlyArray<{ value: ProblemSort; label: string }> = [
   { value: 'difficulty-desc', label: '난이도 높은 순' },
   { value: 'unsolved-first', label: '안 푼 문제 먼저' },
   { value: 'assigned-desc', label: '출제 많은 순' },
+  { value: 'solved-desc', label: '푼 사람 많은 순' },
+  { value: 'rate-asc', label: '정답률 낮은 순' },
 ]
+
+/** 내 상태 필터 (P3) - 클라이언트 필터. "안 푼" = 아직 못 푼 문제 전부(시도 중 포함), "시도 중"은 그중 채점받은 적 있는 것 */
+type StatusFilter = 'all' | 'unsolved' | 'attempted' | 'solved' | 'bookmarked'
+
+const STATUS_OPTIONS: ReadonlyArray<{ value: StatusFilter; label: string }> = [
+  { value: 'all', label: '전체' },
+  { value: 'unsolved', label: '안 푼' },
+  { value: 'attempted', label: '시도 중' },
+  { value: 'solved', label: '해결' },
+  { value: 'bookmarked', label: '북마크' },
+]
+
+function matchesStatus(problem: ProblemSummary, filter: StatusFilter): boolean {
+  switch (filter) {
+    case 'all':
+      return true
+    case 'unsolved':
+      return problem.myStatus !== 'SOLVED'
+    case 'attempted':
+      return problem.myStatus === 'ATTEMPTED'
+    case 'solved':
+      return problem.myStatus === 'SOLVED'
+    case 'bookmarked':
+      return problem.bookmarked
+  }
+}
 
 /** 난이도 미지정(null)은 오름차순·내림차순 어느 쪽이든 맨 뒤 */
 function compareProblems(a: ProblemSummary, b: ProblemSummary, sort: ProblemSort): number {
@@ -59,6 +90,16 @@ function compareProblems(a: ProblemSummary, b: ProblemSummary, sort: ProblemSort
       return a.solved === b.solved ? byNo : a.solved ? 1 : -1
     case 'assigned-desc':
       return b.assignedCount - a.assignedCount || byNo
+    case 'solved-desc':
+      return b.solvedUserCount - a.solvedUserCount || byNo
+    case 'rate-asc': {
+      // 정답률 없음(채점 0건)은 맨 뒤
+      if (a.acceptedRate === null || b.acceptedRate === null) {
+        if (a.acceptedRate === b.acceptedRate) return byNo
+        return a.acceptedRate === null ? 1 : -1
+      }
+      return a.acceptedRate - b.acceptedRate || byNo
+    }
   }
 }
 
@@ -67,9 +108,11 @@ const TAG_PREVIEW_COUNT = 20
 
 export default function ProblemsPage() {
   const { data: me } = useMe()
+  const navigate = useNavigate()
   const [selectedTags, setSelectedTags] = useState<number[]>([])
   const [keyword, setKeyword] = useState('')
   const [tier, setTier] = useState<number | null>(null) // 난이도 대분류 필터 - 화면에서 거른다
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all') // 내 상태·북마크 필터 - 목록은 전건 응답이라 화면에서 거른다
   const [sort, setSort] = useState<ProblemSort>('no-asc')
   const [tagQuery, setTagQuery] = useState('') // 태그 버튼 목록을 이름으로 좁힌다 - 문제 검색과는 별개
   const [showAllTags, setShowAllTags] = useState(false)
@@ -90,8 +133,17 @@ export default function ProblemsPage() {
   const problems = (problemsQuery.data ?? [])
     .filter(matchesTerm)
     .filter((problem) => tier === null || tierOf(problem.difficulty) === tier)
+    .filter((problem) => matchesStatus(problem, statusFilter))
     .sort((a, b) => compareProblems(a, b, sort))
-  const hasFilter = term !== '' || selectedTags.length > 0 || tier !== null
+  const hasFilter = term !== '' || selectedTags.length > 0 || tier !== null || statusFilter !== 'all'
+
+  // 랜덤 문제 - 지금 보이는 목록 중 아직 못 푼(채점 가능한) 문제 하나로. 필터를 걸어 두면 그 안에서 고른다
+  const randomPool = problems.filter((problem) => problem.myStatus !== 'SOLVED' && problem.judgeEnabled)
+  const goRandom = () => {
+    if (randomPool.length === 0) return
+    const pick = randomPool[Math.floor(Math.random() * randomPool.length)]
+    navigate(`/problems/${pick.id}`)
+  }
 
   // 태그별 문제 수 - 서버가 준 목록(고른 태그 AND) 기준. 태그를 고른 상태에서 0 이면 그 태그를 더해도 남는 문제가 없다는 뜻
   const tagCounts = useMemo(() => {
@@ -134,6 +186,16 @@ export default function ProblemsPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={goRandom}
+            disabled={!problemsQuery.data || randomPool.length === 0}
+            title={problemsQuery.data && randomPool.length === 0 ? '지금 목록에 안 푼 문제가 없어요' : '아직 못 푼 문제 중 하나로'}
+          >
+            <Shuffle data-icon="inline-start" />
+            랜덤 문제
+          </Button>
           {/* 번들 가져오기는 관리자만 - 태그 어휘까지 만들기 때문 (BE @AdminOnly) */}
           {isAdminRole(me?.globalRole) && (
             <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
@@ -166,7 +228,6 @@ export default function ProblemsPage() {
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {problemsQuery.data && <span className="text-xs text-muted-foreground">{problems.length}문제</span>}
             <Label htmlFor="problem-sort" className="sr-only">
               문제 정렬
             </Label>
@@ -187,6 +248,26 @@ export default function ProblemsPage() {
               ))}
             </select>
           </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 text-xs" aria-label="내 상태 필터">
+          <span className="mr-1 font-semibold text-muted-foreground">내 상태</span>
+          {STATUS_OPTIONS.map((option) => {
+            const selected = statusFilter === option.value
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setStatusFilter(option.value)}
+                className={cn(
+                  'rounded-md border px-2.5 py-1 transition-colors',
+                  selected ? 'border-primary bg-secondary font-semibold text-primary' : 'hover:bg-secondary/50',
+                )}
+              >
+                {option.label}
+              </button>
+            )
+          })}
         </div>
         <div className="flex flex-wrap items-center gap-1.5 text-xs" aria-label="난이도 필터">
           <span className="mr-1 font-semibold text-muted-foreground">난이도</span>
@@ -272,7 +353,7 @@ export default function ProblemsPage() {
         <EmptyState
           icon={<Code className="size-8" />}
           title={hasFilter ? '조건에 맞는 문제가 없어요' : '아직 등록된 문제가 없어요'}
-          description={hasFilter ? '검색어·난이도·태그를 바꿔 보세요.' : '운영진이 문제를 출제하면 여기에 모입니다.'}
+          description={hasFilter ? '검색어·내 상태·난이도·태그를 바꿔 보세요.' : '운영진이 문제를 출제하면 여기에 모입니다.'}
         />
       ) : (
         <section className="overflow-hidden rounded-lg border bg-card">
@@ -280,12 +361,18 @@ export default function ProblemsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted text-[13px] tracking-[0.55px] text-muted-foreground">
-                  <th className="px-4 py-2 text-left font-bold">번호</th>
-                  <th className="px-2 py-2 text-left font-bold">난이도</th>
+                  <th className="w-8 py-2 pl-3 text-left font-bold">
+                    <span className="sr-only">북마크</span>
+                  </th>
+                  <th className="px-2 py-2 text-left font-bold whitespace-nowrap">번호</th>
+                  <th className="px-2 py-2 text-left font-bold whitespace-nowrap">난이도</th>
                   <th className="px-2 py-2 text-left font-bold">제목</th>
                   <th className="px-2 py-2 text-left font-bold">태그</th>
-                  <th className="px-2 py-2 text-center font-bold">출제</th>
-                  <th className="px-4 py-2 text-center font-bold">내 상태</th>
+                  <th className="px-2 py-2 text-right font-bold whitespace-nowrap">푼 사람</th>
+                  <th className="px-2 py-2 text-right font-bold whitespace-nowrap">제출</th>
+                  <th className="px-2 py-2 text-right font-bold whitespace-nowrap">정답률</th>
+                  <th className="px-2 py-2 text-center font-bold whitespace-nowrap">출제</th>
+                  <th className="px-4 py-2 text-center font-bold whitespace-nowrap">내 상태</th>
                 </tr>
               </thead>
               <tbody>
@@ -294,6 +381,10 @@ export default function ProblemsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="border-t bg-muted px-4 py-2 text-xs text-muted-foreground">
+            총 {problems.length}문제
+            {hasFilter && problemsQuery.data && problems.length !== problemsQuery.data.length && ` · 전체 ${problemsQuery.data.length}문제 중`}
           </div>
         </section>
       )}
@@ -304,7 +395,10 @@ export default function ProblemsPage() {
 function ProblemRow({ problem }: { problem: ProblemSummary }) {
   return (
     <tr className="border-b last:border-0 hover:bg-secondary/40">
-      <td className="px-4 py-3">
+      <td className="py-3 pl-2">
+        <BookmarkButton problemId={problem.id} bookmarked={problem.bookmarked} />
+      </td>
+      <td className="px-2 py-3">
         <Link to={`/problems/${problem.id}`} className="font-mono font-semibold text-primary">
           #{problem.problemNo}
         </Link>
@@ -312,15 +406,16 @@ function ProblemRow({ problem }: { problem: ProblemSummary }) {
       <td className="px-2 py-3">
         <DifficultyBadge value={problem.difficulty} />
       </td>
-      <td className="px-2 py-3">
+      {/* 좁은 화면에서 제목이 한 글자씩 꺾이지 않게 최소 폭 - 표는 overflow-x-auto 로 가로 스크롤 */}
+      <td className="min-w-[14rem] px-2 py-3">
         <Link to={`/problems/${problem.id}`} className="font-medium hover:underline">
           {problem.title}
         </Link>
         {!problem.judgeEnabled && (
-          <span className="ml-2 text-xs text-muted-foreground">채점 기준 없음</span>
+          <span className="ml-2 text-xs whitespace-nowrap text-muted-foreground">채점 기준 없음</span>
         )}
         {problem.allowedLanguages.length > 0 && (
-          <span className="ml-2 rounded-md bg-info-bg px-1.5 py-0.5 text-[11px] font-semibold text-info">{problem.allowedLanguages.join(' · ')} 전용</span>
+          <span className="ml-2 rounded-md bg-info-bg px-1.5 py-0.5 text-[11px] font-semibold whitespace-nowrap text-info">{problem.allowedLanguages.join(' · ')} 전용</span>
         )}
       </td>
       <td className="px-2 py-3">
@@ -332,18 +427,17 @@ function ProblemRow({ problem }: { problem: ProblemSummary }) {
           ))}
         </span>
       </td>
-      <td className="px-2 py-3 text-center text-xs text-muted-foreground">
+      {/* P3 통계 - 서버 값 그대로. 정답률은 채점 0건이면 null → "-" */}
+      <td className="px-2 py-3 text-right font-mono text-xs whitespace-nowrap">{problem.solvedUserCount}</td>
+      <td className="px-2 py-3 text-right font-mono text-xs whitespace-nowrap text-muted-foreground">{problem.submissionCount}</td>
+      <td className="px-2 py-3 text-right font-mono text-xs whitespace-nowrap">
+        {problem.acceptedRate === null ? <span className="text-muted-foreground">-</span> : `${problem.acceptedRate}%`}
+      </td>
+      <td className="px-2 py-3 text-center text-xs whitespace-nowrap text-muted-foreground">
         {problem.assignedCount === 0 ? '-' : `${problem.assignedCount}회`}
       </td>
       <td className="px-4 py-3 text-center">
-        {problem.solved ? (
-          <span className="inline-flex items-center gap-1 rounded-md bg-success-bg px-2 py-0.5 text-xs font-bold text-success">
-            <Check className="size-3" />
-            해결
-          </span>
-        ) : (
-          <span className="text-xs text-muted-foreground">-</span>
-        )}
+        <MyStatusBadge status={problem.myStatus} />
       </td>
     </tr>
   )

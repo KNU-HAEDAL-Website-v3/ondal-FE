@@ -1,11 +1,12 @@
 import { Link } from 'react-router'
-import { Archive, BookOpen, CircleCheckBig, ClipboardList, Code, GraduationCap, Palette } from 'lucide-react'
+import { Archive, BookOpen, CircleCheckBig, ClipboardList, Code, GraduationCap, Palette, SlidersHorizontal } from 'lucide-react'
 import { useMe } from '@/api/auth'
 import { useMyCohorts } from '@/api/cohorts'
 import { useMyStats } from '@/api/me'
 import { ApiErrorView } from '@/components/ApiErrorView'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { EditorThemeGallery } from '@/components/code/CodePane'
+import { EditorSettingsFields } from '@/components/code/EditorSettingsFields'
 import { StatCard } from '@/components/dashboard/StatCard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,8 +15,9 @@ import { isAdminRole, globalRoleLabel } from '@/lib/roles'
 
 /**
  * 마이페이지 - /me (2026-09-19 신설: 원안 피그마·와이어프레임에 없던 화면 - 화면 정의는 docs `screens/my-page.md`). 상단 바의 내 이름을 누르면 온다.
- * 홈 대시보드와 같은 문법: 헤더 → KPI 카드 4장(StatCard) → 1:2 그리드(내 정보 · 코드 에디터 테마) → 소속 분반.
- * 이름·아이디는 홈페이지(Keycloak)가 원본이라 여기서 고칠 수 없다 - 바꾸려면 홈페이지에서. 점수·랭킹은 없다(P3 티어 이전).
+ * 홈 대시보드와 같은 문법: 헤더 → KPI 카드 4장(StatCard) → 1:2 그리드(내 정보 · 코드 에디터 테마 + 편집기 설정) → 소속 분반.
+ * 이름·아이디는 홈페이지(Keycloak)가 원본이라 여기서 고칠 수 없다 - 바꾸려면 홈페이지에서. 점수는 없다.
+ * 랭킹·푼 문제·잔디 같은 HOJ 활동은 "HOJ 내 페이지"(/problems/users/{내 id}, P3)에 있다 - 여기서는 링크만.
  * 로그아웃은 사이드바에 있으므로 여기 두지 않는다.
  */
 export default function MyPage() {
@@ -40,10 +42,19 @@ export default function MyPage() {
         <span className="flex size-12 items-center justify-center rounded-full border bg-neutral-bg text-lg font-bold text-foreground">
           {me?.name?.charAt(0) ?? '?'}
         </span>
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight">{me?.name}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">{roleLabel}</p>
         </div>
+        {/* HOJ 활동(랭킹·푼 문제·잔디)은 HOJ 모드의 내 페이지에 - 확인 팝업 없이 바로 간다 (docs hoj/api.md 10절 "HOJ 내 페이지 링크") */}
+        {me && (
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/problems/users/${me.id}`}>
+              <Code data-icon="inline-start" />
+              HOJ 내 페이지
+            </Link>
+          </Button>
+        )}
       </header>
 
       {/* 활동 - 홈은 현재 분반 기준, 여기는 가입 후 누적. 값은 전부 서버(/api/me/stats) 그대로 */}
@@ -95,6 +106,16 @@ export default function MyPage() {
           <p className="mt-1 text-xs text-muted-foreground">과제 제출·문제 풀이·코드 열람 화면의 편집기에 바로 적용돼요.</p>
           <div className="mt-3">
             <EditorThemeGallery />
+          </div>
+          {/* P3 편집기 설정 - 글꼴 크기·탭 폭. 테마와 같은 저장 방식(lib/editorSettings) */}
+          <div className="mt-4 border-t pt-4">
+            <h3 className="flex items-center gap-1.5 text-xs font-bold tracking-[0.55px] text-muted-foreground">
+              <SlidersHorizontal className="size-3.5" aria-hidden />
+              편집기 설정
+            </h3>
+            <div className="mt-2">
+              <EditorSettingsFields />
+            </div>
           </div>
         </section>
       </div>

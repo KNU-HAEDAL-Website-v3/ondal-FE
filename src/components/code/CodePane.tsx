@@ -38,6 +38,8 @@ export interface CodeEditorProps {
   fullscreen?: boolean
   /** 전체 화면 토글 버튼 - 주면 도구 줄에 생긴다. 실제 덮개는 호출자가 그린다 (FullscreenPane) */
   onToggleFullscreen?: () => void
+  /** Ctrl+Enter(Cmd+Enter) 로 제출 - 주면 편집기 안에서 그 키가 이 함수를 부른다 (HOJ P3) */
+  onSubmit?: () => void
 }
 
 export function CodeEditor(props: CodeEditorProps) {
