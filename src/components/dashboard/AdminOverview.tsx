@@ -109,6 +109,7 @@ export function AdminOverview() {
               { to: '/members', label: '부원 관리' },
               { to: '/admin/cohorts', label: '분반 관리' },
               { to: '/problems', label: 'HOJ 문제' },
+              { to: '/problems/status', label: '채점 현황' },
               { to: '/admin/tags', label: '태그 관리' },
             ].map((item) => (
               <li key={item.to}>

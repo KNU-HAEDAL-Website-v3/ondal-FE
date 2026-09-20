@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { ArrowLeft, Check } from 'lucide-react'
 import { ApiError } from '@/api/client'
 import { useJudgeConfig, useSaveJudgeConfig } from '@/api/judge'
-import { useCreateProblem, useProblem, useUpdateProblem } from '@/api/problems'
+import { useCreateProblem, useProblem, useProblemSolutions, useSaveProblemSolutions, useUpdateProblem } from '@/api/problems'
 import { useTags } from '@/api/tags'
 import type { ProblemPayload } from '@/api/types'
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,7 @@ import {
   type JudgeDraft,
 } from '@/components/judge/JudgeConfigSection'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { SolutionsSection, type SolutionDraft } from '@/components/problems/SolutionsSection'
 import { clearDraft, readDraft, writeDraft } from '@/lib/draft'
 import { LANGUAGES } from '@/lib/languages'
 import { TIER_LABELS, subOf, tierOf, toDifficulty } from '@/lib/difficulty'
@@ -39,13 +40,15 @@ interface ProblemDraft {
   tagIds: number[]
   difficulty?: number | null
   allowedLanguages?: string[]
+  /** 정답 코드 초안 (P3) - 없으면(구 초안) 서버 값으로 채운다 */
+  solutions?: SolutionDraft[]
 }
 
 /**
  * 문제 출제·수정 (운영진 이상) - /problems/new · /problems/:problemId/edit.
  *
  * V7: 문제는 분반에 속하지 않는다 - 제목·본문·번호·태그·테스트케이스가 전부 여기 모인다.
- * 저장 버튼 하나로 문제 저장 -> 채점 설정 저장 순서로 두 번 부른다 (새 문제는 생성 응답의 id 로 이어서).
+ * 저장 버튼 하나로 문제 저장 -> 채점 설정 저장 -> 정답 코드 저장(P3, PUT /solutions) 순서로 부른다 (새 문제는 생성 응답의 id 로 이어서).
  * 작성 내용은 세션 만료에 대비해 임시 저장한다 (CLAUDE.md 규칙 1).
  */
 export default function ProblemFormPage() {
@@ -56,6 +59,7 @@ export default function ProblemFormPage() {
 
   const existingQuery = useProblem(editing ? (problemId as number) : NaN)
   const judgeQuery = useJudgeConfig(editing ? (problemId as number) : NaN, editing)
+  const solutionsQuery = useProblemSolutions(editing ? (problemId as number) : NaN, editing)
   const tagsQuery = useTags()
 
   const key = draftKey(problemId)
@@ -72,12 +76,17 @@ export default function ProblemFormPage() {
   const [judgeDraft, setJudgeDraft] = useState<JudgeDraft>(emptyDraft)
   const [judgeInitial, setJudgeInitial] = useState<JudgeDraft>(emptyDraft)
   const [judgePrefilled, setJudgePrefilled] = useState(false)
+  // 정답 코드 (P3) - 초안에 있으면 그것, 없으면 수정 모드의 서버 값으로. 저장 뒤 비교용 initial 은 서버 값
+  const [solutions, setSolutions] = useState<SolutionDraft[]>(saved?.solutions ?? [])
+  const [solutionsInitial, setSolutionsInitial] = useState<SolutionDraft[]>([])
+  const [solutionsPrefilled, setSolutionsPrefilled] = useState(!editing || saved?.solutions !== undefined)
   const [error, setError] = useState<string | null>(null)
 
   const createMutation = useCreateProblem()
   const updateMutation = useUpdateProblem(editing ? (problemId as number) : NaN)
   const saveJudge = useSaveJudgeConfig()
-  const pending = createMutation.isPending || updateMutation.isPending || saveJudge.isPending
+  const saveSolutions = useSaveProblemSolutions()
+  const pending = createMutation.isPending || updateMutation.isPending || saveJudge.isPending || saveSolutions.isPending
 
   useEffect(() => {
     if (editing && existingQuery.data && !prefilled) {
@@ -101,10 +110,20 @@ export default function ProblemFormPage() {
   }, [judgeQuery.data, judgePrefilled])
 
   useEffect(() => {
+    if (!solutionsQuery.data) return
+    const fromServer = solutionsQuery.data.map((s) => ({ language: s.language, codeText: s.codeText }))
+    setSolutionsInitial(fromServer)
+    if (!solutionsPrefilled) {
+      setSolutions(fromServer)
+      setSolutionsPrefilled(true)
+    }
+  }, [solutionsQuery.data, solutionsPrefilled])
+
+  useEffect(() => {
     if (!prefilled) return
-    if (title === '' && description === '' && tagIds.length === 0 && difficulty === null && allowedLanguages.length === 0) clearDraft(key)
-    else writeDraft<ProblemDraft>(key, { problemNo, title, description, tagIds, difficulty, allowedLanguages })
-  }, [key, prefilled, problemNo, title, description, tagIds, difficulty, allowedLanguages])
+    if (title === '' && description === '' && tagIds.length === 0 && difficulty === null && allowedLanguages.length === 0 && solutions.length === 0) clearDraft(key)
+    else writeDraft<ProblemDraft>(key, { problemNo, title, description, tagIds, difficulty, allowedLanguages, solutions })
+  }, [key, prefilled, problemNo, title, description, tagIds, difficulty, allowedLanguages, solutions])
 
   if (editing && !Number.isFinite(problemId)) {
     return <ApiErrorView error={new ApiError(404, 'NOT_FOUND', '존재하지 않는 문제 주소예요.')} />
@@ -132,6 +151,9 @@ export default function ProblemFormPage() {
   const sub = subOf(difficulty)
 
   const judgeChanged = !draftEquals(judgeDraft, judgeInitial)
+  // 빈 언어는 저장하지 않는다 (서버는 빈 코드 400) - 비교도 그 기준으로
+  const solutionsToSave = solutions.filter((s) => s.codeText.trim() !== '')
+  const solutionsChanged = JSON.stringify(solutionsToSave) !== JSON.stringify(solutionsInitial)
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -157,6 +179,10 @@ export default function ProblemFormPage() {
         : await createMutation.mutateAsync(payload())
       if (!editing || judgeChanged) {
         await saveJudge.mutateAsync({ problemId: savedProblem.id, payload: toPayload(judgeDraft, rejudge) })
+      }
+      // 정답 코드 - 새 문제는 하나라도 있을 때, 수정은 바뀌었을 때만 (P3 6절, 전체 교체)
+      if ((!editing && solutionsToSave.length > 0) || (editing && solutionsChanged)) {
+        await saveSolutions.mutateAsync({ problemId: savedProblem.id, payload: { solutions: solutionsToSave } })
       }
       clearDraft(key)
       navigate(`/problems/${savedProblem.id}`, { replace: true })
@@ -326,6 +352,15 @@ export default function ProblemFormPage() {
           onChange={setJudgeDraft}
           disabled={pending}
         />
+
+        {/* P3 정답 코드(참고 풀이) - 운영진만 보는 폼이므로 그대로. 수정 모드는 서버 값으로 미리 채운다 */}
+        {editing && solutionsQuery.isPending ? (
+          <p className="text-sm text-muted-foreground">정답 코드 불러오는 중...</p>
+        ) : editing && solutionsQuery.error ? (
+          <ApiErrorView error={solutionsQuery.error} onRetry={() => void solutionsQuery.refetch()} />
+        ) : (
+          <SolutionsSection draft={solutions} onChange={setSolutions} disabled={pending} />
+        )}
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 

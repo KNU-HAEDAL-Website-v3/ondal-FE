@@ -160,6 +160,9 @@ export interface TagPayload {
   name: string
 }
 
+/** 나의 문제 상태 (HOJ P3, hoj/api.md 1절) - SOLVED(맞힌 적 있음) / ATTEMPTED(채점된 제출은 있으나 아직) / NONE */
+export type ProblemMyStatus = 'SOLVED' | 'ATTEMPTED' | 'NONE'
+
 /** GET /api/problems 행 - 본문은 빼고 목록에 필요한 것만 */
 export interface ProblemSummary {
   id: number
@@ -170,12 +173,22 @@ export interface ProblemSummary {
   judgeEnabled: boolean
   /** 과제로 배정된 횟수 - 0이면 아직 한 번도 안 낸 문제 */
   assignedCount: number
-  /** 요청자가 맞힌 적이 있는가 - 과제 제출·HOJ 연습 어느 쪽이든 */
+  /** 요청자가 맞힌 적이 있는가 - 과제 제출·HOJ 연습 어느 쪽이든. myStatus 의 하위 호환 */
   solved: boolean
   /** 난이도 1~25 - 표기 "대분류-소분류"(lib/difficulty). null = 미지정 (V9) */
   difficulty: number | null
   /** 제출 허용 언어 - 빈 배열이면 제한 없음. 제출 폼의 언어 선택지를 이 목록으로 좁힌다 (V9) */
   allowedLanguages: string[]
+  /** 이 문제를 푼 사람 수 - ACCEPTED 판정이 있는 사용자 수, 연습·과제 합산 (P3) */
+  solvedUserCount: number
+  /** 채점된 제출 수 - 연습·과제 합산 (P3) */
+  submissionCount: number
+  /** ACCEPTED 비율(%) - 채점된 제출이 0이면 null. 프론트 재계산 금지 (P3) */
+  acceptedRate: number | null
+  /** 나의 상태 - 목록의 내 상태 열·필터 (P3) */
+  myStatus: ProblemMyStatus
+  /** 내가 북마크했는지 - PUT/DELETE /bookmark 로 바뀐다 (P3) */
+  bookmarked: boolean
 }
 
 /** GET /api/problems/{id} - 목록 행 + 본문·제한·권한 판정값 */
@@ -190,6 +203,124 @@ export interface ProblemResponse extends ProblemSummary {
   updatedAt: string
   /** 수정·삭제 버튼 분기 - 프론트는 이 값만 본다 */
   canEdit: boolean
+  /** 저장된 정답 코드(참고 풀이)의 언어 목록 - 운영진 이상에게만 값, 그 밖에는 [] (P3, 6절) */
+  solutionLanguages: string[]
+}
+
+// ---- HOJ P3 - 채점 현황 · 사용자 페이지 · 랭킹 · 풀이 공개 · 정답 코드 · 실행 (docs hoj/api.md) ----------
+
+/** 피드·사용자 페이지의 문제 요약 - 번호·제목만 (상세 링크용) */
+export interface HojProblemRef {
+  id: number
+  problemNo: number
+  title: string
+}
+
+/** GET /api/hoj/submissions 의 items 항목 - 연습 제출 1건. codeText 는 내려오지 않는다 (2절) */
+export interface HojSubmissionItem {
+  id: number
+  problem: HojProblemRef
+  user: UserSummary
+  language: string
+  judgeStatus: JudgeStatus
+  /** 채점 중(PENDING/RUNNING)이면 null */
+  verdict: Verdict | null
+  passedCases: number
+  totalCases: number
+  maxTimeMs: number | null
+  maxMemoryKb: number | null
+  submittedAt: string
+}
+
+/** GET /api/hoj/submissions - 최신 제출 먼저(id desc). nextBeforeId 가 null 이면 더 없음 */
+export interface HojSubmissionFeed {
+  items: HojSubmissionItem[]
+  /** 다음 페이지 커서 = 마지막 항목 id. 더 없으면 null */
+  nextBeforeId: number | null
+}
+
+/** 사용자 페이지의 푼 문제·시도 중 문제 격자 항목 */
+export interface HojProblemChip extends HojProblemRef {
+  difficulty: number | null
+}
+
+/** GET /api/hoj/users/{userId} - 활동 통계 (3절). 값은 전부 서버 계산 - 재계산 금지 */
+export interface HojUserPageResponse {
+  user: UserSummary
+  /** 계정 생성 시각(UTC) */
+  joinedAt: string
+  /** 4절 랭킹의 순위 - 푼 문제 0개면 null */
+  rank: number | null
+  stats: {
+    /** 푼 문제 수 - 연습·과제 합산 */
+    solvedCount: number
+    /** 시도 중인 문제 수 */
+    attemptedCount: number
+    /** 연습 제출 수 */
+    submissionCount: number
+    /** 연습 제출 중 ACCEPTED 수 */
+    acceptedCount: number
+    /** 연습 제출 정답률(%) - 제출 0건이면 null */
+    acceptedRate: number | null
+  }
+  /** 연습 제출의 언어별 건수 - 많은 순 */
+  languages: { language: string; count: number }[]
+  /** 번호 오름차순 */
+  solvedProblems: HojProblemChip[]
+  attemptedProblems: HojProblemChip[]
+  /** 태그별 푼 문제 / 전체 문제 - 태그 이름순, total 0 인 태그 생략 */
+  tagStats: { tag: TagResponse; solved: number; total: number }[]
+  /** 최근 365일 KST 날짜별 연습 제출 수 - 0인 날은 생략 */
+  activity: { date: string; count: number }[]
+  /** 최근 연습 제출 20건 - 피드 항목과 같은 모양 */
+  recentSubmissions: HojSubmissionItem[]
+}
+
+/** GET /api/hoj/ranking 행 - 동점은 같은 순위(1, 1, 3). 푼 문제 0개는 제외 (4절) */
+export interface HojRankingItem {
+  rank: number
+  user: UserSummary
+  solvedCount: number
+  /** 연습 제출 수 */
+  submissionCount: number
+  lastSolvedAt: string
+}
+
+export interface HojRankingResponse {
+  items: HojRankingItem[]
+  /** 요청자의 순위 - 푼 문제 0개면 null */
+  me: { rank: number; solvedCount: number } | null
+}
+
+/** GET /api/problems/{id}/accepted-solutions 항목 - 사용자당 최신 정답 1건, 요청자 본인 제외 (5절). 못 푼 사람은 403 NOT_SOLVED */
+export interface AcceptedSolution {
+  submissionId: number
+  user: UserSummary
+  language: string
+  codeText: string
+  submittedAt: string
+  maxTimeMs: number | null
+  maxMemoryKb: number | null
+}
+
+/** GET·PUT /api/problems/{id}/solutions 응답 항목 - 언어별 참고 풀이, 운영진 이상만 (6절) */
+export interface ProblemSolution {
+  language: string
+  codeText: string
+  updatedBy: UserSummary
+  updatedAt: string
+}
+
+/** PUT /api/problems/{id}/solutions 본문 - 전체 교체(빈 배열 = 모두 삭제). 최대 6개, 언어 중복 400, 코드 100,000자 이하 */
+export interface ProblemSolutionsPayload {
+  solutions: { language: string; codeText: string }[]
+}
+
+/** POST /api/problems/{id}/run 본문 - 저장 없이 내 입력으로 실행 (8절). inputs 1~5개. 응답은 JudgeRunResponse. 분당 10회 초과 429 TOO_MANY_REQUESTS */
+export interface ProblemRunPayload {
+  language: string
+  sourceCode: string
+  inputs: string[]
 }
 
 /** POST·PUT /api/problems 요청 (운영진 이상) - 테스트케이스·제한은 .../judge 에서 따로 */

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router'
-import { Code2, LayoutGrid, ListChecks, LogOut, Tags } from 'lucide-react'
+import { Activity, Code2, LayoutGrid, ListChecks, LogOut, Tags, Trophy, UserRound } from 'lucide-react'
 import { useLogout, useMe } from '@/api/auth'
 import { SiteFooter } from '@/components/SiteFooter'
 import { AppSwitchButton } from '@/components/AppSwitchButton'
@@ -14,16 +14,22 @@ import { isAdminRole, globalRoleLabel } from '@/lib/roles'
  * Ondal 의 AppShell(좌측 사이드바 + 분반 운영 메뉴)과 일부러 다르게 생겼다:
  * HOJ 는 "문제를 골라 푼다"가 거의 전부라 좌측에 상시 메뉴를 둘 만큼 화면이 많지 않고,
  * 문제 본문·에디터에 가로 폭을 주는 편이 낫다. 나중에 대회가 붙으면 여기에 한 줄이 늘어난다.
+ * P3(docs hoj/api.md 10절): 문제 · 채점 현황 · 랭킹 · 내 페이지(/problems/users/{내 id}) · 태그 관리(관리자).
  */
-const NAV = [
-  { to: '/problems', label: '문제', icon: ListChecks },
-  { to: '/admin/tags', label: '태그 관리', icon: Tags, adminOnly: true },
-] as const
+/** 정적 경로들 - "문제" 메뉴는 /problems 와 /problems/:id 에서만 활성, 이 접두사들에서는 아니다 */
+const HOJ_STATIC = ['/problems/status', '/problems/ranking', '/problems/users']
 
 export function HojShell() {
   const { data: me } = useMe()
   const { pathname, search } = useLocation()
   const navigate = useNavigate()
+  const nav = [
+    { to: '/problems', label: '문제', icon: ListChecks, adminOnly: false },
+    { to: '/problems/status', label: '채점 현황', icon: Activity, adminOnly: false },
+    { to: '/problems/ranking', label: '랭킹', icon: Trophy, adminOnly: false },
+    { to: `/problems/users/${me?.id ?? ''}`, label: '내 페이지', icon: UserRound, adminOnly: false },
+    { to: '/admin/tags', label: '태그 관리', icon: Tags, adminOnly: true },
+  ]
 
   // 같은 앱이라 탭 제목은 index.html 하나뿐 - HOJ 모드에 있는 동안만 바꾼다
   useEffect(() => {
@@ -49,12 +55,16 @@ export function HojShell() {
     })
   }
 
-  const isActive = (to: string) => pathname === to || pathname.startsWith(`${to}/`)
+  const isActive = (to: string) => {
+    if (to === '/problems') return pathname === to || (pathname.startsWith('/problems/') && !HOJ_STATIC.some((prefix) => pathname.startsWith(prefix)))
+    if (to.startsWith('/problems/users/')) return pathname === to
+    return pathname === to || pathname.startsWith(`${to}/`)
+  }
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-10 border-b bg-sidebar">
-        <div className="mx-auto flex h-14 max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4">
+        <div className="mx-auto flex min-h-14 max-w-6xl flex-wrap items-center gap-x-6 gap-y-1.5 px-4 py-2">
           <Link to="/problems" className="flex items-center gap-2">
             <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-hoj-brand">
               <Code2 className="size-5 text-white" />
@@ -65,16 +75,16 @@ export function HojShell() {
             </span>
           </Link>
 
-          <nav className="flex items-center gap-1">
-            {NAV.filter((item) => !('adminOnly' in item && item.adminOnly) || isAdminRole(me?.globalRole)).map((item) => {
+          <nav className="order-last flex w-full flex-wrap items-center gap-0.5 md:order-none md:w-auto md:gap-1">
+            {nav.filter((item) => !item.adminOnly || isAdminRole(me?.globalRole)).map((item) => {
               const active = isActive(item.to)
               return (
                 <Link
-                  key={item.to}
+                  key={item.label}
                   to={item.to}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
+                    'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap transition-colors md:px-3',
                     active ? 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground' : 'text-sidebar-foreground hover:bg-secondary',
                   )}
                 >

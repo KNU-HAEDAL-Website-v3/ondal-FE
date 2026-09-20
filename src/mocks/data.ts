@@ -289,6 +289,30 @@ int main(void) {
 // BE LocalDataSeeder와 동일: 1차시(마감 -3일)에 상태 4종 재현 - student1 제출(CODE) / student2 제출(추가)(CODE→LINK) / student3 지각(LINK).
 // 2차시는 student1만 제출(나머지 미제출). FILE 제출은 시딩하지 않는다(파일 실체가 필요해 부적합).
 // student1 의 1차시 제출에 operator1 코멘트 1건 - 코멘트 상자·배지·현황판 표시를 바로 확인 (BE 시더 동일)
+const samplePython = `a, b = map(int, input().split())
+print(a + b)
+`
+
+const sampleJava = `import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        System.out.println(sc.nextInt() + sc.nextInt());
+    }
+}
+`
+
+const sampleTimes = `#include <stdio.h>
+
+int main(void) {
+    int n;
+    scanf("%d", &n);
+    for (int i = 1; i <= 3; i++) printf("%d%c", n * i, i == 3 ? '\\n' : ' ');
+    return 0;
+}
+`
+
 export const submissions: MockSubmission[] = [
   { id: 1, assignmentId: 1, loginId: 'student1', type: 'CODE', codeText: sampleCode, language: 'C', fileName: null, fileSize: null, links: [], submittedAt: days(-5),
     comment: { content: '입력 처리가 깔끔합니다. 변수명(a, b)만 조금 더 의미 있게 지어 보세요.', loginId: 'operator1', commentedAt: days(-4) } },
@@ -296,7 +320,34 @@ export const submissions: MockSubmission[] = [
   { id: 3, assignmentId: 1, loginId: 'student2', type: 'LINK', codeText: null, language: null, fileName: null, fileSize: null, links: ['https://github.com/example/aplusb', 'https://aplusb.example.dev'], submittedAt: days(-1), comment: null },
   { id: 4, assignmentId: 1, loginId: 'student3', type: 'LINK', codeText: null, language: null, fileName: null, fileSize: null, links: ['https://github.com/example/late-submit'], submittedAt: days(-1), comment: null },
   { id: 5, assignmentId: 2, loginId: 'student1', type: 'CODE', codeText: sampleCode, language: 'C', fileName: null, fileSize: null, links: [], submittedAt: hours(-1), comment: null },
+  // ---- HOJ 연습 제출 (P3 화면 확인용 - 채점 현황·랭킹·사용자 페이지·다른 사람 풀이가 이 기록으로 채워진다) ----
+  // 1000(A+B): student1 Python 정답 · student2 오답 뒤 정답 · student3 컴파일 에러 / 1001(구구단, C 전용): operator1·student1 정답, student2 시간 초과, student3 오답
+  { id: 6, assignmentId: null, problemId: 1, loginId: 'student1', type: 'CODE', codeText: samplePython, language: 'Python 3', fileName: null, fileSize: null, links: [], submittedAt: days(-6), comment: null },
+  { id: 7, assignmentId: null, problemId: 1, loginId: 'student2', type: 'CODE', codeText: sampleCode.replace('a + b', 'a - b'), language: 'C', fileName: null, fileSize: null, links: [], submittedAt: days(-2), comment: null },
+  { id: 8, assignmentId: null, problemId: 1, loginId: 'student2', type: 'CODE', codeText: sampleCode, language: 'C', fileName: null, fileSize: null, links: [], submittedAt: hours(-47), comment: null },
+  { id: 9, assignmentId: null, problemId: 1, loginId: 'student3', type: 'CODE', codeText: sampleJava.replace('nextInt()', 'nextInt('), language: 'Java', fileName: null, fileSize: null, links: [], submittedAt: days(-1), comment: null },
+  { id: 10, assignmentId: null, problemId: 2, loginId: 'student3', type: 'CODE', codeText: sampleTimes.replace('n * i', 'n + i'), language: 'C', fileName: null, fileSize: null, links: [], submittedAt: hours(-5), comment: null },
+  { id: 11, assignmentId: null, problemId: 2, loginId: 'operator1', type: 'CODE', codeText: sampleTimes, language: 'C', fileName: null, fileSize: null, links: [], submittedAt: hours(-3), comment: null },
+  { id: 12, assignmentId: null, problemId: 2, loginId: 'student1', type: 'CODE', codeText: sampleTimes, language: 'C', fileName: null, fileSize: null, links: [], submittedAt: hours(-2), comment: null },
+  { id: 13, assignmentId: null, problemId: 2, loginId: 'student2', type: 'CODE', codeText: sampleTimes.replace('i <= 3', 'i >= 1'), language: 'C', fileName: null, fileSize: null, links: [], submittedAt: hours(-0.5), comment: null },
 ]
+
+/** 문제별 정답 코드(참고 풀이, P3 6절) - 운영진 이상만 읽고 쓴다. 학생에게는 존재도 안 보인다 */
+export interface MockSolution {
+  problemId: number
+  language: string
+  codeText: string
+  updatedBy: string
+  updatedAt: string
+}
+
+export const problemSolutions: MockSolution[] = [
+  { problemId: 1, language: 'C', codeText: sampleCode, updatedBy: 'admin', updatedAt: days(-10) },
+  { problemId: 1, language: 'Python 3', codeText: samplePython, updatedBy: 'admin', updatedAt: days(-10) },
+]
+
+/** 북마크(P3 7절) - "loginId:problemId". 브라우저 세션 동안만 남는다 */
+export const bookmarks = new Set<string>(['student1:2'])
 
 // ---- 자동 채점 (docs judge/design.md) - BE LocalDataSeeder 동일: 1차시(A+B)에 케이스 3개(첫 번째 공개), 코드 제출 결과 student1 ACCEPTED 3/3 · student2 WRONG_ANSWER 2/3
 // 가짜 엔진(mocks/judge.ts)은 BE FakeJudgeEngine 과 같이 지시 주석 없으면 입력을 echo 한다 - 이 과제(기대 출력 = 합)에 새로 제출하면 틀렸습니다가 정상. 맞았습니다를 보려면 기대 출력 = 입력인 문제를 출제하거나 `// judge: AC` 대신 echo 규칙을 따른다
@@ -336,23 +387,65 @@ export const testCases: MockTestCase[] = [
   { id: 1, problemId: 1, position: 0, input: '1 2\n', expectedOutput: '3\n', isPublic: true },
   { id: 2, problemId: 1, position: 1, input: '10 20\n', expectedOutput: '30\n', isPublic: false },
   { id: 3, problemId: 1, position: 2, input: '-5 5\n', expectedOutput: '0\n', isPublic: false },
+  // 1001 도 자동 채점 (P3 mock 확장 - 랭킹·사용자 페이지에 푼 문제가 2개 이상 있어야 화면이 읽힌다)
+  { id: 4, problemId: 2, position: 0, input: '3\n', expectedOutput: '3 6 9\n', isPublic: true },
+  { id: 5, problemId: 2, position: 1, input: '7\n', expectedOutput: '7 14 21\n', isPublic: false },
 ]
 
+const acceptedAplusB = (submissionId: number, judgedAt: string): MockJudgeResult => ({
+  submissionId, problemId: 1, status: 'DONE', verdict: 'ACCEPTED', passedCases: 3, totalCases: 3, maxTimeMs: 3, maxMemoryKb: 1600, compileOutput: null, judgedAt,
+  cases: [
+    { position: 0, verdict: 'ACCEPTED', timeMs: 2, memoryKb: 1536, actualOutput: '3\n', truncated: false },
+    { position: 1, verdict: 'ACCEPTED', timeMs: 2, memoryKb: 1536, actualOutput: '30\n', truncated: false },
+    { position: 2, verdict: 'ACCEPTED', timeMs: 3, memoryKb: 1600, actualOutput: '0\n', truncated: false },
+  ],
+})
+
+const acceptedTimes = (submissionId: number, judgedAt: string): MockJudgeResult => ({
+  submissionId, problemId: 2, status: 'DONE', verdict: 'ACCEPTED', passedCases: 2, totalCases: 2, maxTimeMs: 4, maxMemoryKb: 1720, compileOutput: null, judgedAt,
+  cases: [
+    { position: 0, verdict: 'ACCEPTED', timeMs: 3, memoryKb: 1700, actualOutput: '3 6 9\n', truncated: false },
+    { position: 1, verdict: 'ACCEPTED', timeMs: 4, memoryKb: 1720, actualOutput: '7 14 21\n', truncated: false },
+  ],
+})
+
 export const judgeResults: MockJudgeResult[] = [
-  {
-    submissionId: 1, problemId: 1, status: 'DONE', verdict: 'ACCEPTED', passedCases: 3, totalCases: 3, maxTimeMs: 3, maxMemoryKb: 1600, compileOutput: null, judgedAt: days(-5),
-    cases: [
-      { position: 0, verdict: 'ACCEPTED', timeMs: 2, memoryKb: 1536, actualOutput: '3\n', truncated: false },
-      { position: 1, verdict: 'ACCEPTED', timeMs: 2, memoryKb: 1536, actualOutput: '30\n', truncated: false },
-      { position: 2, verdict: 'ACCEPTED', timeMs: 3, memoryKb: 1600, actualOutput: '0\n', truncated: false },
-    ],
-  },
+  acceptedAplusB(1, days(-5)),
   {
     submissionId: 2, problemId: 1, status: 'DONE', verdict: 'WRONG_ANSWER', passedCases: 2, totalCases: 3, maxTimeMs: 3, maxMemoryKb: 1600, compileOutput: null, judgedAt: days(-4),
     cases: [
       { position: 0, verdict: 'ACCEPTED', timeMs: 2, memoryKb: 1536, actualOutput: '3\n', truncated: false },
       { position: 1, verdict: 'ACCEPTED', timeMs: 2, memoryKb: 1536, actualOutput: '30\n', truncated: false },
       { position: 2, verdict: 'WRONG_ANSWER', timeMs: 3, memoryKb: 1600, actualOutput: '10\n', truncated: false },
+    ],
+  },
+  acceptedTimes(5, hours(-1)),
+  // ---- 연습 제출 결과 (submissions 6~13 과 짝) ----
+  { ...acceptedAplusB(6, days(-6)), maxTimeMs: 31, maxMemoryKb: 9800 },
+  {
+    submissionId: 7, problemId: 1, status: 'DONE', verdict: 'WRONG_ANSWER', passedCases: 1, totalCases: 3, maxTimeMs: 3, maxMemoryKb: 1600, compileOutput: null, judgedAt: days(-2),
+    cases: [
+      { position: 0, verdict: 'WRONG_ANSWER', timeMs: 2, memoryKb: 1536, actualOutput: '-1\n', truncated: false },
+      { position: 1, verdict: 'WRONG_ANSWER', timeMs: 2, memoryKb: 1536, actualOutput: '-10\n', truncated: false },
+      { position: 2, verdict: 'ACCEPTED', timeMs: 3, memoryKb: 1600, actualOutput: '0\n', truncated: false },
+    ],
+  },
+  acceptedAplusB(8, hours(-47)),
+  { submissionId: 9, problemId: 1, status: 'DONE', verdict: 'COMPILE_ERROR', passedCases: 0, totalCases: 3, maxTimeMs: null, maxMemoryKb: null, compileOutput: "Main.java:7: error: ')' expected", cases: [], judgedAt: days(-1) },
+  {
+    submissionId: 10, problemId: 2, status: 'DONE', verdict: 'WRONG_ANSWER', passedCases: 0, totalCases: 2, maxTimeMs: 4, maxMemoryKb: 1700, compileOutput: null, judgedAt: hours(-5),
+    cases: [
+      { position: 0, verdict: 'WRONG_ANSWER', timeMs: 3, memoryKb: 1700, actualOutput: '4 5 6\n', truncated: false },
+      { position: 1, verdict: 'WRONG_ANSWER', timeMs: 4, memoryKb: 1700, actualOutput: '8 9 10\n', truncated: false },
+    ],
+  },
+  acceptedTimes(11, hours(-3)),
+  acceptedTimes(12, hours(-2)),
+  {
+    submissionId: 13, problemId: 2, status: 'DONE', verdict: 'TIME_LIMIT', passedCases: 0, totalCases: 2, maxTimeMs: 2000, maxMemoryKb: 1700, compileOutput: null, judgedAt: hours(-0.5),
+    cases: [
+      { position: 0, verdict: 'TIME_LIMIT', timeMs: 2000, memoryKb: 1700, actualOutput: '', truncated: false },
+      { position: 1, verdict: 'TIME_LIMIT', timeMs: 2000, memoryKb: 1700, actualOutput: '', truncated: false },
     ],
   },
 ]

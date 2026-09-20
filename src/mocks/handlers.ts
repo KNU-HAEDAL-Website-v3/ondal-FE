@@ -9,8 +9,15 @@ import type {
   CohortResponse,
   CohortStatus,
   ErrorResponse,
+  HojRankingItem,
+  HojRankingResponse,
+  HojSubmissionFeed,
+  HojSubmissionItem,
+  HojUserPageResponse,
   JudgeRunResponse,
   LogoutResponse,
+  ProblemMyStatus,
+  ProblemSolution,
   MemberResponse,
   MyAttendanceResponse,
   NoticeResponse,
@@ -33,10 +40,12 @@ import {
   answers,
   assignments,
   attendances,
+  bookmarks,
   cohorts,
   enrollments,
   judgeResults,
   notices,
+  problemSolutions,
   problems,
   questions,
   sessions,
@@ -48,6 +57,7 @@ import {
   type MockAttendance,
   type MockCohort,
   type MockEnrollment,
+  type MockJudgeResult,
   type MockNotice,
   type MockProblem,
   type MockQuestion,
@@ -210,8 +220,25 @@ function toAssignmentResponse(a: MockAssignment, viewer: MockUser): AssignmentRe
   }
 }
 
+/** 채점 결과 행 + 그 제출의 주인 - 문제 통계·내 상태·랭킹이 전부 이 짝으로 센다 (연습·과제 합산) */
+function judgedRowsOf(problemId: number): { result: MockJudgeResult; loginId: string }[] {
+  return judgeResults
+    .filter((r) => r.problemId === problemId)
+    .map((result) => ({ result, loginId: submissions.find((sub) => sub.id === result.submissionId)?.loginId ?? '' }))
+}
+
+/** BE ProblemService - 나의 상태 (P3): ACCEPTED 가 있으면 SOLVED, 채점 행이 있으면 ATTEMPTED, 없으면 NONE */
+function myStatusOf(problemId: number, viewer: MockUser): ProblemMyStatus {
+  const mine = judgedRowsOf(problemId).filter((row) => row.loginId === viewer.loginId)
+  if (mine.some((row) => row.result.verdict === 'ACCEPTED')) return 'SOLVED'
+  return mine.length > 0 ? 'ATTEMPTED' : 'NONE'
+}
+
 /** BE ProblemService - 목록 행 */
 function toProblemSummary(p: MockProblem, viewer: MockUser): ProblemSummary {
+  const rows = judgedRowsOf(p.id)
+  const accepted = rows.filter((row) => row.result.verdict === 'ACCEPTED')
+  const myStatus = myStatusOf(p.id, viewer)
   return {
     id: p.id,
     problemNo: p.problemNo,
@@ -221,12 +248,13 @@ function toProblemSummary(p: MockProblem, viewer: MockUser): ProblemSummary {
     allowedLanguages: p.allowedLanguages ?? [],
     judgeEnabled: isJudged(p.id),
     assignedCount: assignments.filter((a) => a.problemId === p.id).length,
-    solved: judgeResults.some(
-      (r) =>
-        r.problemId === p.id &&
-        r.verdict === 'ACCEPTED' &&
-        submissions.find((sub) => sub.id === r.submissionId)?.loginId === viewer.loginId,
-    ),
+    solved: myStatus === 'SOLVED',
+    // P3 통계 - 푼 사람 수(ACCEPTED 사용자 distinct)·채점된 제출 수·정답률(채점 0건이면 null)
+    solvedUserCount: new Set(accepted.map((row) => row.loginId)).size,
+    submissionCount: rows.length,
+    acceptedRate: rows.length === 0 ? null : Math.round((accepted.length * 100) / rows.length),
+    myStatus,
+    bookmarked: bookmarks.has(`${viewer.loginId}:${p.id}`),
   }
 }
 
@@ -244,7 +272,168 @@ function toProblemResponse(p: MockProblem, viewer: MockUser): ProblemResponse {
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
     canEdit: isOperatorAnywhere(viewer),
+    // 정답 코드의 존재는 운영진 이상에게만 (P3 6절) - 학생에게는 늘 []
+    solutionLanguages: isOperatorAnywhere(viewer) ? solutionsOf(p.id).map((s) => s.language) : [],
   }
+}
+
+// ---- HOJ P3 헬퍼 - 채점 현황 · 사용자 페이지 · 랭킹 · 풀이 공개 · 정답 코드 (docs hoj/api.md) --------------
+
+/** 분반 밖(HOJ)에서의 직책 - 관리자면 해구르르/관리자, 어느 분반에서든 운영진이면 교육운영진, 나머지 일반 수강생 */
+function hojTitle(user: MockUser): string {
+  if (isAdminRole(user.globalRole)) return globalRoleLabel(user.globalRole)
+  return enrollments.some((e) => e.loginId === user.loginId && e.role === 'OPERATOR') ? '교육운영진' : '일반 수강생'
+}
+
+function hojUserSummary(user: MockUser): UserSummary {
+  return { id: user.id, name: user.name, title: hojTitle(user) }
+}
+
+/** 연습 제출만 (problemId 있음) - 채점 현황·다른 사람 풀이·사용자 페이지 제출 통계의 모집단 */
+function practiceSubmissions(): MockSubmission[] {
+  return submissions.filter((s) => s.problemId != null)
+}
+
+/** 피드 항목 - 코드 전문은 싣지 않는다 (2절). 결과 행이 아직 없으면 PENDING 으로 */
+function toFeedItem(s: MockSubmission): HojSubmissionItem {
+  const problem = problems.find((p) => p.id === s.problemId)
+  const user = users.find((u) => u.loginId === s.loginId)!
+  const result = resultOf(s.id)
+  const judging = !result || result.status === 'PENDING' || result.status === 'RUNNING'
+  return {
+    id: s.id,
+    problem: { id: problem?.id ?? 0, problemNo: problem?.problemNo ?? 0, title: problem?.title ?? '(삭제된 문제)' },
+    user: hojUserSummary(user),
+    language: s.language ?? '',
+    judgeStatus: result?.status ?? 'PENDING',
+    verdict: judging ? null : (result?.verdict ?? null),
+    passedCases: result?.passedCases ?? 0,
+    totalCases: result?.totalCases ?? 0,
+    maxTimeMs: result?.maxTimeMs ?? null,
+    maxMemoryKb: result?.maxMemoryKb ?? null,
+    submittedAt: s.submittedAt,
+  }
+}
+
+/** 사용자가 푼 문제 → 처음 맞힌 시각 (연습·과제 합산). 시도만 한 문제는 null */
+function solvedMapOf(loginId: string): Map<number, string | null> {
+  const map = new Map<number, string | null>()
+  for (const r of judgeResults) {
+    const sub = submissions.find((s) => s.id === r.submissionId)
+    if (!sub || sub.loginId !== loginId) continue
+    const prev = map.get(r.problemId)
+    if (r.verdict === 'ACCEPTED') {
+      const at = r.judgedAt ?? sub.submittedAt
+      map.set(r.problemId, prev == null || at < prev ? at : prev)
+    } else if (prev === undefined) {
+      map.set(r.problemId, null)
+    }
+  }
+  return map
+}
+
+/**
+ * 랭킹 (4절) - solvedCount desc → lastSolvedAt asc(같은 수에 먼저 도달한 사람) → name asc. 동점은 같은 순위(1, 1, 3). 푼 문제 0개는 제외.
+ * lastSolvedAt = 푼 문제마다의 "처음 맞힌 시각" 중 가장 늦은 것 = 지금 개수에 도달한 시각
+ */
+function rankingOf(cohortId: number | null): HojRankingItem[] {
+  const pool = cohortId === null ? users : users.filter((u) => enrollments.some((e) => e.cohortId === cohortId && e.loginId === u.loginId))
+  const rows = pool
+    .map((u) => {
+      const solvedAt = [...solvedMapOf(u.loginId).values()].filter((at): at is string => at !== null)
+      return {
+        user: u,
+        solvedCount: solvedAt.length,
+        lastSolvedAt: solvedAt.reduce((max, at) => (at > max ? at : max), ''),
+        submissionCount: practiceSubmissions().filter((s) => s.loginId === u.loginId).length,
+      }
+    })
+    .filter((row) => row.solvedCount > 0)
+    .sort((a, b) => b.solvedCount - a.solvedCount || a.lastSolvedAt.localeCompare(b.lastSolvedAt) || a.user.name.localeCompare(b.user.name, 'ko'))
+  return rows.map((row, index) => {
+    const tiedWith = rows.findIndex((r) => r.solvedCount === row.solvedCount && r.lastSolvedAt === row.lastSolvedAt)
+    return { rank: (tiedWith === -1 ? index : tiedWith) + 1, user: hojUserSummary(row.user), solvedCount: row.solvedCount, submissionCount: row.submissionCount, lastSolvedAt: row.lastSolvedAt }
+  })
+}
+
+/** 사용자 페이지 (3절) - 푼 문제·태그 숙련도는 연습·과제 합산, 제출 수·언어·잔디·최근 제출은 연습만 */
+function toUserPage(target: MockUser): HojUserPageResponse {
+  const solvedMap = solvedMapOf(target.loginId)
+  const solvedIds = [...solvedMap.entries()].filter(([, at]) => at !== null).map(([id]) => id)
+  const attemptedIds = [...solvedMap.entries()].filter(([, at]) => at === null).map(([id]) => id)
+  const chip = (id: number) => {
+    const p = problems.find((pr) => pr.id === id)
+    return p ? { id: p.id, problemNo: p.problemNo, title: p.title, difficulty: p.difficulty ?? null } : null
+  }
+  const chips = (ids: number[]) => ids.map(chip).filter((c): c is NonNullable<typeof c> => c !== null).sort((a, b) => a.problemNo - b.problemNo)
+  const mine = practiceSubmissions().filter((s) => s.loginId === target.loginId)
+  const acceptedCount = mine.filter((s) => resultOf(s.id)?.verdict === 'ACCEPTED').length
+  const languageCounts = new Map<string, number>()
+  for (const s of mine) languageCounts.set(s.language ?? '', (languageCounts.get(s.language ?? '') ?? 0) + 1)
+  // 잔디 - KST 날짜 기준 최근 365일, 0인 날은 생략
+  const since = Date.now() - 365 * 86_400_000
+  const activity = new Map<string, number>()
+  for (const s of mine) {
+    if (Date.parse(s.submittedAt) < since) continue
+    const date = new Date(s.submittedAt).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })
+    activity.set(date, (activity.get(date) ?? 0) + 1)
+  }
+  return {
+    user: hojUserSummary(target),
+    joinedAt: '2026-08-01T00:00:00Z',
+    rank: rankingOf(null).find((row) => row.user.id === target.id)?.rank ?? null,
+    stats: {
+      solvedCount: solvedIds.length,
+      attemptedCount: attemptedIds.length,
+      submissionCount: mine.length,
+      acceptedCount,
+      acceptedRate: mine.length === 0 ? null : Math.round((acceptedCount * 100) / mine.length),
+    },
+    languages: [...languageCounts.entries()].map(([language, count]) => ({ language, count })).sort((a, b) => b.count - a.count || a.language.localeCompare(b.language)),
+    solvedProblems: chips(solvedIds),
+    attemptedProblems: chips(attemptedIds),
+    tagStats: [...tags]
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+      .map((t) => ({
+        tag: { id: t.id, name: t.name },
+        solved: problems.filter((p) => p.tagIds.includes(t.id) && solvedIds.includes(p.id)).length,
+        total: problems.filter((p) => p.tagIds.includes(t.id)).length,
+      }))
+      .filter((row) => row.total > 0),
+    activity: [...activity.entries()].map(([date, count]) => ({ date, count })).sort((a, b) => a.date.localeCompare(b.date)),
+    recentSubmissions: [...mine].sort((a, b) => b.id - a.id).slice(0, 20).map(toFeedItem),
+  }
+}
+
+/** 문제의 정답 코드 - 언어 이름순 (6절) */
+function solutionsOf(problemId: number) {
+  return problemSolutions.filter((s) => s.problemId === problemId).sort((a, b) => a.language.localeCompare(b.language))
+}
+
+function toSolutionResponse(s: (typeof problemSolutions)[number]): ProblemSolution {
+  const author = users.find((u) => u.loginId === s.updatedBy)
+  return {
+    language: s.language,
+    codeText: s.codeText,
+    updatedBy: author ? hojUserSummary(author) : { id: 0, name: s.updatedBy, title: '교육운영진' },
+    updatedAt: s.updatedAt,
+  }
+}
+
+/** 실행 한도 (8절) - 사용자당 분당 10회, 메모리 카운터. 브라우저 세션 안에서만 의미 있다 */
+const RUN_LIMIT_PER_MINUTE = 10
+const runLog = new Map<string, number[]>()
+
+function runAllowed(loginId: string): boolean {
+  const now = Date.now()
+  const recent = (runLog.get(loginId) ?? []).filter((at) => now - at < 60_000)
+  if (recent.length >= RUN_LIMIT_PER_MINUTE) {
+    runLog.set(loginId, recent)
+    return false
+  }
+  recent.push(now)
+  runLog.set(loginId, recent)
+  return true
 }
 
 /** V7 배정 요청 검증 - problemId 필수, dueAt 필수, sessionNo 1 이상(선택). 제목·본문은 문제의 것이라 여기 없다 */
@@ -2106,6 +2295,182 @@ export const handlers = [
       status: 201,
       headers: { Location: `/api/problems/${problem.id}/submissions/${created.id}` },
     })
+  }),
+
+  // ---- HOJ P3 (docs hoj/api.md) - 채점 현황 · 사용자 페이지 · 랭킹 · 풀이 공개 · 정답 코드 · 북마크 · 실행 ------------
+
+  // 2절 채점 현황 피드 - 연습 제출만, id desc, beforeId 커서
+  http.get('/api/hoj/submissions', async ({ request }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const params = new URL(request.url).searchParams
+    const problemId = params.get('problemId')
+    const userId = params.get('userId')
+    const verdict = params.get('verdict')
+    const language = params.get('language')
+    const beforeId = params.get('beforeId')
+    const size = Math.min(200, Math.max(1, Number(params.get('size') ?? 50) || 50))
+    const list = practiceSubmissions()
+      .filter((s) => problemId === null || s.problemId === Number(problemId))
+      .filter((s) => userId === null || users.find((u) => u.loginId === s.loginId)?.id === Number(userId))
+      .filter((s) => language === null || s.language === language)
+      .filter((s) => verdict === null || resultOf(s.id)?.verdict === verdict)
+      .filter((s) => beforeId === null || s.id < Number(beforeId))
+      .sort((a, b) => b.id - a.id)
+    const page = list.slice(0, size)
+    const body: HojSubmissionFeed = { items: page.map(toFeedItem), nextBeforeId: list.length > size ? page[page.length - 1].id : null }
+    return HttpResponse.json(body)
+  }),
+
+  // 3절 사용자 페이지 - 누구나 누구의 페이지든. 없으면 404
+  http.get('/api/hoj/users/:userId', async ({ params }) => {
+    await delay(350)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const target = users.find((u) => u.id === Number(params.userId))
+    if (!target) return error(404, 'NOT_FOUND', '사용자를 찾을 수 없습니다.')
+    return HttpResponse.json(toUserPage(target))
+  }),
+
+  // 4절 랭킹 - cohortId 를 주면 그 분반 소속만. me 는 요청자(푼 문제 0개면 null)
+  http.get('/api/hoj/ranking', async ({ request }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const params = new URL(request.url).searchParams
+    const cohortParam = params.get('cohortId')
+    const cohortId = cohortParam === null ? null : Number(cohortParam)
+    if (cohortId !== null && !cohorts.some((c) => c.id === cohortId)) return error(404, 'NOT_FOUND', '분반을 찾을 수 없습니다.')
+    const size = Math.min(200, Math.max(1, Number(params.get('size') ?? 100) || 100))
+    const items = rankingOf(cohortId)
+    const mine = items.find((row) => row.user.id === user.id)
+    const body: HojRankingResponse = { items: items.slice(0, size), me: mine ? { rank: mine.rank, solvedCount: mine.solvedCount } : null }
+    return HttpResponse.json(body)
+  }),
+
+  // 5절 다른 사람 풀이 - 맞힌 사람·운영진 이상만(403 NOT_SOLVED). 연습 ACCEPTED 를 사용자당 최신 1건, 본인 제외, 최대 50
+  http.get('/api/problems/:problemId/accepted-solutions', async ({ params, request }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const problem = problems.find((pr) => pr.id === Number(params.problemId))
+    if (!problem) return error(404, 'NOT_FOUND', '문제를 찾을 수 없습니다.')
+    if (myStatusOf(problem.id, user) !== 'SOLVED' && !isOperatorAnywhere(user)) {
+      return error(403, 'NOT_SOLVED', '이 문제를 맞힌 뒤에 다른 사람의 풀이를 볼 수 있어요.')
+    }
+    const language = new URL(request.url).searchParams.get('language')
+    const latestByUser = new Map<string, MockSubmission>()
+    for (const s of practiceSubmissions()
+      .filter((s) => s.problemId === problem.id && s.loginId !== user.loginId && resultOf(s.id)?.verdict === 'ACCEPTED')
+      .filter((s) => language === null || s.language === language)
+      .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))) {
+      if (!latestByUser.has(s.loginId)) latestByUser.set(s.loginId, s)
+    }
+    const body = [...latestByUser.values()].slice(0, 50).map((s) => {
+      const result = resultOf(s.id)
+      return {
+        submissionId: s.id,
+        user: hojUserSummary(users.find((u) => u.loginId === s.loginId)!),
+        language: s.language ?? '',
+        codeText: s.codeText ?? '',
+        submittedAt: s.submittedAt,
+        maxTimeMs: result?.maxTimeMs ?? null,
+        maxMemoryKb: result?.maxMemoryKb ?? null,
+      }
+    })
+    return HttpResponse.json(body)
+  }),
+
+  // 6절 정답 코드 - 운영진 이상만 (학생은 403, 존재 비노출은 solutionLanguages=[] 로)
+  http.get('/api/problems/:problemId/solutions', async ({ params }) => {
+    await delay(250)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (!isOperatorAnywhere(user)) return error(403, 'FORBIDDEN', '운영진만 사용할 수 있습니다.')
+    const problem = problems.find((pr) => pr.id === Number(params.problemId))
+    if (!problem) return error(404, 'NOT_FOUND', '문제를 찾을 수 없습니다.')
+    return HttpResponse.json(solutionsOf(problem.id).map(toSolutionResponse))
+  }),
+
+  http.put('/api/problems/:problemId/solutions', async ({ params, request }) => {
+    await delay(300)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    if (!isOperatorAnywhere(user)) return error(403, 'FORBIDDEN', '운영진만 사용할 수 있습니다.')
+    const problem = problems.find((pr) => pr.id === Number(params.problemId))
+    if (!problem) return error(404, 'NOT_FOUND', '문제를 찾을 수 없습니다.')
+    const body = (await request.json().catch(() => null)) as { solutions?: unknown } | null
+    if (!body || !Array.isArray(body.solutions)) return error(400, 'INVALID_INPUT', 'solutions 는 null 일 수 없습니다. 없으면 빈 배열로 보내세요.')
+    if (body.solutions.length > 6) return error(400, 'INVALID_INPUT', '정답 코드는 언어당 1개, 최대 6개까지 저장할 수 있습니다.')
+    const next: { language: string; codeText: string }[] = []
+    for (const raw of body.solutions as unknown[]) {
+      const item = (raw ?? {}) as { language?: unknown; codeText?: unknown }
+      const language = typeof item.language === 'string' ? item.language.trim() : ''
+      const codeText = typeof item.codeText === 'string' ? item.codeText : ''
+      if (!JUDGE_LANGUAGES.includes(language)) return error(400, 'INVALID_INPUT', `지원하지 않는 언어입니다: ${language || '(비어 있음)'} (지원: ${JUDGE_LANGUAGES.join(', ')})`)
+      if (codeText.trim() === '') return error(400, 'INVALID_INPUT', `${language} 정답 코드가 비어 있습니다.`)
+      if (codeText.length > 100_000) return error(400, 'INVALID_INPUT', '정답 코드는 100,000자 이하여야 합니다.')
+      if (next.some((n) => n.language === language)) return error(400, 'INVALID_INPUT', `같은 언어의 정답 코드가 두 번 있습니다: ${language}`)
+      next.push({ language, codeText })
+    }
+    for (let i = problemSolutions.length - 1; i >= 0; i--) if (problemSolutions[i].problemId === problem.id) problemSolutions.splice(i, 1)
+    const stamp = new Date().toISOString()
+    for (const n of next) problemSolutions.push({ problemId: problem.id, language: n.language, codeText: n.codeText, updatedBy: user.loginId, updatedAt: stamp })
+    return HttpResponse.json(solutionsOf(problem.id).map(toSolutionResponse))
+  }),
+
+  // 7절 북마크 - 멱등, 204
+  http.put('/api/problems/:problemId/bookmark', async ({ params }) => {
+    await delay(150)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const problem = problems.find((pr) => pr.id === Number(params.problemId))
+    if (!problem) return error(404, 'NOT_FOUND', '문제를 찾을 수 없습니다.')
+    bookmarks.add(`${user.loginId}:${problem.id}`)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.delete('/api/problems/:problemId/bookmark', async ({ params }) => {
+    await delay(150)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const problem = problems.find((pr) => pr.id === Number(params.problemId))
+    if (!problem) return error(404, 'NOT_FOUND', '문제를 찾을 수 없습니다.')
+    bookmarks.delete(`${user.loginId}:${problem.id}`)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // 8절 내 입력으로 실행 - 로그인 누구나, 저장 없음. 허용 언어 밖 400, 분당 10회 초과 429, 엔진 장애 503
+  http.post('/api/problems/:problemId/run', async ({ params, request }) => {
+    await delay(600)
+    const user = currentUser()
+    if (!user) return unauthenticated()
+    const problem = problems.find((pr) => pr.id === Number(params.problemId))
+    if (!problem) return error(404, 'NOT_FOUND', '문제를 찾을 수 없습니다.')
+    const body = (await request.json().catch(() => null)) as { language?: unknown; sourceCode?: unknown; inputs?: unknown } | null
+    const language = typeof body?.language === 'string' ? body.language.trim() : ''
+    const sourceCode = typeof body?.sourceCode === 'string' ? body.sourceCode : ''
+    const inputs = Array.isArray(body?.inputs) ? (body.inputs as unknown[]).map((i) => (typeof i === 'string' ? i : '')) : []
+    if (!language) return error(400, 'INVALID_INPUT', '언어는 비어 있을 수 없습니다.')
+    if (!sourceCode.trim()) return error(400, 'INVALID_INPUT', '코드는 비어 있을 수 없습니다.')
+    if (sourceCode.length > 100_000) return error(400, 'INVALID_INPUT', '코드는 100,000자 이하여야 합니다.')
+    if (inputs.length < 1 || inputs.length > 5) return error(400, 'INVALID_INPUT', '입력은 1~5개여야 합니다.')
+    if (inputs.some((i) => i.length > 10_000)) return error(400, 'INVALID_INPUT', '입력은 각 10,000자 이하여야 합니다.')
+    const allowed = problem.allowedLanguages ?? []
+    if (allowed.length > 0 && !allowed.includes(language)) return error(400, 'INVALID_INPUT', `이 문제는 ${allowed.join(', ')} 로만 실행할 수 있습니다.`)
+    if (!JUDGE_LANGUAGES.includes(language)) return error(400, 'INVALID_INPUT', `지원하지 않는 언어입니다: ${language} (지원: ${JUDGE_LANGUAGES.join(', ')})`)
+    if (!runAllowed(user.loginId)) return error(429, 'TOO_MANY_REQUESTS', `실행은 1분에 ${RUN_LIMIT_PER_MINUTE}회까지예요. 잠시 뒤 다시 시도해 주세요.`)
+    const outcome = fakeRun(sourceCode, inputs, limitsOf(problem))
+    if ('engineError' in outcome) return error(503, 'JUDGE_UNAVAILABLE', '채점 엔진이 연결되지 않았어요. 잠시 뒤 다시 시도해 주세요.')
+    const response: JudgeRunResponse =
+      outcome.compileOutput !== null
+        ? { compileOutput: outcome.compileOutput, runs: [] }
+        : {
+            compileOutput: null,
+            runs: outcome.runs.map((run, index) => ({ index, stdout: run.stdout, stderr: run.stderr, verdict: runVerdict(run, null), timeMs: run.timeMs, memoryKb: run.memoryKb })),
+          }
+    return HttpResponse.json(response)
   }),
 
   http.get('/api/cohorts/:cohortId/assignments/:assignmentId/status-board', async ({ params }) => {
