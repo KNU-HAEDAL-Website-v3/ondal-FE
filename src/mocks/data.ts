@@ -11,6 +11,8 @@ export interface MockUser {
   globalRole: GlobalRole
   /** 승인 상태 - newbie 만 PENDING (시더와 동일). 스텁 로그인으로 새로 생긴 계정은 ACTIVE */
   status: UserStatus
+  /** 프로필 사진 - 운영은 홈페이지(구글) 프로필을 로그인 때 받아 옴. mock 은 student1 만 사진(로컬 svg), 나머지는 이름 첫 글자 */
+  avatarUrl?: string | null
 }
 
 export interface MockCohort {
@@ -34,7 +36,7 @@ export const users: MockUser[] = [
   // 관리자(MAINTAINER) - 유지보수 팀. 해구르르와 같은 권한, 표시만 다름 (BE LocalDataSeeder 와 동일, docs 결정 12)
   { id: 7, loginId: 'maintainer', name: '유지보수', globalRole: 'MAINTAINER', status: 'ACTIVE' },
   { id: 2, loginId: 'operator1', name: 'operator1', globalRole: 'MEMBER', status: 'ACTIVE' },
-  { id: 3, loginId: 'student1', name: 'student1', globalRole: 'MEMBER', status: 'ACTIVE' },
+  { id: 3, loginId: 'student1', name: 'student1', globalRole: 'MEMBER', status: 'ACTIVE', avatarUrl: '/favicon.svg' },
   { id: 4, loginId: 'student2', name: 'student2', globalRole: 'MEMBER', status: 'ACTIVE' },
   { id: 5, loginId: 'student3', name: 'student3', globalRole: 'MEMBER', status: 'ACTIVE' },
   // 승인 대기 화면·부원 관리(승인) 확인용 - newbie 로 로그인하면 "승인 대기" 만 보인다 (BE LocalDataSeeder 와 동일)

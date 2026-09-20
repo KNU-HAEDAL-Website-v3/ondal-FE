@@ -22,6 +22,8 @@ export interface UserResponse {
   name: string
   globalRole: GlobalRole
   status: UserStatus
+  /** 프로필 사진 주소 - 홈페이지(구글) 프로필, 로그인 때 ID 토큰 picture 클레임으로 받음. 없으면 null → 이름 첫 글자 (docs 결정 14) */
+  avatarUrl: string | null
 }
 
 /** 부원 목록 한 줄의 소속 요약 - GET /api/users */

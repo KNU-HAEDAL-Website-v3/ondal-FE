@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import { Activity, Code2, LayoutGrid, ListChecks, LogOut, Tags, Trophy, UserRound } from 'lucide-react'
 import { useLogout, useMe } from '@/api/auth'
 import { SiteFooter } from '@/components/SiteFooter'
+import { UserAvatar } from '@/components/UserAvatar'
 import { AppSwitchButton } from '@/components/AppSwitchButton'
 import { rememberPath } from '@/lib/appSwitch'
 import { cn } from '@/lib/utils'
@@ -111,9 +112,7 @@ export function HojShell() {
                 className="flex items-center gap-2 rounded-md py-1 pr-2 pl-1 hover:bg-secondary"
                 title={`마이페이지 - ${globalRoleLabel(me.globalRole)}`}
               >
-                <span className="flex size-8 items-center justify-center rounded-full border bg-secondary text-xs font-semibold">
-                  {me.name?.charAt(0) ?? '?'}
-                </span>
+                <UserAvatar name={me.name} avatarUrl={me.avatarUrl} />
                 <span className="hidden text-sm font-medium sm:inline">{me.name}</span>
               </Link>
             )}

@@ -102,7 +102,7 @@ function error(status: number, code: string, message: string) {
 const unauthenticated = () => error(401, 'UNAUTHENTICATED', '로그인이 필요합니다.')
 
 function toUserResponse(u: MockUser): UserResponse {
-  return { id: u.id, loginId: u.loginId, name: u.name, globalRole: u.globalRole, status: u.status }
+  return { id: u.id, loginId: u.loginId, name: u.name, globalRole: u.globalRole, status: u.status, avatarUrl: u.avatarUrl ?? null }
 }
 
 /** BE UserDirectoryEntry.of - 부원 목록 한 줄 (소속 요약 포함) */
